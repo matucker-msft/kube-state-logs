@@ -1,0 +1,17 @@
+apiVersion: v2
+name: kube-state-logs
+description: A Helm chart for kube-state-logs - structured logging of Kubernetes cluster state
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - kubernetes
+  - monitoring
+  - logging
+  - metrics
+home: https://github.com/matucker-msft/kube-state-logs
+sources:
+  - https://github.com/matucker-msft/kube-state-logs
+maintainers:
+  - name: matucker-msft
+    email: matucker@microsoft.com 

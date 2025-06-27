@@ -1,0 +1,22 @@
+# Default values for kube-state-logs
+
+# Image configuration
+image:
+  repository: kube-state-logs
+  tag: "0.1.0"
+
+# Application configuration
+config:
+  logInterval: "1m"
+  resources: "deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces"
+  namespaces: ""
+  logLevel: "info"
+
+# Resource limits
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
