@@ -18,25 +18,66 @@ metadata:
     app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
 rules:
-  # Read access to deployments
+{{- if contains "deployments" .Values.config.resources }}
   - apiGroups: ["apps"]
-    resources: ["deployments", "replicasets", "statefulsets", "daemonsets"]
+    resources: ["deployments"]
     verbs: ["get", "list", "watch"]
-  
-  # Read access to pods
+{{- end }}
+{{- if contains "replicasets" .Values.config.resources }}
+  - apiGroups: ["apps"]
+    resources: ["replicasets"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
+{{- if contains "statefulsets" .Values.config.resources }}
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
+{{- if contains "daemonsets" .Values.config.resources }}
+  - apiGroups: ["apps"]
+    resources: ["daemonsets"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
+{{- if contains "pods" .Values.config.resources }}
   - apiGroups: [""]
-    resources: ["pods", "services", "nodes", "namespaces"]
+    resources: ["pods"]
     verbs: ["get", "list", "watch"]
-  
-  # Read access to endpoints (for service endpoint counting)
+{{- end }}
+{{- if contains "services" .Values.config.resources }}
   - apiGroups: [""]
-    resources: ["endpoints"]
+    resources: ["services", "endpoints"]
     verbs: ["get", "list", "watch"]
-  
-  # Read access to events (optional, for additional context)
+{{- end }}
+{{- if contains "nodes" .Values.config.resources }}
   - apiGroups: [""]
-    resources: ["events"]
+    resources: ["nodes"]
     verbs: ["get", "list", "watch"]
+{{- end }}
+{{- if contains "namespaces" .Values.config.resources }}
+  - apiGroups: [""]
+    resources: ["namespaces"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
+{{- if contains "jobs" .Values.config.resources }}
+  - apiGroups: ["batch"]
+    resources: ["jobs"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
+{{- if contains "cronjobs" .Values.config.resources }}
+  - apiGroups: ["batch"]
+    resources: ["cronjobs"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
+{{- if contains "configmaps" .Values.config.resources }}
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
+{{- if contains "secrets" .Values.config.resources }}
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

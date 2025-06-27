@@ -8,7 +8,7 @@ image:
 # Application configuration
 config:
   logInterval: "1m"
-  resources: "deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces"
+  resources: "deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces,jobs,cronjobs,configmaps,secrets"
   namespaces: ""
   logLevel: "info"
 

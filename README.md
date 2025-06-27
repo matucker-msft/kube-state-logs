@@ -68,7 +68,7 @@ image:
 
 config:
   logInterval: "1m"
-  resources: "deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces"
+  resources: "deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces,jobs,cronjobs,configmaps,secrets"
   namespaces: ""  # Empty for all namespaces
   logLevel: "info"
 
@@ -86,7 +86,7 @@ resources:
 ```bash
 ./kube-state-logs \
   --log-interval=1m \
-  --resources=deployments,pods,services,nodes \
+  --resources=deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces,jobs,cronjobs,configmaps,secrets \
   --namespaces=default,kube-system \
   --log-level=info \
   --kubeconfig=/path/to/kubeconfig
@@ -111,75 +111,39 @@ kubectl logs -f deployment/kube-state-logs -n monitoring
     "name": "sample-deployment",
     "namespace": "my-sample-namespace",
     "data": {
-    "createdTimestamp": 1718020800,
-    "labels": {
-        "app": "sample-deployment"
-    },
-    "desiredReplicas": 3,
-    "currentReplicas": 3,
-    "readyReplicas": 3,
-    "availableReplicas": 3,
-    "unavailableReplicas": 0,
-    "updatedReplicas": 3,
-    "observedGeneration": 8,
-    "conditionAvailable": true,
-    "conditionProgressing": true,
-        "conditionReplicaFailure": false,
-        "strategyType": "RollingUpdate"
-}
-}
-```
-
-### Pod Log Entry
-
-```json
-{
-    "timestamp": "2024-01-15T10:30:00Z",
-    "resourceType": "pod",
-    "name": "sample-pod-abc123",
-    "namespace": "default",
-    "data": {
-        "nodeName": "worker-node-1",
-        "phase": "Running",
-        "ready": true,
-        "restartCount": 0,
-        "podIP": "10.244.0.5",
-        "qosClass": "Burstable",
-        "conditionAvailable": true,
-        "conditionProgressing": false,
+        "createdTimestamp": 1718020800,
         "labels": {
-            "app": "sample-app"
-        }
-    }
-}
-```
-
-### Container Log Entry
-
-```json
-{
-    "timestamp": "2024-01-15T10:30:00Z",
-    "resourceType": "container",
-    "name": "app-container",
-    "namespace": "default",
-    "data": {
-        "podName": "sample-pod-abc123",
-        "image": "nginx:latest",
-        "ready": true,
-        "restartCount": 0,
-        "state": "running",
-        "stateRunning": true,
-        "resourceRequests": {
-            "cpu": "100m",
-            "memory": "128Mi"
+            "app": "sample-deployment"
         },
-        "resourceLimits": {
-            "cpu": "500m",
-            "memory": "512Mi"
-        }
+        "annotations": {
+            "deployment.kubernetes.io/revision": "1"
+        },
+        "desiredReplicas": 3,
+        "currentReplicas": 3,
+        "readyReplicas": 3,
+        "availableReplicas": 3,
+        "unavailableReplicas": 0,
+        "updatedReplicas": 3,
+        "observedGeneration": 8,
+        "replicasDesired": 3,
+        "replicasAvailable": 3,
+        "replicasUnavailable": 0,
+        "replicasUpdated": 3,
+        "strategyType": "RollingUpdate",
+        "strategyRollingUpdateMaxSurge": 1,
+        "strategyRollingUpdateMaxUnavailable": 1,
+        "conditionAvailable": true,
+        "conditionProgressing": true,
+        "conditionReplicaFailure": false,
+        "createdByKind": "",
+        "createdByName": "",
+        "paused": false,
+        "metadataGeneration": 1
     }
 }
 ```
+
+For comprehensive examples of all supported resource types (pods, containers, services, nodes, replicasets, statefulsets, daemonsets, namespaces), see [RESOURCES.md](RESOURCES.md).
 
 ## Integration
 

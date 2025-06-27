@@ -374,3 +374,94 @@ type NamespaceData struct {
 	// Namespace specific
 	DeletionTimestamp *metav1.Time `json:"deletionTimestamp"`
 }
+
+// JobData represents job-specific metrics (matching kube-state-metrics)
+type JobData struct {
+	// Basic job info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// Job status
+	ActivePods    int32 `json:"activePods"`
+	SucceededPods int32 `json:"succeededPods"`
+	FailedPods    int32 `json:"failedPods"`
+
+	// Job spec
+	Completions           *int32 `json:"completions"`
+	Parallelism           *int32 `json:"parallelism"`
+	BackoffLimit          int32  `json:"backoffLimit"`
+	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds"`
+
+	// Job conditions
+	ConditionComplete bool `json:"conditionComplete"`
+	ConditionFailed   bool `json:"conditionFailed"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+
+	// Job specific
+	JobType string `json:"jobType"` // "Job" or "CronJob"
+	Suspend *bool  `json:"suspend"`
+}
+
+// CronJobData represents cronjob-specific metrics (matching kube-state-metrics)
+type CronJobData struct {
+	// Basic cronjob info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// CronJob spec
+	Schedule                   string `json:"schedule"`
+	ConcurrencyPolicy          string `json:"concurrencyPolicy"`
+	Suspend                    *bool  `json:"suspend"`
+	SuccessfulJobsHistoryLimit *int32 `json:"successfulJobsHistoryLimit"`
+	FailedJobsHistoryLimit     *int32 `json:"failedJobsHistoryLimit"`
+
+	// CronJob status
+	ActiveJobsCount int32 `json:"activeJobsCount"`
+
+	// Last execution info
+	LastScheduleTime *time.Time `json:"lastScheduleTime"`
+	NextScheduleTime *time.Time `json:"nextScheduleTime"`
+
+	// Conditions
+	ConditionActive bool `json:"conditionActive"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// ConfigMapData represents configmap-specific metrics (matching kube-state-metrics)
+type ConfigMapData struct {
+	// Basic configmap info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// ConfigMap specific
+	DataKeys []string `json:"dataKeys"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// SecretData represents secret-specific metrics (matching kube-state-metrics)
+type SecretData struct {
+	// Basic secret info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// Secret specific
+	Type     string   `json:"type"`
+	DataKeys []string `json:"dataKeys"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}

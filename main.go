@@ -18,7 +18,7 @@ func main() {
 	// Parse command line flags
 	var (
 		logInterval = flag.Duration("log-interval", 1*time.Minute, "Interval between log outputs")
-		resources   = flag.String("resources", "deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces", "Comma-separated list of resources to monitor")
+		resources   = flag.String("resources", "deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces,jobs,cronjobs,configmaps,secrets", "Comma-separated list of resources to monitor")
 		namespaces  = flag.String("namespaces", "", "Comma-separated list of namespaces to monitor (empty for all)")
 		logLevel    = flag.String("log-level", "info", "Log level (debug, info, warn, error)")
 		kubeconfig  = flag.String("kubeconfig", "", "Path to kubeconfig file (empty for in-cluster config)")

@@ -95,6 +95,10 @@ func (c *Collector) registerHandlers() {
 	c.handlers["statefulsets"] = resources.NewStatefulSetHandler(c.client)
 	c.handlers["daemonsets"] = resources.NewDaemonSetHandler(c.client)
 	c.handlers["namespaces"] = resources.NewNamespaceHandler(c.client)
+	c.handlers["jobs"] = resources.NewJobHandler(c.client)
+	c.handlers["cronjobs"] = resources.NewCronJobHandler(c.client)
+	c.handlers["configmaps"] = resources.NewConfigMapHandler(c.client)
+	c.handlers["secrets"] = resources.NewSecretHandler(c.client)
 }
 
 // Run starts the informers and collection loop
