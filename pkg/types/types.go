@@ -673,3 +673,185 @@ type ResourceQuotaData struct {
 	// ResourceQuota specific
 	Scopes []string `json:"scopes"`
 }
+
+// PodDisruptionBudgetData represents poddisruptionbudget-specific metrics (matching kube-state-metrics)
+type PodDisruptionBudgetData struct {
+	// Basic poddisruptionbudget info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// PodDisruptionBudget specific
+	MinAvailable             int32 `json:"minAvailable"`
+	MaxUnavailable           int32 `json:"maxUnavailable"`
+	CurrentHealthy           int32 `json:"currentHealthy"`
+	DesiredHealthy           int32 `json:"desiredHealthy"`
+	ExpectedPods             int32 `json:"expectedPods"`
+	DisruptionsAllowed       int32 `json:"disruptionsAllowed"`
+	TotalReplicas            int32 `json:"totalReplicas"`
+	DisruptionAllowed        bool  `json:"disruptionAllowed"`
+	StatusCurrentHealthy     int32 `json:"statusCurrentHealthy"`
+	StatusDesiredHealthy     int32 `json:"statusDesiredHealthy"`
+	StatusExpectedPods       int32 `json:"statusExpectedPods"`
+	StatusDisruptionsAllowed int32 `json:"statusDisruptionsAllowed"`
+	StatusTotalReplicas      int32 `json:"statusTotalReplicas"`
+	StatusDisruptionAllowed  bool  `json:"statusDisruptionAllowed"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// CRDData represents generic CRD metrics (similar to kube-state-metrics)
+type CRDData struct {
+	// Basic CRD info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// CRD specific
+	APIVersion   string                 `json:"apiVersion"`
+	Kind         string                 `json:"kind"`
+	Spec         map[string]interface{} `json:"spec"`
+	Status       map[string]interface{} `json:"status"`
+	CustomFields map[string]interface{} `json:"customFields"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// StorageClassData represents storageclass-specific metrics (matching kube-state-metrics)
+type StorageClassData struct {
+	// Basic storageclass info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// StorageClass specific
+	Provisioner          string                 `json:"provisioner"`
+	ReclaimPolicy        string                 `json:"reclaimPolicy"`
+	VolumeBindingMode    string                 `json:"volumeBindingMode"`
+	AllowVolumeExpansion bool                   `json:"allowVolumeExpansion"`
+	Parameters           map[string]string      `json:"parameters"`
+	MountOptions         []string               `json:"mountOptions"`
+	AllowedTopologies    map[string]interface{} `json:"allowedTopologies"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+
+	// StorageClass specific
+	IsDefaultClass bool `json:"isDefaultClass"`
+}
+
+// NetworkPolicyData represents networkpolicy-specific metrics (matching kube-state-metrics)
+type NetworkPolicyData struct {
+	// Basic networkpolicy info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// NetworkPolicy specific
+	PolicyTypes  []string                   `json:"policyTypes"`
+	IngressRules []NetworkPolicyIngressRule `json:"ingressRules"`
+	EgressRules  []NetworkPolicyEgressRule  `json:"egressRules"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// NetworkPolicyIngressRule represents an ingress rule in a network policy
+type NetworkPolicyIngressRule struct {
+	Ports []NetworkPolicyPort `json:"ports"`
+	From  []NetworkPolicyPeer `json:"from"`
+}
+
+// NetworkPolicyEgressRule represents an egress rule in a network policy
+type NetworkPolicyEgressRule struct {
+	Ports []NetworkPolicyPort `json:"ports"`
+	To    []NetworkPolicyPeer `json:"to"`
+}
+
+// NetworkPolicyPort represents a port in a network policy rule
+type NetworkPolicyPort struct {
+	Protocol string `json:"protocol"`
+	Port     int32  `json:"port"`
+	EndPort  int32  `json:"endPort"`
+}
+
+// NetworkPolicyPeer represents a peer in a network policy rule
+type NetworkPolicyPeer struct {
+	PodSelector       map[string]string      `json:"podSelector"`
+	NamespaceSelector map[string]string      `json:"namespaceSelector"`
+	IPBlock           map[string]interface{} `json:"ipBlock"`
+}
+
+// ReplicationControllerData represents replicationcontroller-specific metrics (matching kube-state-metrics)
+type ReplicationControllerData struct {
+	// Basic replicationcontroller info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// ReplicationController specific
+	DesiredReplicas      int32 `json:"desiredReplicas"`
+	CurrentReplicas      int32 `json:"currentReplicas"`
+	ReadyReplicas        int32 `json:"readyReplicas"`
+	AvailableReplicas    int32 `json:"availableReplicas"`
+	FullyLabeledReplicas int32 `json:"fullyLabeledReplicas"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+
+	// ReplicationController specific
+	ObservedGeneration int64 `json:"observedGeneration"`
+}
+
+// LimitRangeData represents limitrange-specific metrics (matching kube-state-metrics)
+type LimitRangeData struct {
+	// Basic limitrange info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// LimitRange specific
+	Limits []LimitRangeItem `json:"limits"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// LimitRangeItem represents a limit range item
+type LimitRangeItem struct {
+	Type                 string            `json:"type"`
+	ResourceType         string            `json:"resourceType"`
+	ResourceName         string            `json:"resourceName"`
+	Min                  map[string]string `json:"min"`
+	Max                  map[string]string `json:"max"`
+	Default              map[string]string `json:"default"`
+	DefaultRequest       map[string]string `json:"defaultRequest"`
+	MaxLimitRequestRatio map[string]string `json:"maxLimitRequestRatio"`
+}
+
+// LeaseData represents lease-specific metrics (matching kube-state-metrics)
+type LeaseData struct {
+	// Basic lease info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// Lease specific
+	HolderIdentity       string     `json:"holderIdentity"`
+	LeaseDurationSeconds int32      `json:"leaseDurationSeconds"`
+	RenewTime            *time.Time `json:"renewTime"`
+	AcquireTime          *time.Time `json:"acquireTime"`
+	LeaseTransitions     int32      `json:"leaseTransitions"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}

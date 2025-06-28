@@ -23,16 +23,10 @@ type Collector struct {
 	config   *config.Config
 	client   *kubernetes.Clientset
 	logger   interfaces.Logger
-	handlers map[string]ResourceHandler
+	handlers map[string]interfaces.ResourceHandler
 	factory  informers.SharedInformerFactory
 	stopCh   chan struct{}
 	wg       sync.WaitGroup
-}
-
-// ResourceHandler defines the interface for resource-specific collectors
-type ResourceHandler interface {
-	SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error
-	Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error)
 }
 
 // New creates a new Collector instance
@@ -73,7 +67,7 @@ func New(cfg *config.Config) (*Collector, error) {
 		config:   cfg,
 		client:   client,
 		logger:   logger,
-		handlers: make(map[string]ResourceHandler),
+		handlers: make(map[string]interfaces.ResourceHandler),
 		factory:  factory,
 		stopCh:   make(chan struct{}),
 	}
@@ -86,25 +80,34 @@ func New(cfg *config.Config) (*Collector, error) {
 
 // registerHandlers registers all available resource handlers
 func (c *Collector) registerHandlers() {
-	c.handlers["deployments"] = resources.NewDeploymentHandler(c.client)
-	c.handlers["pods"] = resources.NewPodHandler(c.client)
-	c.handlers["services"] = resources.NewServiceHandler(c.client)
-	c.handlers["nodes"] = resources.NewNodeHandler(c.client)
-	c.handlers["replicasets"] = resources.NewReplicaSetHandler(c.client)
-	c.handlers["statefulsets"] = resources.NewStatefulSetHandler(c.client)
-	c.handlers["daemonsets"] = resources.NewDaemonSetHandler(c.client)
-	c.handlers["namespaces"] = resources.NewNamespaceHandler(c.client)
-	c.handlers["jobs"] = resources.NewJobHandler(c.client)
-	c.handlers["cronjobs"] = resources.NewCronJobHandler(c.client)
-	c.handlers["configmaps"] = resources.NewConfigMapHandler(c.client)
-	c.handlers["secrets"] = resources.NewSecretHandler(c.client)
-	c.handlers["persistentvolumeclaims"] = resources.NewPersistentVolumeClaimHandler(c.client)
-	c.handlers["ingresses"] = resources.NewIngressHandler(c.client)
-	c.handlers["horizontalpodautoscalers"] = resources.NewHorizontalPodAutoscalerHandler(c.client)
-	c.handlers["serviceaccounts"] = resources.NewServiceAccountHandler(c.client)
-	c.handlers["endpoints"] = resources.NewEndpointsHandler(c.client)
-	c.handlers["persistentvolumes"] = resources.NewPersistentVolumeHandler(c.client)
-	c.handlers["resourcequotas"] = resources.NewResourceQuotaHandler(c.client)
+	// Register resource handlers
+	handlers := map[string]interfaces.ResourceHandler{
+		"pod":                     resources.NewPodHandler(c.client),
+		"service":                 resources.NewServiceHandler(c.client),
+		"node":                    resources.NewNodeHandler(c.client),
+		"deployment":              resources.NewDeploymentHandler(c.client),
+		"job":                     resources.NewJobHandler(c.client),
+		"cronjob":                 resources.NewCronJobHandler(c.client),
+		"configmap":               resources.NewConfigMapHandler(c.client),
+		"secret":                  resources.NewSecretHandler(c.client),
+		"persistentvolumeclaim":   resources.NewPersistentVolumeClaimHandler(c.client),
+		"ingress":                 resources.NewIngressHandler(c.client),
+		"horizontalpodautoscaler": resources.NewHorizontalPodAutoscalerHandler(c.client),
+		"serviceaccount":          resources.NewServiceAccountHandler(c.client),
+		"endpoints":               resources.NewEndpointsHandler(c.client),
+		"persistentvolume":        resources.NewPersistentVolumeHandler(c.client),
+		"resourcequota":           resources.NewResourceQuotaHandler(c.client),
+		"poddisruptionbudget":     resources.NewPodDisruptionBudgetHandler(c.client),
+		"storageclass":            resources.NewStorageClassHandler(c.client),
+		"networkpolicy":           resources.NewNetworkPolicyHandler(c.client),
+		"replicationcontroller":   resources.NewReplicationControllerHandler(c.client),
+		"limitrange":              resources.NewLimitRangeHandler(c.client),
+		"lease":                   resources.NewLeaseHandler(c.client),
+	}
+
+	for resourceName, handler := range handlers {
+		c.handlers[resourceName] = handler
+	}
 }
 
 // Run starts the informers and collection loop
@@ -179,7 +182,7 @@ func (c *Collector) startResourceTickers(ctx context.Context) {
 		klog.Infof("Starting ticker for %s with interval %v", resourceName, interval)
 
 		c.wg.Add(1)
-		go func(name string, tickerInterval time.Duration, h ResourceHandler) {
+		go func(name string, tickerInterval time.Duration, h interfaces.ResourceHandler) {
 			defer c.wg.Done()
 
 			ticker := time.NewTicker(tickerInterval)
@@ -200,7 +203,7 @@ func (c *Collector) startResourceTickers(ctx context.Context) {
 }
 
 // collectAndLogResource collects and logs data for a specific resource
-func (c *Collector) collectAndLogResource(ctx context.Context, resourceName string, handler ResourceHandler) error {
+func (c *Collector) collectAndLogResource(ctx context.Context, resourceName string, handler interfaces.ResourceHandler) error {
 	entries, err := handler.Collect(ctx, c.config.Namespaces)
 	if err != nil {
 		return fmt.Errorf("failed to collect %s: %w", resourceName, err)

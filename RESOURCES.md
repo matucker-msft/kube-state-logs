@@ -24,6 +24,7 @@ Kube-state-logs supports the following Kubernetes resource types:
 - **Ingresses** - External access configuration and load balancer status
 - **HorizontalPodAutoscalers** - Autoscaling configuration and current metrics
 - **ServiceAccounts** - RBAC service accounts and their associated secrets
+- **PodDisruptionBudgets** - Pod disruption budget configuration and status
 
 ## Resource Examples
 
@@ -544,6 +545,277 @@ Kube-state-logs supports the following Kubernetes resource types:
 }
 ```
 
+### PersistentVolumeClaim Log Entry
+
+```json
+{
+    "timestamp": "2024-01-15T10:30:00Z",
+    "resourceType": "persistentvolumeclaim",
+    "name": "sample-pvc",
+    "namespace": "default",
+    "data": {
+        "createdTimestamp": 1718020800,
+        "labels": {
+            "app": "sample-app"
+        },
+        "annotations": {},
+        "accessModes": ["ReadWriteOnce"],
+        "capacity": {
+            "storage": "1Gi"
+        },
+        "condition": "Bound",
+        "phase": "Bound",
+        "volumeName": "sample-pv"
+    }
+}
+```
+
+### PersistentVolume Log Entry
+
+```json
+{
+    "timestamp": "2024-01-15T10:30:00Z",
+    "resourceType": "persistentvolume",
+    "name": "sample-pv",
+    "namespace": "",
+    "data": {
+        "createdTimestamp": 1718020800,
+        "labels": {
+            "app": "sample-app"
+        },
+        "annotations": {},
+        "capacity": {
+            "storage": "1Gi"
+        },
+        "accessModes": ["ReadWriteOnce"],
+        "phase": "Bound",
+        "claimRef": {
+            "apiVersion": "v1",
+            "kind": "PersistentVolumeClaim",
+            "name": "sample-pvc",
+            "namespace": "default"
+        },
+        "storageClassName": "standard",
+        "volumeMode": "Filesystem",
+        "nodeAffinity": {
+            "required": {
+                "nodeSelectorTerms": [
+                    {
+                        "matchExpressions": [
+                            {
+                                "key": "kubernetes.io/hostname",
+                                "operator": "In",
+                                "values": ["worker-node-1"]
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+    }
+}
+```
+
+### Ingress Log Entry
+
+```json
+{
+    "timestamp": "2024-01-15T10:30:00Z",
+    "resourceType": "ingress",
+    "name": "sample-ingress",
+    "namespace": "default",
+    "data": {
+        "createdTimestamp": 1718020800,
+        "labels": {
+            "app": "sample-app"
+        },
+        "annotations": {},
+        "spec": {
+            "rules": [
+                {
+                    "host": "sample.example.com",
+                    "http": {
+                        "paths": [
+                            {
+                                "path": "/",
+                                "pathType": "Prefix",
+                                "backend": {
+                                    "service": {
+                                        "name": "sample-service",
+                                        "port": {
+                                            "number": 80
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        "status": {
+            "loadBalancer": {
+                "ingress": [
+                    {
+                        "ip": "192.168.1.100"
+                    }
+                ]
+            }
+        }
+    }
+}
+```
+
+### HorizontalPodAutoscaler Log Entry
+
+```json
+{
+    "timestamp": "2024-01-15T10:30:00Z",
+    "resourceType": "horizontalpodautoscaler",
+    "name": "sample-hpa",
+    "namespace": "default",
+    "data": {
+        "createdTimestamp": 1718020800,
+        "labels": {
+            "app": "sample-app"
+        },
+        "annotations": {},
+        "spec": {
+            "scaleTargetRef": {
+                "apiVersion": "apps/v1",
+                "kind": "Deployment",
+                "name": "sample-deployment"
+            },
+            "minReplicas": 1,
+            "maxReplicas": 5,
+            "targetCPUUtilizationPercentage": 80
+        },
+        "status": {
+            "currentReplicas": 3,
+            "desiredReplicas": 3,
+            "currentCPUUtilizationPercentage": 70
+        }
+    }
+}
+```
+
+### ServiceAccount Log Entry
+
+```json
+{
+    "timestamp": "2024-01-15T10:30:00Z",
+    "resourceType": "serviceaccount",
+    "name": "sample-sa",
+    "namespace": "default",
+    "data": {
+        "createdTimestamp": 1718020800,
+        "labels": {
+            "app": "sample-app"
+        },
+        "annotations": {},
+        "imagePullSecrets": [
+            {
+                "name": "sample-secret"
+            }
+        ],
+        "automountServiceAccountToken": true
+    }
+}
+```
+
+### Endpoints Log Entry
+
+```json
+{
+    "timestamp": "2024-01-15T10:30:00Z",
+    "resourceType": "endpoints",
+    "name": "sample-service",
+    "namespace": "default",
+    "data": {
+        "createdTimestamp": 1718020800,
+        "labels": {
+            "app": "sample-service"
+        },
+        "annotations": {},
+        "subsets": [
+            {
+                "addresses": [
+                    {
+                        "ip": "10.244.0.5"
+                    }
+                ],
+                "ports": [
+                    {
+                        "name": "http",
+                        "port": 8080
+                    }
+                ]
+            }
+        ]
+    }
+}
+```
+
+### ResourceQuota Log Entry
+
+```json
+{
+    "timestamp": "2024-01-15T10:30:00Z",
+    "resourceType": "resourcequota",
+    "name": "sample-quota",
+    "namespace": "default",
+    "data": {
+        "createdTimestamp": 1718020800,
+        "labels": {
+            "app": "sample-app"
+        },
+        "annotations": {},
+        "hard": {
+            "pods": "10",
+            "memory": "500Mi",
+            "cpu": "500m"
+        },
+        "used": {
+            "pods": "3",
+            "memory": "128Mi",
+            "cpu": "250m"
+        }
+    }
+}
+```
+
+### PodDisruptionBudget Log Entry
+
+```json
+{
+    "timestamp": "2024-01-15T10:30:00Z",
+    "resourceType": "poddisruptionbudget",
+    "name": "sample-pdb",
+    "namespace": "default",
+    "data": {
+        "createdTimestamp": 1718020800,
+        "labels": {
+            "app": "sample-app"
+        },
+        "annotations": {},
+        "spec": {
+            "minAvailable": 1,
+            "selector": {
+                "matchLabels": {
+                    "app": "sample-app"
+                }
+            }
+        },
+        "status": {
+            "currentHealthy": 2,
+            "desiredHealthy": 1,
+            "disruptionsAllowed": 1,
+            "expectedPods": 3
+        }
+    }
+}
+```
+
 ## Field Descriptions
 
 ### Common Fields
@@ -577,5 +849,37 @@ Each resource type includes fields that match the corresponding kube-state-metri
 - **Ingresses**: Host rules, TLS configuration, load balancer status, and path mappings
 - **HorizontalPodAutoscalers**: Target metrics, current utilization, scaling conditions, and replica ranges
 - **ServiceAccounts**: Associated secrets, image pull secrets, and token mounting configuration
+- **PodDisruptionBudgets**: Configuration and status of pod disruption budgets
 
 For detailed field descriptions and their meanings, refer to the [Kubernetes API documentation](https://kubernetes.io/docs/reference/kubernetes-api/). 
+
+## Generic CRD Support
+
+kube-state-logs can log any Kubernetes Custom Resource Definition (CRD) generically. You can specify which CRDs to log and which fields to extract using the `--crd-configs` flag or Helm values.
+
+### What is logged for CRDs?
+- Metadata: name, namespace, labels, annotations, creation timestamp
+- `spec` and `status` fields (full objects)
+- Any custom fields you specify (dot-separated paths)
+
+### Example CLI usage
+
+```
+--crd-configs="mygroup.example.com/v1:widgets:spec.size|spec.color,anothergroup.io/v1:foos:spec.enabled"
+```
+
+### Example Helm values
+
+```yaml
+config:
+  crdConfigs:
+    - apiVersion: mygroup.example.com/v1
+      resource: widgets
+      customFields:
+        - spec.size
+        - spec.color
+    - apiVersion: anothergroup.io/v1
+      resource: foos
+      customFields:
+        - spec.enabled
+``` 

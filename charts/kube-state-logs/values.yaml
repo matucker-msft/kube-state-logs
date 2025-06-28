@@ -9,21 +9,27 @@ image:
 config:
   logInterval: "1m"
   resources:
-    - pods
-    - services
+    - pod
+    - service
+    - node
+    - deployment
+    - job
+    - cronjob
+    - configmap
+    - secret
+    - persistentvolumeclaim
+    - ingress
+    - horizontalpodautoscaler
+    - serviceaccount
     - endpoints
-    - nodes
-    - deployments
-    - jobs
-    - cronjobs
-    - configmaps
-    - secrets
-    - persistentvolumeclaims
-    - persistentvolumes
-    - resourcequotas
-    - ingresses
-    - horizontalpodautoscalers
-    - serviceaccounts
+    - persistentvolume
+    - resourcequota
+    - poddisruptionbudget
+    - storageclass
+    - networkpolicy
+    - replicationcontroller
+    - limitrange
+    - lease
   namespaces: ""
   logLevel: "info"
 

@@ -99,6 +99,11 @@ rules:
     resources: ["resourcequotas"]
     verbs: ["list", "watch"]
 {{- end }}
+{{- if or (has "poddisruptionbudgets" $resources) (has "all" $resources) }}
+  - apiGroups: ["policy"]
+    resources: ["poddisruptionbudgets"]
+    verbs: ["list", "watch"]
+{{- end }}
 {{- if has "ingresses" $resources }}
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses"]
@@ -112,6 +117,31 @@ rules:
 {{- if has "serviceaccounts" $resources }}
   - apiGroups: [""]
     resources: ["serviceaccounts"]
+    verbs: ["list", "watch"]
+{{- end }}
+{{- if has "storageclass" $resources }}
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["list", "watch"]
+{{- end }}
+{{- if has "networkpolicy" $resources }}
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["networkpolicies"]
+    verbs: ["list", "watch"]
+{{- end }}
+{{- if has "replicationcontroller" $resources }}
+  - apiGroups: [""]
+    resources: ["replicationcontrollers"]
+    verbs: ["list", "watch"]
+{{- end }}
+{{- if has "limitrange" $resources }}
+  - apiGroups: [""]
+    resources: ["limitranges"]
+    verbs: ["list", "watch"]
+{{- end }}
+{{- if has "lease" $resources }}
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
     verbs: ["list", "watch"]
 {{- end }}
 ---

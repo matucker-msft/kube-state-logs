@@ -21,6 +21,7 @@ func main() {
 		namespaces      = flag.String("namespaces", "", "Comma-separated list of namespaces to monitor (empty for all)")
 		resources       = flag.String("resources", "", "Comma-separated list of resources to collect (empty for all)")
 		resourceConfigs = flag.String("resource-configs", "", "Comma-separated list of resource:interval pairs (e.g., 'pods:30s,services:60s')")
+		crdConfigs      = flag.String("crd-configs", "", "Comma-separated list of CRD configurations (e.g., 'apps/v1:deployments:spec.replicas|spec.template.spec.containers')")
 		logLevel        = flag.String("log-level", "info", "Log level (debug, info, warn, error)")
 	)
 	flag.Parse()
@@ -39,6 +40,7 @@ func main() {
 		"persistentvolumeclaims",
 		"persistentvolumes",
 		"resourcequotas",
+		"poddisruptionbudgets",
 		"ingresses",
 		"horizontalpodautoscalers",
 		"serviceaccounts",
@@ -54,6 +56,7 @@ func main() {
 		LogInterval:     *logInterval,
 		Resources:       config.ParseResourceList(*resources),
 		ResourceConfigs: config.ParseResourceConfigs(*resourceConfigs, *logInterval),
+		CRDs:            config.ParseCRDConfigs(*crdConfigs),
 		Namespaces:      config.ParseNamespaceList(*namespaces),
 		Kubeconfig:      *kubeconfig,
 	}

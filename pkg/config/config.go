@@ -14,11 +14,19 @@ type ResourceConfig struct {
 	Interval time.Duration
 }
 
+// CRDConfig holds configuration for a specific CRD
+type CRDConfig struct {
+	APIVersion   string   // e.g., "apps/v1"
+	Resource     string   // e.g., "deployments"
+	CustomFields []string // e.g., ["spec.replicas", "spec.template.spec.containers"]
+}
+
 // Config holds the configuration for kube-state-logs
 type Config struct {
 	LogInterval     time.Duration
 	Resources       []string
 	ResourceConfigs []ResourceConfig // Individual resource configurations
+	CRDs            []CRDConfig      // CRD configurations
 	Namespaces      []string
 	Kubeconfig      string
 }
@@ -68,6 +76,50 @@ func ParseResourceConfigs(resourceConfigs string, defaultInterval time.Duration)
 			configs = append(configs, ResourceConfig{
 				Name:     resourceName,
 				Interval: interval,
+			})
+		}
+	}
+
+	return configs
+}
+
+// ParseCRDConfigs parses a comma-separated string of CRD configurations
+// Format: "apps/v1:deployments:spec.replicas,spec.template.spec.containers,networking.k8s.io/v1:ingresses:spec.rules"
+func ParseCRDConfigs(crdConfigs string) []CRDConfig {
+	if crdConfigs == "" {
+		return []CRDConfig{}
+	}
+
+	var configs []CRDConfig
+	pairs := strings.Split(crdConfigs, ",")
+
+	for _, pair := range pairs {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+
+		parts := strings.Split(pair, ":")
+		if len(parts) >= 2 {
+			apiVersion := strings.TrimSpace(parts[0])
+			resource := strings.TrimSpace(parts[1])
+
+			var customFields []string
+			if len(parts) > 2 {
+				fieldsStr := strings.TrimSpace(parts[2])
+				if fieldsStr != "" {
+					customFields = strings.Split(fieldsStr, "|")
+					// Trim spaces from each field
+					for i, field := range customFields {
+						customFields[i] = strings.TrimSpace(field)
+					}
+				}
+			}
+
+			configs = append(configs, CRDConfig{
+				APIVersion:   apiVersion,
+				Resource:     resource,
+				CustomFields: customFields,
 			})
 		}
 	}

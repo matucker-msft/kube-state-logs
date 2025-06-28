@@ -146,33 +146,11 @@ func (h *HorizontalPodAutoscalerHandler) createLogEntry(hpa *autoscalingv2.Horiz
 		ScaleTargetKind:                    hpa.Spec.ScaleTargetRef.Kind,
 	}
 
-	// Convert to map[string]any for the LogEntry
-	dataMap := map[string]any{
-		"createdTimestamp":                   data.CreatedTimestamp,
-		"labels":                             data.Labels,
-		"annotations":                        data.Annotations,
-		"minReplicas":                        data.MinReplicas,
-		"maxReplicas":                        data.MaxReplicas,
-		"targetCPUUtilizationPercentage":     data.TargetCPUUtilizationPercentage,
-		"targetMemoryUtilizationPercentage":  data.TargetMemoryUtilizationPercentage,
-		"currentReplicas":                    data.CurrentReplicas,
-		"desiredReplicas":                    data.DesiredReplicas,
-		"currentCPUUtilizationPercentage":    data.CurrentCPUUtilizationPercentage,
-		"currentMemoryUtilizationPercentage": data.CurrentMemoryUtilizationPercentage,
-		"conditionAbleToScale":               data.ConditionAbleToScale,
-		"conditionScalingActive":             data.ConditionScalingActive,
-		"conditionScalingLimited":            data.ConditionScalingLimited,
-		"createdByKind":                      data.CreatedByKind,
-		"createdByName":                      data.CreatedByName,
-		"scaleTargetRef":                     data.ScaleTargetRef,
-		"scaleTargetKind":                    data.ScaleTargetKind,
-	}
-
 	return types.LogEntry{
 		Timestamp:    time.Now(),
 		ResourceType: "horizontalpodautoscaler",
 		Name:         hpa.Name,
 		Namespace:    hpa.Namespace,
-		Data:         dataMap,
+		Data:         convertStructToMap(data),
 	}
 }

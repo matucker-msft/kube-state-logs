@@ -108,23 +108,11 @@ func (h *ResourceQuotaHandler) createLogEntry(rq *corev1.ResourceQuota) types.Lo
 		Scopes:           scopes,
 	}
 
-	// Convert to map[string]any for the LogEntry
-	dataMap := map[string]any{
-		"createdTimestamp": data.CreatedTimestamp,
-		"labels":           data.Labels,
-		"annotations":      data.Annotations,
-		"hard":             data.Hard,
-		"used":             data.Used,
-		"createdByKind":    data.CreatedByKind,
-		"createdByName":    data.CreatedByName,
-		"scopes":           data.Scopes,
-	}
-
 	return types.LogEntry{
 		Timestamp:    time.Now(),
 		ResourceType: "resourcequota",
 		Name:         rq.Name,
 		Namespace:    rq.Namespace,
-		Data:         dataMap,
+		Data:         convertStructToMap(data),
 	}
 }

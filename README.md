@@ -38,6 +38,63 @@ This approach is particularly useful for:
 
 - **Smart ReplicaSet Filtering**: Only logs current ReplicaSets to reduce noise from deployment revisions
 
+## Supported Resources
+
+kube-state-logs supports logging for the following Kubernetes resources:
+
+- Pod
+- Service
+- Node
+- Deployment
+- Job
+- CronJob
+- ConfigMap
+- Secret
+- PersistentVolumeClaim
+- PersistentVolume
+- Ingress
+- HorizontalPodAutoscaler
+- ServiceAccount
+- Endpoints
+- ResourceQuota
+- **PodDisruptionBudget**
+- ...
+
+### CRD Logging (Generic Custom Resource Support)
+
+kube-state-logs can log any Kubernetes Custom Resource Definition (CRD) generically. You can specify which CRDs to log and which fields to extract using the `--crd-configs` flag or Helm values.
+
+#### Example CLI usage:
+
+```
+--crd-configs="mygroup.example.com/v1:widgets:spec.size|spec.color,anothergroup.io/v1:foos:spec.enabled"
+```
+
+- This will log all CRD objects for the specified GVRs, including their metadata, spec, status, and any custom fields you list (dot-separated paths).
+
+#### Example Helm values:
+
+```yaml
+config:
+  crdConfigs:
+    - apiVersion: mygroup.example.com/v1
+      resource: widgets
+      customFields:
+        - spec.size
+        - spec.color
+    - apiVersion: anothergroup.io/v1
+      resource: foos
+      customFields:
+        - spec.enabled
+```
+
+#### What is logged for CRDs?
+- Metadata: name, namespace, labels, annotations, creation timestamp
+- `spec` and `status` fields (full objects)
+- Any custom fields you specify
+
+See [RESOURCES.md](RESOURCES.md) for more details.
+
 ## Installation
 
 ### Using Helm (Recommended)

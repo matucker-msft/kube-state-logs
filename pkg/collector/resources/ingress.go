@@ -155,26 +155,11 @@ func (h *IngressHandler) createLogEntry(ingress *networkingv1.Ingress) types.Log
 		CreatedByName:              "",
 	}
 
-	// Convert to map[string]any for the LogEntry
-	dataMap := map[string]any{
-		"createdTimestamp":           data.CreatedTimestamp,
-		"labels":                     data.Labels,
-		"annotations":                data.Annotations,
-		"ingressClassName":           data.IngressClassName,
-		"loadBalancerIP":             data.LoadBalancerIP,
-		"loadBalancerIngress":        data.LoadBalancerIngress,
-		"rules":                      data.Rules,
-		"tls":                        data.TLS,
-		"conditionLoadBalancerReady": data.ConditionLoadBalancerReady,
-		"createdByKind":              data.CreatedByKind,
-		"createdByName":              data.CreatedByName,
-	}
-
 	return types.LogEntry{
 		Timestamp:    time.Now(),
 		ResourceType: "ingress",
 		Name:         ingress.Name,
 		Namespace:    ingress.Namespace,
-		Data:         dataMap,
+		Data:         convertStructToMap(data),
 	}
 }
