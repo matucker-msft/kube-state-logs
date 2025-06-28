@@ -43,7 +43,7 @@ func (h *ReplicationControllerHandler) Collect(ctx context.Context, namespaces [
 	var entries []types.LogEntry
 
 	// Get all replicationcontrollers from the cache
-	rcList := safeGetStoreList(h.informer)
+	rcList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range rcList {
 		rc, ok := obj.(*corev1.ReplicationController)
@@ -94,6 +94,6 @@ func (h *ReplicationControllerHandler) createLogEntry(rc *corev1.ReplicationCont
 		ResourceType: "replicationcontroller",
 		Name:         rc.Name,
 		Namespace:    rc.Namespace,
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

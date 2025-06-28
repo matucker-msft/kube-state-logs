@@ -43,7 +43,7 @@ func (h *ValidatingAdmissionPolicyHandler) Collect(ctx context.Context, namespac
 	var entries []types.LogEntry
 
 	// Get all validatingadmissionpolicies from the cache
-	vapList := safeGetStoreList(h.informer)
+	vapList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range vapList {
 		vap, ok := obj.(*admissionregistrationv1beta1.ValidatingAdmissionPolicy)
@@ -109,6 +109,6 @@ func (h *ValidatingAdmissionPolicyHandler) createLogEntry(vap *admissionregistra
 		ResourceType: "validatingadmissionpolicy",
 		Name:         vap.GetName(),
 		Namespace:    "", // ValidatingAdmissionPolicy is cluster-scoped
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

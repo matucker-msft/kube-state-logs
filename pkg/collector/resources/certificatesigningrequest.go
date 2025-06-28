@@ -43,7 +43,7 @@ func (h *CertificateSigningRequestHandler) Collect(ctx context.Context, namespac
 	var entries []types.LogEntry
 
 	// Get all certificatesigningrequests from the cache
-	csrList := safeGetStoreList(h.informer)
+	csrList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range csrList {
 		csr, ok := obj.(*certificatesv1.CertificateSigningRequest)
@@ -94,6 +94,6 @@ func (h *CertificateSigningRequestHandler) createLogEntry(csr *certificatesv1.Ce
 		ResourceType: "certificatesigningrequest",
 		Name:         csr.Name,
 		Namespace:    "", // CertificateSigningRequests are cluster-scoped
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

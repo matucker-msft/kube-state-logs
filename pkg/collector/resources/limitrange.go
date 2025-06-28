@@ -43,7 +43,7 @@ func (h *LimitRangeHandler) Collect(ctx context.Context, namespaces []string) ([
 	var entries []types.LogEntry
 
 	// Get all limitranges from the cache
-	lrList := safeGetStoreList(h.informer)
+	lrList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range lrList {
 		lr, ok := obj.(*corev1.LimitRange)
@@ -98,7 +98,7 @@ func (h *LimitRangeHandler) createLogEntry(lr *corev1.LimitRange) types.LogEntry
 		ResourceType: "limitrange",
 		Name:         lr.Name,
 		Namespace:    lr.Namespace,
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }
 

@@ -47,7 +47,8 @@ func (h *ServiceHandler) SetupInformer(factory informers.SharedInformerFactory, 
 func (h *ServiceHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
 	var entries []types.LogEntry
 
-	services := safeGetStoreList(h.serviceInformer)
+	// Get all services from the cache
+	services := utils.SafeGetStoreList(h.serviceInformer)
 
 	for _, obj := range services {
 		service, ok := obj.(*corev1.Service)
@@ -167,13 +168,14 @@ func (h *ServiceHandler) createLogEntry(service *corev1.Service) types.LogEntry 
 		ResourceType: "service",
 		Name:         service.Name,
 		Namespace:    service.Namespace,
-		Data:         h.convertToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }
 
 // countEndpointsForService counts the number of endpoints for a given service
 func (h *ServiceHandler) countEndpointsForService(namespace, serviceName string) int {
-	endpoints := safeGetStoreList(h.endpointsInformer)
+	// Get all endpoints from the cache
+	endpoints := utils.SafeGetStoreList(h.endpointsInformer)
 
 	for _, obj := range endpoints {
 		endpoint, ok := obj.(*corev1.Endpoints)
@@ -199,5 +201,5 @@ func (h *ServiceHandler) countEndpointsForService(namespace, serviceName string)
 
 // convertToMap converts a struct to map[string]any for JSON serialization
 func (h *ServiceHandler) convertToMap(data any) map[string]any {
-	return convertStructToMap(data)
+	return utils.ConvertStructToMap(data)
 }

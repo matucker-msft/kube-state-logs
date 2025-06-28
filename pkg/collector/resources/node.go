@@ -43,7 +43,8 @@ func (h *NodeHandler) SetupInformer(factory informers.SharedInformerFactory, log
 func (h *NodeHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
 	var entries []types.LogEntry
 
-	nodes := safeGetStoreList(h.informer)
+	// Get all nodes from the cache
+	nodes := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range nodes {
 		node, ok := obj.(*corev1.Node)
@@ -188,11 +189,11 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 		ResourceType: "node",
 		Name:         node.Name,
 		Namespace:    "", // Nodes don't have namespaces
-		Data:         h.convertToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }
 
 // convertToMap converts a struct to map[string]any for JSON serialization
 func (h *NodeHandler) convertToMap(data any) map[string]any {
-	return convertStructToMap(data)
+	return utils.ConvertStructToMap(data)
 }

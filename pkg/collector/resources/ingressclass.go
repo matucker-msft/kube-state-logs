@@ -11,6 +11,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // IngressClassHandler handles collection of ingressclass metrics
@@ -42,7 +43,7 @@ func (h *IngressClassHandler) Collect(ctx context.Context, namespaces []string) 
 	var entries []types.LogEntry
 
 	// Get all ingressclasses from the cache
-	icList := safeGetStoreList(h.informer)
+	icList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range icList {
 		ic, ok := obj.(*networkingv1.IngressClass)
@@ -84,6 +85,6 @@ func (h *IngressClassHandler) createLogEntry(ic *networkingv1.IngressClass) type
 		ResourceType: "ingressclass",
 		Name:         ic.Name,
 		Namespace:    "", // Cluster-scoped resource
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

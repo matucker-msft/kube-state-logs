@@ -11,6 +11,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // PersistentVolumeHandler handles collection of persistentvolume metrics
@@ -42,7 +43,7 @@ func (h *PersistentVolumeHandler) Collect(ctx context.Context, namespaces []stri
 	var entries []types.LogEntry
 
 	// Get all persistentvolumes from the cache
-	pvList := safeGetStoreList(h.informer)
+	pvList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range pvList {
 		pv, ok := obj.(*corev1.PersistentVolume)
@@ -100,30 +101,12 @@ func (h *PersistentVolumeHandler) createLogEntry(pv *corev1.PersistentVolume) ty
 		IsDefaultClass:         false, // This is typically determined by StorageClass, not PV
 	}
 
-	// Convert to map[string]any for the LogEntry
-	dataMap := map[string]any{
-		"createdTimestamp":       data.CreatedTimestamp,
-		"labels":                 data.Labels,
-		"annotations":            data.Annotations,
-		"capacityBytes":          data.CapacityBytes,
-		"accessModes":            data.AccessModes,
-		"reclaimPolicy":          data.ReclaimPolicy,
-		"status":                 data.Status,
-		"storageClassName":       data.StorageClassName,
-		"volumeMode":             data.VolumeMode,
-		"volumePluginName":       data.VolumePluginName,
-		"persistentVolumeSource": data.PersistentVolumeSource,
-		"createdByKind":          data.CreatedByKind,
-		"createdByName":          data.CreatedByName,
-		"isDefaultClass":         data.IsDefaultClass,
-	}
-
 	return types.LogEntry{
 		Timestamp:    time.Now(),
 		ResourceType: "persistentvolume",
 		Name:         pv.Name,
 		Namespace:    "", // PVs are cluster-scoped
-		Data:         dataMap,
+		Data:         utils.ConvertStructToMap(data),
 	}
 }
 

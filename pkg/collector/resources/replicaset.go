@@ -44,7 +44,7 @@ func (h *ReplicaSetHandler) Collect(ctx context.Context, namespaces []string) ([
 	var entries []types.LogEntry
 
 	// Get all replicasets from the cache
-	replicasets := safeGetStoreList(h.informer)
+	replicasets := utils.SafeGetStoreList(h.informer)
 
 	// Group replicasets by owner to identify current ones
 	ownerReplicaSets := make(map[string][]*appsv1.ReplicaSet)
@@ -149,5 +149,5 @@ func (h *ReplicaSetHandler) getConditionStatus(conditions []appsv1.ReplicaSetCon
 
 // convertToMap converts a struct to map[string]any for JSON serialization
 func (h *ReplicaSetHandler) convertToMap(data any) map[string]any {
-	return convertStructToMap(data)
+	return utils.ConvertStructToMap(data)
 }

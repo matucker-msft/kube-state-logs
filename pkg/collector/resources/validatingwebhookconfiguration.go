@@ -11,6 +11,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // ValidatingWebhookConfigurationHandler handles collection of validatingwebhookconfiguration metrics
@@ -55,7 +56,7 @@ func (h *ValidatingWebhookConfigurationHandler) Collect(ctx context.Context, nam
 	var entries []types.LogEntry
 
 	// Get all validatingwebhookconfigurations from the cache
-	vwcList := safeGetStoreList(h.informer)
+	vwcList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range vwcList {
 		vwc, ok := obj.(*admissionregistrationv1.ValidatingWebhookConfiguration)
@@ -150,6 +151,6 @@ func (h *ValidatingWebhookConfigurationHandler) createLogEntry(vwc *admissionreg
 		ResourceType: "validatingwebhookconfiguration",
 		Name:         vwc.Name,
 		Namespace:    "", // Cluster-scoped resource
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

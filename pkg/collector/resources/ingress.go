@@ -44,7 +44,7 @@ func (h *IngressHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 	var entries []types.LogEntry
 
 	// Get all ingresses from the cache
-	ingresses := safeGetStoreList(h.informer)
+	ingresses := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range ingresses {
 		ingress, ok := obj.(*networkingv1.Ingress)
@@ -148,6 +148,6 @@ func (h *IngressHandler) createLogEntry(ingress *networkingv1.Ingress) types.Log
 		ResourceType: "ingress",
 		Name:         ingress.Name,
 		Namespace:    ingress.Namespace,
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

@@ -11,6 +11,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // MutatingWebhookConfigurationHandler handles collection of mutatingwebhookconfiguration metrics
@@ -42,7 +43,7 @@ func (h *MutatingWebhookConfigurationHandler) Collect(ctx context.Context, names
 	var entries []types.LogEntry
 
 	// Get all mutatingwebhookconfigurations from the cache
-	mwcList := safeGetStoreList(h.informer)
+	mwcList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range mwcList {
 		mwc, ok := obj.(*admissionregistrationv1.MutatingWebhookConfiguration)
@@ -137,6 +138,6 @@ func (h *MutatingWebhookConfigurationHandler) createLogEntry(mwc *admissionregis
 		ResourceType: "mutatingwebhookconfiguration",
 		Name:         mwc.Name,
 		Namespace:    "", // Cluster-scoped resource
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

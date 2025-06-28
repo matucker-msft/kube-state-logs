@@ -43,7 +43,7 @@ func (h *ServiceAccountHandler) Collect(ctx context.Context, namespaces []string
 	var entries []types.LogEntry
 
 	// Get all serviceaccounts from the cache
-	serviceAccounts := safeGetStoreList(h.informer)
+	serviceAccounts := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range serviceAccounts {
 		sa, ok := obj.(*corev1.ServiceAccount)
@@ -96,23 +96,11 @@ func (h *ServiceAccountHandler) createLogEntry(sa *corev1.ServiceAccount) types.
 		AutomountServiceAccountToken: &automountToken,
 	}
 
-	// Convert to map[string]any for the LogEntry
-	dataMap := map[string]any{
-		"createdTimestamp":             data.CreatedTimestamp,
-		"labels":                       data.Labels,
-		"annotations":                  data.Annotations,
-		"secrets":                      data.Secrets,
-		"imagePullSecrets":             data.ImagePullSecrets,
-		"createdByKind":                data.CreatedByKind,
-		"createdByName":                data.CreatedByName,
-		"automountServiceAccountToken": data.AutomountServiceAccountToken,
-	}
-
 	return types.LogEntry{
 		Timestamp:    time.Now(),
 		ResourceType: "serviceaccount",
 		Name:         sa.Name,
 		Namespace:    sa.Namespace,
-		Data:         dataMap,
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

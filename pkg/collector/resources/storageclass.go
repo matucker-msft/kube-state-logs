@@ -11,6 +11,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // StorageClassHandler handles collection of storageclass metrics
@@ -42,7 +43,7 @@ func (h *StorageClassHandler) Collect(ctx context.Context, namespaces []string) 
 	var entries []types.LogEntry
 
 	// Get all storageclasses from the cache
-	scList := safeGetStoreList(h.informer)
+	scList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range scList {
 		sc, ok := obj.(*storagev1.StorageClass)
@@ -131,6 +132,6 @@ func (h *StorageClassHandler) createLogEntry(sc *storagev1.StorageClass) types.L
 		ResourceType: "storageclass",
 		Name:         sc.Name,
 		Namespace:    "", // StorageClasses are cluster-scoped
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

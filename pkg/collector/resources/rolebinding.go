@@ -43,7 +43,7 @@ func (h *RoleBindingHandler) Collect(ctx context.Context, namespaces []string) (
 	var entries []types.LogEntry
 
 	// Get all rolebindings from the cache
-	rbList := safeGetStoreList(h.informer)
+	rbList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range rbList {
 		rb, ok := obj.(*rbacv1.RoleBinding)
@@ -102,6 +102,6 @@ func (h *RoleBindingHandler) createLogEntry(rb *rbacv1.RoleBinding) types.LogEnt
 		ResourceType: "rolebinding",
 		Name:         rb.Name,
 		Namespace:    rb.Namespace,
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

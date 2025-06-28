@@ -43,7 +43,7 @@ func (h *CronJobHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 	var entries []types.LogEntry
 
 	// Get all cronjobs from the cache
-	cronjobs := safeGetStoreList(h.informer)
+	cronjobs := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range cronjobs {
 		cronjob, ok := obj.(*batchv1.CronJob)
@@ -126,5 +126,5 @@ func (h *CronJobHandler) createLogEntry(cronjob *batchv1.CronJob) types.LogEntry
 
 // convertToMap converts a struct to map[string]any for JSON serialization
 func (h *CronJobHandler) convertToMap(data any) map[string]any {
-	return convertStructToMap(data)
+	return utils.ConvertStructToMap(data)
 }

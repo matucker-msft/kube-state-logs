@@ -42,7 +42,8 @@ func (h *DeploymentHandler) SetupInformer(factory informers.SharedInformerFactor
 func (h *DeploymentHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
 	var entries []types.LogEntry
 
-	deployments := safeGetStoreList(h.informer)
+	// Get all deployments from the cache
+	deployments := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range deployments {
 		deployment, ok := obj.(*appsv1.Deployment)
@@ -125,7 +126,7 @@ func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.
 		ResourceType: "deployment",
 		Name:         deployment.Name,
 		Namespace:    deployment.Namespace,
-		Data:         h.convertToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }
 
@@ -141,5 +142,5 @@ func (h *DeploymentHandler) getConditionStatus(conditions []appsv1.DeploymentCon
 
 // convertToMap converts a struct to map[string]any for JSON serialization
 func (h *DeploymentHandler) convertToMap(data any) map[string]any {
-	return convertStructToMap(data)
+	return utils.ConvertStructToMap(data)
 }

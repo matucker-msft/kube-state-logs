@@ -43,7 +43,7 @@ func (h *ConfigMapHandler) Collect(ctx context.Context, namespaces []string) ([]
 	var entries []types.LogEntry
 
 	// Get all configmaps from the cache
-	configmaps := safeGetStoreList(h.informer)
+	configmaps := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range configmaps {
 		configmap, ok := obj.(*corev1.ConfigMap)
@@ -93,5 +93,5 @@ func (h *ConfigMapHandler) createLogEntry(configmap *corev1.ConfigMap) types.Log
 
 // convertToMap converts a struct to map[string]any for JSON serialization
 func (h *ConfigMapHandler) convertToMap(data any) map[string]any {
-	return convertStructToMap(data)
+	return utils.ConvertStructToMap(data)
 }

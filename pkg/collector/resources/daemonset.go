@@ -43,7 +43,7 @@ func (h *DaemonSetHandler) Collect(ctx context.Context, namespaces []string) ([]
 	var entries []types.LogEntry
 
 	// Get all daemonsets from the cache
-	daemonsets := safeGetStoreList(h.informer)
+	daemonsets := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range daemonsets {
 		ds, ok := obj.(*appsv1.DaemonSet)
@@ -111,5 +111,5 @@ func (h *DaemonSetHandler) getConditionStatus(conditions []appsv1.DaemonSetCondi
 
 // convertToMap converts a struct to map[string]any for JSON serialization
 func (h *DaemonSetHandler) convertToMap(data any) map[string]any {
-	return convertStructToMap(data)
+	return utils.ConvertStructToMap(data)
 }

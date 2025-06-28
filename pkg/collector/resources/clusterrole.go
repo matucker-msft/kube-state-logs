@@ -43,7 +43,7 @@ func (h *ClusterRoleHandler) Collect(ctx context.Context, namespaces []string) (
 	var entries []types.LogEntry
 
 	// Get all clusterroles from the cache
-	crList := safeGetStoreList(h.informer)
+	crList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range crList {
 		cr, ok := obj.(*rbacv1.ClusterRole)
@@ -90,6 +90,6 @@ func (h *ClusterRoleHandler) createLogEntry(cr *rbacv1.ClusterRole) types.LogEnt
 		ResourceType: "clusterrole",
 		Name:         cr.Name,
 		Namespace:    "", // ClusterRoles are cluster-scoped
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

@@ -42,8 +42,8 @@ func (h *NamespaceHandler) SetupInformer(factory informers.SharedInformerFactory
 func (h *NamespaceHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
 	var entries []types.LogEntry
 
-	// Get all namespaces from the cache using safe utility
-	namespaceList := safeGetStoreList(h.informer)
+	// Get all namespaces from the cache
+	namespaceList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range namespaceList {
 		ns, ok := obj.(*corev1.Namespace)
@@ -100,5 +100,5 @@ func (h *NamespaceHandler) getConditionStatus(conditions []corev1.NamespaceCondi
 
 // convertToMap converts a struct to map[string]any for JSON serialization
 func (h *NamespaceHandler) convertToMap(data any) map[string]any {
-	return convertStructToMap(data)
+	return utils.ConvertStructToMap(data)
 }

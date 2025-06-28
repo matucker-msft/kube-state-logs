@@ -43,7 +43,7 @@ func (h *HorizontalPodAutoscalerHandler) Collect(ctx context.Context, namespaces
 	var entries []types.LogEntry
 
 	// Get all horizontalpodautoscalers from the cache
-	hpas := safeGetStoreList(h.informer)
+	hpas := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range hpas {
 		hpa, ok := obj.(*autoscalingv2.HorizontalPodAutoscaler)
@@ -144,6 +144,6 @@ func (h *HorizontalPodAutoscalerHandler) createLogEntry(hpa *autoscalingv2.Horiz
 		ResourceType: "horizontalpodautoscaler",
 		Name:         hpa.Name,
 		Namespace:    hpa.Namespace,
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

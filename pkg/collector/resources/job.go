@@ -43,7 +43,7 @@ func (h *JobHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 	var entries []types.LogEntry
 
 	// Get all jobs from the cache
-	jobs := safeGetStoreList(h.informer)
+	jobs := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range jobs {
 		job, ok := obj.(*batchv1.Job)
@@ -135,5 +135,5 @@ func (h *JobHandler) createLogEntry(job *batchv1.Job) types.LogEntry {
 
 // convertToMap converts a struct to map[string]any for JSON serialization
 func (h *JobHandler) convertToMap(data any) map[string]any {
-	return convertStructToMap(data)
+	return utils.ConvertStructToMap(data)
 }

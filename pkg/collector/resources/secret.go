@@ -43,7 +43,7 @@ func (h *SecretHandler) Collect(ctx context.Context, namespaces []string) ([]typ
 	var entries []types.LogEntry
 
 	// Get all secrets from the cache
-	secrets := safeGetStoreList(h.informer)
+	secrets := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range secrets {
 		secret, ok := obj.(*corev1.Secret)
@@ -94,5 +94,5 @@ func (h *SecretHandler) createLogEntry(secret *corev1.Secret) types.LogEntry {
 
 // convertToMap converts a struct to map[string]any for JSON serialization
 func (h *SecretHandler) convertToMap(data any) map[string]any {
-	return convertStructToMap(data)
+	return utils.ConvertStructToMap(data)
 }

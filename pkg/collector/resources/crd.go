@@ -50,7 +50,7 @@ func (h *CRDHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 	var entries []types.LogEntry
 
 	// Get all CRD resources from the cache
-	crdList := safeGetStoreList(h.informer)
+	crdList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range crdList {
 		unstructuredObj, ok := obj.(*unstructured.Unstructured)
@@ -117,7 +117,7 @@ func (h *CRDHandler) createLogEntry(obj *unstructured.Unstructured) types.LogEnt
 		ResourceType: h.resourceName,
 		Name:         obj.GetName(),
 		Namespace:    obj.GetNamespace(),
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }
 

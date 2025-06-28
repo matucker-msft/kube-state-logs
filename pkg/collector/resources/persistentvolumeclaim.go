@@ -43,7 +43,7 @@ func (h *PersistentVolumeClaimHandler) Collect(ctx context.Context, namespaces [
 	var entries []types.LogEntry
 
 	// Get all persistentvolumeclaims from the cache
-	pvcs := safeGetStoreList(h.informer)
+	pvcs := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range pvcs {
 		pvc, ok := obj.(*corev1.PersistentVolumeClaim)
@@ -137,30 +137,11 @@ func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolu
 		UsedStorage:      usedStorage,
 	}
 
-	// Convert to map[string]any for the LogEntry
-	dataMap := map[string]any{
-		"createdTimestamp": data.CreatedTimestamp,
-		"labels":           data.Labels,
-		"annotations":      data.Annotations,
-		"accessModes":      data.AccessModes,
-		"storageClassName": data.StorageClassName,
-		"volumeName":       data.VolumeName,
-		"phase":            data.Phase,
-		"capacity":         data.Capacity,
-		"conditionPending": data.ConditionPending,
-		"conditionBound":   data.ConditionBound,
-		"conditionLost":    data.ConditionLost,
-		"createdByKind":    data.CreatedByKind,
-		"createdByName":    data.CreatedByName,
-		"requestStorage":   data.RequestStorage,
-		"usedStorage":      data.UsedStorage,
-	}
-
 	return types.LogEntry{
 		Timestamp:    time.Now(),
 		ResourceType: "persistentvolumeclaim",
 		Name:         pvc.Name,
 		Namespace:    pvc.Namespace,
-		Data:         dataMap,
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

@@ -56,7 +56,7 @@ func (h *ClusterRoleBindingHandler) Collect(ctx context.Context, namespaces []st
 	var entries []types.LogEntry
 
 	// Get all clusterrolebindings from the cache
-	crbList := safeGetStoreList(h.informer)
+	crbList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range crbList {
 		crb, ok := obj.(*rbacv1.ClusterRoleBinding)
@@ -111,6 +111,6 @@ func (h *ClusterRoleBindingHandler) createLogEntry(crb *rbacv1.ClusterRoleBindin
 		ResourceType: "clusterrolebinding",
 		Name:         crb.Name,
 		Namespace:    "", // ClusterRoleBindings are cluster-scoped
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

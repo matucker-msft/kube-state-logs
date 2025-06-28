@@ -43,7 +43,7 @@ func (h *StatefulSetHandler) Collect(ctx context.Context, namespaces []string) (
 	var entries []types.LogEntry
 
 	// Get all statefulsets from the cache
-	statefulsets := safeGetStoreList(h.informer)
+	statefulsets := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range statefulsets {
 		sts, ok := obj.(*appsv1.StatefulSet)
@@ -129,5 +129,5 @@ func (h *StatefulSetHandler) getConditionStatus(conditions []appsv1.StatefulSetC
 
 // convertToMap converts a struct to map[string]any for JSON serialization
 func (h *StatefulSetHandler) convertToMap(data any) map[string]any {
-	return convertStructToMap(data)
+	return utils.ConvertStructToMap(data)
 }

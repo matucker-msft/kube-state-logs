@@ -43,7 +43,8 @@ func (h *PodHandler) SetupInformer(factory informers.SharedInformerFactory, logg
 func (h *PodHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
 	var entries []types.LogEntry
 
-	pods := safeGetStoreList(h.informer)
+	// Get all pods from the cache
+	pods := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range pods {
 		pod, ok := obj.(*corev1.Pod)
@@ -313,7 +314,7 @@ func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
 		ResourceType: "pod",
 		Name:         pod.Name,
 		Namespace:    pod.Namespace,
-		Data:         h.convertPodToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }
 
@@ -467,21 +468,21 @@ func (h *PodHandler) createContainerLogEntry(pod *corev1.Pod, containerSpec *cor
 		ResourceType: resourceType,
 		Name:         containerSpec.Name,
 		Namespace:    pod.Namespace,
-		Data:         h.convertContainerToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }
 
 // convertPodToMap converts PodData to map[string]any for JSON serialization
 func (h *PodHandler) convertPodToMap(data types.PodData) map[string]any {
-	return convertStructToMap(data)
+	return utils.ConvertStructToMap(data)
 }
 
 // convertContainerToMap converts ContainerData to map[string]any for JSON serialization
 func (h *PodHandler) convertContainerToMap(data types.ContainerData) map[string]any {
-	return convertStructToMap(data)
+	return utils.ConvertStructToMap(data)
 }
 
 // convertToMap converts a struct to map[string]any for JSON serialization
 func (h *PodHandler) convertToMap(data any) map[string]any {
-	return convertStructToMap(data)
+	return utils.ConvertStructToMap(data)
 }

@@ -43,7 +43,7 @@ func (h *ResourceQuotaHandler) Collect(ctx context.Context, namespaces []string)
 	var entries []types.LogEntry
 
 	// Get all resourcequotas from the cache
-	rqList := safeGetStoreList(h.informer)
+	rqList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range rqList {
 		rq, ok := obj.(*corev1.ResourceQuota)
@@ -100,6 +100,6 @@ func (h *ResourceQuotaHandler) createLogEntry(rq *corev1.ResourceQuota) types.Lo
 		ResourceType: "resourcequota",
 		Name:         rq.Name,
 		Namespace:    rq.Namespace,
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

@@ -43,7 +43,7 @@ func (h *LeaseHandler) Collect(ctx context.Context, namespaces []string) ([]type
 	var entries []types.LogEntry
 
 	// Get all leases from the cache
-	leaseList := safeGetStoreList(h.informer)
+	leaseList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range leaseList {
 		lease, ok := obj.(*coordinationv1.Lease)
@@ -117,6 +117,6 @@ func (h *LeaseHandler) createLogEntry(lease *coordinationv1.Lease) types.LogEntr
 		ResourceType: "lease",
 		Name:         lease.Name,
 		Namespace:    lease.Namespace,
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

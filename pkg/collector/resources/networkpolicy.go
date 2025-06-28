@@ -43,7 +43,7 @@ func (h *NetworkPolicyHandler) Collect(ctx context.Context, namespaces []string)
 	var entries []types.LogEntry
 
 	// Get all networkpolicies from the cache
-	npList := safeGetStoreList(h.informer)
+	npList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range npList {
 		np, ok := obj.(*networkingv1.NetworkPolicy)
@@ -111,7 +111,7 @@ func (h *NetworkPolicyHandler) createLogEntry(np *networkingv1.NetworkPolicy) ty
 		ResourceType: "networkpolicy",
 		Name:         np.Name,
 		Namespace:    np.Namespace,
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }
 

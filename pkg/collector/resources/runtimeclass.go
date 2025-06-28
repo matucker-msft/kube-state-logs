@@ -43,7 +43,7 @@ func (h *RuntimeClassHandler) Collect(ctx context.Context, namespaces []string) 
 	var entries []types.LogEntry
 
 	// Get all runtimeclasses from the cache
-	rcList := safeGetStoreList(h.informer)
+	rcList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range rcList {
 		rc, ok := obj.(*nodev1.RuntimeClass)
@@ -84,6 +84,6 @@ func (h *RuntimeClassHandler) createLogEntry(rc *nodev1.RuntimeClass) types.LogE
 		ResourceType: "runtimeclass",
 		Name:         rc.GetName(),
 		Namespace:    "", // RuntimeClass is cluster-scoped
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

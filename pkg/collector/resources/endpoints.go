@@ -43,7 +43,7 @@ func (h *EndpointsHandler) Collect(ctx context.Context, namespaces []string) ([]
 	var entries []types.LogEntry
 
 	// Get all endpoints from the cache
-	endpointsList := safeGetStoreList(h.informer)
+	endpointsList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range endpointsList {
 		endpoints, ok := obj.(*corev1.Endpoints)
@@ -114,23 +114,11 @@ func (h *EndpointsHandler) createLogEntry(endpoints *corev1.Endpoints) types.Log
 		Ready:            ready,
 	}
 
-	// Convert to map[string]any for the LogEntry
-	dataMap := map[string]any{
-		"createdTimestamp": data.CreatedTimestamp,
-		"labels":           data.Labels,
-		"annotations":      data.Annotations,
-		"addresses":        data.Addresses,
-		"ports":            data.Ports,
-		"createdByKind":    data.CreatedByKind,
-		"createdByName":    data.CreatedByName,
-		"ready":            data.Ready,
-	}
-
 	return types.LogEntry{
 		Timestamp:    time.Now(),
 		ResourceType: "endpoints",
 		Name:         endpoints.Name,
 		Namespace:    endpoints.Namespace,
-		Data:         dataMap,
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

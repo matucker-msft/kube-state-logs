@@ -43,7 +43,7 @@ func (h *RoleHandler) Collect(ctx context.Context, namespaces []string) ([]types
 	var entries []types.LogEntry
 
 	// Get all roles from the cache
-	roleList := safeGetStoreList(h.informer)
+	roleList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range roleList {
 		role, ok := obj.(*rbacv1.Role)
@@ -95,6 +95,6 @@ func (h *RoleHandler) createLogEntry(role *rbacv1.Role) types.LogEntry {
 		ResourceType: "role",
 		Name:         role.Name,
 		Namespace:    role.Namespace,
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

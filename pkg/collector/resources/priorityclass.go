@@ -43,7 +43,7 @@ func (h *PriorityClassHandler) Collect(ctx context.Context, namespaces []string)
 	var entries []types.LogEntry
 
 	// Get all priorityclasses from the cache
-	pcList := safeGetStoreList(h.informer)
+	pcList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range pcList {
 		pc, ok := obj.(*schedulingv1.PriorityClass)
@@ -88,6 +88,6 @@ func (h *PriorityClassHandler) createLogEntry(pc *schedulingv1.PriorityClass) ty
 		ResourceType: "priorityclass",
 		Name:         pc.GetName(),
 		Namespace:    "", // PriorityClass is cluster-scoped
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }

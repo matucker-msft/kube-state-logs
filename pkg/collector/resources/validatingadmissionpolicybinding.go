@@ -43,7 +43,7 @@ func (h *ValidatingAdmissionPolicyBindingHandler) Collect(ctx context.Context, n
 	var entries []types.LogEntry
 
 	// Get all validatingadmissionpolicybindings from the cache
-	vapbList := safeGetStoreList(h.informer)
+	vapbList := utils.SafeGetStoreList(h.informer)
 
 	for _, obj := range vapbList {
 		vapb, ok := obj.(*admissionregistrationv1beta1.ValidatingAdmissionPolicyBinding)
@@ -102,6 +102,6 @@ func (h *ValidatingAdmissionPolicyBindingHandler) createLogEntry(vapb *admission
 		ResourceType: "validatingadmissionpolicybinding",
 		Name:         vapb.GetName(),
 		Namespace:    "", // ValidatingAdmissionPolicyBinding is cluster-scoped
-		Data:         convertStructToMap(data),
+		Data:         utils.ConvertStructToMap(data),
 	}
 }
