@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -17,25 +16,21 @@ import (
 
 // NodeHandler handles collection of node metrics
 type NodeHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewNodeHandler creates a new NodeHandler
 func NewNodeHandler(client *kubernetes.Clientset) *NodeHandler {
 	return &NodeHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the node informer
 func (h *NodeHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create node informer
-	h.informer = factory.Core().V1().Nodes().Informer()
-
+	informer := factory.Core().V1().Nodes().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -44,7 +39,7 @@ func (h *NodeHandler) Collect(ctx context.Context, namespaces []string) ([]types
 	var entries []types.LogEntry
 
 	// Get all nodes from the cache
-	nodes := utils.SafeGetStoreList(h.informer)
+	nodes := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range nodes {
 		node, ok := obj.(*corev1.Node)
@@ -122,32 +117,13 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 		}
 	}
 
-	// Use field extraction utils for timestamps
-	deletionTimestamp := utils.ExtractDeletionTimestamp(node)
-
-	// Get node info with nil checks
-	architecture := ""
-	operatingSystem := ""
-	kernelVersion := ""
-	kubeletVersion := ""
-	kubeProxyVersion := ""
-	containerRuntimeVersion := ""
-
-	// NodeSystemInfo is a struct, not a pointer, so we can access it directly
-	architecture = node.Status.NodeInfo.Architecture
-	operatingSystem = node.Status.NodeInfo.OperatingSystem
-	kernelVersion = node.Status.NodeInfo.KernelVersion
-	kubeletVersion = node.Status.NodeInfo.KubeletVersion
-	kubeProxyVersion = node.Status.NodeInfo.KubeProxyVersion
-	containerRuntimeVersion = node.Status.NodeInfo.ContainerRuntimeVersion
-
 	data := types.NodeData{
-		Architecture:            architecture,
-		OperatingSystem:         operatingSystem,
-		KernelVersion:           kernelVersion,
-		KubeletVersion:          kubeletVersion,
-		KubeProxyVersion:        kubeProxyVersion,
-		ContainerRuntimeVersion: containerRuntimeVersion,
+		Architecture:            node.Status.NodeInfo.Architecture,
+		OperatingSystem:         node.Status.NodeInfo.OperatingSystem,
+		KernelVersion:           node.Status.NodeInfo.KernelVersion,
+		KubeletVersion:          node.Status.NodeInfo.KubeletVersion,
+		KubeProxyVersion:        node.Status.NodeInfo.KubeProxyVersion,
+		ContainerRuntimeVersion: node.Status.NodeInfo.ContainerRuntimeVersion,
 		Capacity:                capacity,
 		Allocatable:             allocatable,
 		Conditions:              conditions,
@@ -163,7 +139,7 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 		CreatedTimestamp:        utils.ExtractCreationTimestamp(node),
 		Role:                    nodeRole,
 		Taints:                  taints,
-		DeletionTimestamp:       deletionTimestamp,
+		DeletionTimestamp:       utils.ExtractDeletionTimestamp(node),
 		Phase:                   phase,
 	}
 

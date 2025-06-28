@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // PersistentVolumeClaimHandler handles collection of persistentvolumeclaim metrics
 type PersistentVolumeClaimHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewPersistentVolumeClaimHandler creates a new PersistentVolumeClaimHandler
 func NewPersistentVolumeClaimHandler(client *kubernetes.Clientset) *PersistentVolumeClaimHandler {
 	return &PersistentVolumeClaimHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the persistentvolumeclaim informer
 func (h *PersistentVolumeClaimHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create persistentvolumeclaim informer
-	h.informer = factory.Core().V1().PersistentVolumeClaims().Informer()
-
+	informer := factory.Core().V1().PersistentVolumeClaims().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,9 +38,9 @@ func (h *PersistentVolumeClaimHandler) Collect(ctx context.Context, namespaces [
 	var entries []types.LogEntry
 
 	// Get all persistentvolumeclaims from the cache
-	pvcs := utils.SafeGetStoreList(h.informer)
+	pvcList := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range pvcs {
+	for _, obj := range pvcList {
 		pvc, ok := obj.(*corev1.PersistentVolumeClaim)
 		if !ok {
 			continue

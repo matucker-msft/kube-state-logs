@@ -7,7 +7,6 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // StorageClassHandler handles collection of storageclass metrics
 type StorageClassHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewStorageClassHandler creates a new StorageClassHandler
 func NewStorageClassHandler(client *kubernetes.Clientset) *StorageClassHandler {
 	return &StorageClassHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the storageclass informer
 func (h *StorageClassHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create storageclass informer
-	h.informer = factory.Storage().V1().StorageClasses().Informer()
-
+	informer := factory.Storage().V1().StorageClasses().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *StorageClassHandler) Collect(ctx context.Context, namespaces []string) 
 	var entries []types.LogEntry
 
 	// Get all storageclasses from the cache
-	scList := utils.SafeGetStoreList(h.informer)
+	scList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range scList {
 		sc, ok := obj.(*storagev1.StorageClass)

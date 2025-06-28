@@ -7,7 +7,6 @@ import (
 	nodev1 "k8s.io/api/node/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // RuntimeClassHandler handles collection of runtimeclass metrics
 type RuntimeClassHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewRuntimeClassHandler creates a new RuntimeClassHandler
 func NewRuntimeClassHandler(client *kubernetes.Clientset) *RuntimeClassHandler {
 	return &RuntimeClassHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the runtimeclass informer
 func (h *RuntimeClassHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create runtimeclass informer
-	h.informer = factory.Node().V1().RuntimeClasses().Informer()
-
+	informer := factory.Node().V1().RuntimeClasses().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *RuntimeClassHandler) Collect(ctx context.Context, namespaces []string) 
 	var entries []types.LogEntry
 
 	// Get all runtimeclasses from the cache
-	rcList := utils.SafeGetStoreList(h.informer)
+	rcList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range rcList {
 		rc, ok := obj.(*nodev1.RuntimeClass)

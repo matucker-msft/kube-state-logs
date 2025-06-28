@@ -7,7 +7,6 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // MutatingWebhookConfigurationHandler handles collection of mutatingwebhookconfiguration metrics
 type MutatingWebhookConfigurationHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewMutatingWebhookConfigurationHandler creates a new MutatingWebhookConfigurationHandler
 func NewMutatingWebhookConfigurationHandler(client *kubernetes.Clientset) *MutatingWebhookConfigurationHandler {
 	return &MutatingWebhookConfigurationHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the mutatingwebhookconfiguration informer
 func (h *MutatingWebhookConfigurationHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create mutatingwebhookconfiguration informer
-	h.informer = factory.Admissionregistration().V1().MutatingWebhookConfigurations().Informer()
-
+	informer := factory.Admissionregistration().V1().MutatingWebhookConfigurations().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *MutatingWebhookConfigurationHandler) Collect(ctx context.Context, names
 	var entries []types.LogEntry
 
 	// Get all mutatingwebhookconfigurations from the cache
-	mwcList := utils.SafeGetStoreList(h.informer)
+	mwcList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range mwcList {
 		mwc, ok := obj.(*admissionregistrationv1.MutatingWebhookConfiguration)

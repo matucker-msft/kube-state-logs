@@ -8,7 +8,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -17,25 +16,21 @@ import (
 
 // ReplicaSetHandler handles collection of replicaset metrics
 type ReplicaSetHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewReplicaSetHandler creates a new ReplicaSetHandler
 func NewReplicaSetHandler(client *kubernetes.Clientset) *ReplicaSetHandler {
 	return &ReplicaSetHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the replicaset informer
 func (h *ReplicaSetHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create replicaset informer
-	h.informer = factory.Apps().V1().ReplicaSets().Informer()
-
+	informer := factory.Apps().V1().ReplicaSets().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -44,7 +39,7 @@ func (h *ReplicaSetHandler) Collect(ctx context.Context, namespaces []string) ([
 	var entries []types.LogEntry
 
 	// Get all replicasets from the cache
-	replicasets := utils.SafeGetStoreList(h.informer)
+	replicasets := utils.SafeGetStoreList(h.GetInformer())
 
 	// Group replicasets by owner to identify current ones
 	ownerReplicaSets := make(map[string][]*appsv1.ReplicaSet)

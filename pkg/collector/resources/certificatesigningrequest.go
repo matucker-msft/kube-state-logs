@@ -7,7 +7,6 @@ import (
 	certificatesv1 "k8s.io/api/certificates/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // CertificateSigningRequestHandler handles collection of certificatesigningrequest metrics
 type CertificateSigningRequestHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewCertificateSigningRequestHandler creates a new CertificateSigningRequestHandler
 func NewCertificateSigningRequestHandler(client *kubernetes.Clientset) *CertificateSigningRequestHandler {
 	return &CertificateSigningRequestHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the certificatesigningrequest informer
 func (h *CertificateSigningRequestHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create certificatesigningrequest informer
-	h.informer = factory.Certificates().V1().CertificateSigningRequests().Informer()
-
+	informer := factory.Certificates().V1().CertificateSigningRequests().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *CertificateSigningRequestHandler) Collect(ctx context.Context, namespac
 	var entries []types.LogEntry
 
 	// Get all certificatesigningrequests from the cache
-	csrList := utils.SafeGetStoreList(h.informer)
+	csrList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range csrList {
 		csr, ok := obj.(*certificatesv1.CertificateSigningRequest)

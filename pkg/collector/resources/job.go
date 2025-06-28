@@ -7,7 +7,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // JobHandler handles collection of job metrics
 type JobHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewJobHandler creates a new JobHandler
 func NewJobHandler(client *kubernetes.Clientset) *JobHandler {
 	return &JobHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the job informer
 func (h *JobHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create job informer
-	h.informer = factory.Batch().V1().Jobs().Informer()
-
+	informer := factory.Batch().V1().Jobs().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *JobHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 	var entries []types.LogEntry
 
 	// Get all jobs from the cache
-	jobs := utils.SafeGetStoreList(h.informer)
+	jobs := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range jobs {
 		job, ok := obj.(*batchv1.Job)

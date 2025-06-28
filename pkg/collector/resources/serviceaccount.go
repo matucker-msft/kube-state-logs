@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // ServiceAccountHandler handles collection of serviceaccount metrics
 type ServiceAccountHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewServiceAccountHandler creates a new ServiceAccountHandler
 func NewServiceAccountHandler(client *kubernetes.Clientset) *ServiceAccountHandler {
 	return &ServiceAccountHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the serviceaccount informer
 func (h *ServiceAccountHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create serviceaccount informer
-	h.informer = factory.Core().V1().ServiceAccounts().Informer()
-
+	informer := factory.Core().V1().ServiceAccounts().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *ServiceAccountHandler) Collect(ctx context.Context, namespaces []string
 	var entries []types.LogEntry
 
 	// Get all serviceaccounts from the cache
-	serviceAccounts := utils.SafeGetStoreList(h.informer)
+	serviceAccounts := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range serviceAccounts {
 		sa, ok := obj.(*corev1.ServiceAccount)

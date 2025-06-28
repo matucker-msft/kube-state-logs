@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // PersistentVolumeHandler handles collection of persistentvolume metrics
 type PersistentVolumeHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewPersistentVolumeHandler creates a new PersistentVolumeHandler
 func NewPersistentVolumeHandler(client *kubernetes.Clientset) *PersistentVolumeHandler {
 	return &PersistentVolumeHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the persistentvolume informer
 func (h *PersistentVolumeHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create persistentvolume informer
-	h.informer = factory.Core().V1().PersistentVolumes().Informer()
-
+	informer := factory.Core().V1().PersistentVolumes().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *PersistentVolumeHandler) Collect(ctx context.Context, namespaces []stri
 	var entries []types.LogEntry
 
 	// Get all persistentvolumes from the cache
-	pvList := utils.SafeGetStoreList(h.informer)
+	pvList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range pvList {
 		pv, ok := obj.(*corev1.PersistentVolume)
@@ -60,7 +55,13 @@ func (h *PersistentVolumeHandler) Collect(ctx context.Context, namespaces []stri
 
 // createLogEntry creates a LogEntry from a persistentvolume
 func (h *PersistentVolumeHandler) createLogEntry(pv *corev1.PersistentVolume) types.LogEntry {
-	// Calculate capacity in bytes
+	// Extract access modes
+	var accessModes []string
+	for _, mode := range pv.Spec.AccessModes {
+		accessModes = append(accessModes, string(mode))
+	}
+
+	// Extract capacity
 	capacityBytes := int64(0)
 	if pv.Spec.Capacity != nil {
 		if storage, exists := pv.Spec.Capacity[corev1.ResourceStorage]; exists {
@@ -68,20 +69,71 @@ func (h *PersistentVolumeHandler) createLogEntry(pv *corev1.PersistentVolume) ty
 		}
 	}
 
-	// Format access modes
-	accessModes := ""
-	for i, mode := range pv.Spec.AccessModes {
-		if i > 0 {
-			accessModes += ","
-		}
-		accessModes += string(mode)
+	// Extract reclaim policy
+	reclaimPolicy := string(pv.Spec.PersistentVolumeReclaimPolicy)
+
+	// Extract status
+	status := string(pv.Status.Phase)
+
+	// Extract storage class name
+	storageClassName := ""
+	if pv.Spec.StorageClassName != "" {
+		storageClassName = pv.Spec.StorageClassName
 	}
 
-	// Get volume plugin name
-	volumePluginName := h.getVolumePluginName(pv)
+	// Extract volume mode
+	volumeMode := string(*pv.Spec.VolumeMode)
 
-	// Get persistent volume source
-	persistentVolumeSource := h.getPersistentVolumeSource(pv)
+	// Extract volume plugin name
+	volumePluginName := ""
+	if pv.Spec.PersistentVolumeSource.AWSElasticBlockStore != nil {
+		volumePluginName = "awsElasticBlockStore"
+	} else if pv.Spec.PersistentVolumeSource.AzureDisk != nil {
+		volumePluginName = "azureDisk"
+	} else if pv.Spec.PersistentVolumeSource.AzureFile != nil {
+		volumePluginName = "azureFile"
+	} else if pv.Spec.PersistentVolumeSource.CephFS != nil {
+		volumePluginName = "cephFS"
+	} else if pv.Spec.PersistentVolumeSource.Cinder != nil {
+		volumePluginName = "cinder"
+	} else if pv.Spec.PersistentVolumeSource.FC != nil {
+		volumePluginName = "fc"
+	} else if pv.Spec.PersistentVolumeSource.FlexVolume != nil {
+		volumePluginName = "flexVolume"
+	} else if pv.Spec.PersistentVolumeSource.Flocker != nil {
+		volumePluginName = "flocker"
+	} else if pv.Spec.PersistentVolumeSource.GCEPersistentDisk != nil {
+		volumePluginName = "gcePersistentDisk"
+	} else if pv.Spec.PersistentVolumeSource.Glusterfs != nil {
+		volumePluginName = "glusterfs"
+	} else if pv.Spec.PersistentVolumeSource.HostPath != nil {
+		volumePluginName = "hostPath"
+	} else if pv.Spec.PersistentVolumeSource.ISCSI != nil {
+		volumePluginName = "iscsi"
+	} else if pv.Spec.PersistentVolumeSource.Local != nil {
+		volumePluginName = "local"
+	} else if pv.Spec.PersistentVolumeSource.NFS != nil {
+		volumePluginName = "nfs"
+	} else if pv.Spec.PersistentVolumeSource.PhotonPersistentDisk != nil {
+		volumePluginName = "photonPersistentDisk"
+	} else if pv.Spec.PersistentVolumeSource.PortworxVolume != nil {
+		volumePluginName = "portworxVolume"
+	} else if pv.Spec.PersistentVolumeSource.Quobyte != nil {
+		volumePluginName = "quobyte"
+	} else if pv.Spec.PersistentVolumeSource.RBD != nil {
+		volumePluginName = "rbd"
+	} else if pv.Spec.PersistentVolumeSource.ScaleIO != nil {
+		volumePluginName = "scaleIO"
+	} else if pv.Spec.PersistentVolumeSource.StorageOS != nil {
+		volumePluginName = "storageOS"
+	} else if pv.Spec.PersistentVolumeSource.VsphereVolume != nil {
+		volumePluginName = "vsphereVolume"
+	} else {
+		volumePluginName = "unknown"
+	}
+
+	// Extract persistent volume source
+	persistentVolumeSource := volumePluginName
 
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(pv)
 
@@ -91,150 +143,17 @@ func (h *PersistentVolumeHandler) createLogEntry(pv *corev1.PersistentVolume) ty
 		Labels:                 utils.ExtractLabels(pv),
 		Annotations:            utils.ExtractAnnotations(pv),
 		CapacityBytes:          capacityBytes,
-		AccessModes:            accessModes,
-		ReclaimPolicy:          string(pv.Spec.PersistentVolumeReclaimPolicy),
-		Status:                 string(pv.Status.Phase),
-		StorageClassName:       pv.Spec.StorageClassName,
-		VolumeMode:             string(*pv.Spec.VolumeMode),
+		AccessModes:            accessModes[0], // Take first access mode
+		ReclaimPolicy:          reclaimPolicy,
+		Status:                 status,
+		StorageClassName:       storageClassName,
+		VolumeMode:             volumeMode,
 		VolumePluginName:       volumePluginName,
 		PersistentVolumeSource: persistentVolumeSource,
 		CreatedByKind:          createdByKind,
 		CreatedByName:          createdByName,
-		IsDefaultClass:         false, // This is typically determined by StorageClass, not PV
+		IsDefaultClass:         false, // This would need to be determined from StorageClass
 	}
 
 	return utils.CreateLogEntry("persistentvolume", utils.ExtractName(pv), utils.ExtractNamespace(pv), data)
-}
-
-// getVolumePluginName determines the volume plugin name from the PV spec
-func (h *PersistentVolumeHandler) getVolumePluginName(pv *corev1.PersistentVolume) string {
-	if pv.Spec.HostPath != nil {
-		return "hostPath"
-	}
-	if pv.Spec.GCEPersistentDisk != nil {
-		return "gcePersistentDisk"
-	}
-	if pv.Spec.AWSElasticBlockStore != nil {
-		return "awsElasticBlockStore"
-	}
-	if pv.Spec.NFS != nil {
-		return "nfs"
-	}
-	if pv.Spec.ISCSI != nil {
-		return "iscsi"
-	}
-	if pv.Spec.FC != nil {
-		return "fc"
-	}
-	if pv.Spec.Flocker != nil {
-		return "flocker"
-	}
-	if pv.Spec.FlexVolume != nil {
-		return "flexVolume"
-	}
-	if pv.Spec.Cinder != nil {
-		return "cinder"
-	}
-	if pv.Spec.CephFS != nil {
-		return "cephfs"
-	}
-	if pv.Spec.Flocker != nil {
-		return "flocker"
-	}
-	if pv.Spec.AzureFile != nil {
-		return "azureFile"
-	}
-	if pv.Spec.VsphereVolume != nil {
-		return "vsphereVolume"
-	}
-	if pv.Spec.Quobyte != nil {
-		return "quobyte"
-	}
-	if pv.Spec.AzureDisk != nil {
-		return "azureDisk"
-	}
-	if pv.Spec.PhotonPersistentDisk != nil {
-		return "photonPersistentDisk"
-	}
-	if pv.Spec.PortworxVolume != nil {
-		return "portworxVolume"
-	}
-	if pv.Spec.ScaleIO != nil {
-		return "scaleIO"
-	}
-	if pv.Spec.Local != nil {
-		return "local"
-	}
-	if pv.Spec.StorageOS != nil {
-		return "storageOS"
-	}
-	if pv.Spec.CSI != nil {
-		return "csi"
-	}
-	return "unknown"
-}
-
-// getPersistentVolumeSource returns a string representation of the volume source
-func (h *PersistentVolumeHandler) getPersistentVolumeSource(pv *corev1.PersistentVolume) string {
-	if pv.Spec.HostPath != nil {
-		return "hostPath"
-	}
-	if pv.Spec.GCEPersistentDisk != nil {
-		return "gcePersistentDisk"
-	}
-	if pv.Spec.AWSElasticBlockStore != nil {
-		return "awsElasticBlockStore"
-	}
-	if pv.Spec.NFS != nil {
-		return "nfs"
-	}
-	if pv.Spec.ISCSI != nil {
-		return "iscsi"
-	}
-	if pv.Spec.FC != nil {
-		return "fc"
-	}
-	if pv.Spec.Flocker != nil {
-		return "flocker"
-	}
-	if pv.Spec.FlexVolume != nil {
-		return "flexVolume"
-	}
-	if pv.Spec.Cinder != nil {
-		return "cinder"
-	}
-	if pv.Spec.CephFS != nil {
-		return "cephfs"
-	}
-	if pv.Spec.AzureFile != nil {
-		return "azureFile"
-	}
-	if pv.Spec.VsphereVolume != nil {
-		return "vsphereVolume"
-	}
-	if pv.Spec.Quobyte != nil {
-		return "quobyte"
-	}
-	if pv.Spec.AzureDisk != nil {
-		return "azureDisk"
-	}
-	if pv.Spec.PhotonPersistentDisk != nil {
-		return "photonPersistentDisk"
-	}
-	if pv.Spec.PortworxVolume != nil {
-		return "portworxVolume"
-	}
-	if pv.Spec.ScaleIO != nil {
-		return "scaleIO"
-	}
-	if pv.Spec.Local != nil {
-		return "local"
-	}
-	if pv.Spec.StorageOS != nil {
-		return "storageOS"
-	}
-	if pv.Spec.CSI != nil {
-		return "csi"
-	}
-	return "unknown"
 }

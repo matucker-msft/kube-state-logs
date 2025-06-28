@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // LimitRangeHandler handles collection of limitrange metrics
 type LimitRangeHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewLimitRangeHandler creates a new LimitRangeHandler
 func NewLimitRangeHandler(client *kubernetes.Clientset) *LimitRangeHandler {
 	return &LimitRangeHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the limitrange informer
 func (h *LimitRangeHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create limitrange informer
-	h.informer = factory.Core().V1().LimitRanges().Informer()
-
+	informer := factory.Core().V1().LimitRanges().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *LimitRangeHandler) Collect(ctx context.Context, namespaces []string) ([
 	var entries []types.LogEntry
 
 	// Get all limitranges from the cache
-	lrList := utils.SafeGetStoreList(h.informer)
+	lrList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range lrList {
 		lr, ok := obj.(*corev1.LimitRange)
@@ -65,25 +60,48 @@ func (h *LimitRangeHandler) Collect(ctx context.Context, namespaces []string) ([
 // createLogEntry creates a LogEntry from a limitrange
 func (h *LimitRangeHandler) createLogEntry(lr *corev1.LimitRange) types.LogEntry {
 	// Convert limits
-	// See: https://kubernetes.io/docs/concepts/policy/limit-range/#limit-range
 	var limits []types.LimitRangeItem
 	for _, limit := range lr.Spec.Limits {
 		limitItem := types.LimitRangeItem{
 			Type:                 string(limit.Type),
 			ResourceType:         "",
 			ResourceName:         "",
-			Min:                  utils.ExtractResourceMap(limit.Min),
-			Max:                  utils.ExtractResourceMap(limit.Max),
-			Default:              utils.ExtractResourceMap(limit.Default),
-			DefaultRequest:       utils.ExtractResourceMap(limit.DefaultRequest),
-			MaxLimitRequestRatio: utils.ExtractResourceMap(limit.MaxLimitRequestRatio),
+			Min:                  make(map[string]string),
+			Max:                  make(map[string]string),
+			Default:              make(map[string]string),
+			DefaultRequest:       make(map[string]string),
+			MaxLimitRequestRatio: make(map[string]string),
 		}
+
+		// Extract resource type and name
+		for resourceName := range limit.Min {
+			limitItem.ResourceType = string(resourceName)
+			limitItem.ResourceName = string(resourceName)
+			break
+		}
+
+		// Convert resource maps
+		for key, value := range limit.Min {
+			limitItem.Min[string(key)] = value.String()
+		}
+		for key, value := range limit.Max {
+			limitItem.Max[string(key)] = value.String()
+		}
+		for key, value := range limit.Default {
+			limitItem.Default[string(key)] = value.String()
+		}
+		for key, value := range limit.DefaultRequest {
+			limitItem.DefaultRequest[string(key)] = value.String()
+		}
+		for key, value := range limit.MaxLimitRequestRatio {
+			limitItem.MaxLimitRequestRatio[string(key)] = value.String()
+		}
+
 		limits = append(limits, limitItem)
 	}
 
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(lr)
 
-	// Create data structure
 	data := types.LimitRangeData{
 		CreatedTimestamp: utils.ExtractCreationTimestamp(lr),
 		Labels:           utils.ExtractLabels(lr),

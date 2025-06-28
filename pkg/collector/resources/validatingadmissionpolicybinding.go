@@ -7,7 +7,6 @@ import (
 	admissionregistrationv1beta1 "k8s.io/api/admissionregistration/v1beta1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // ValidatingAdmissionPolicyBindingHandler handles collection of validatingadmissionpolicybinding metrics
 type ValidatingAdmissionPolicyBindingHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewValidatingAdmissionPolicyBindingHandler creates a new ValidatingAdmissionPolicyBindingHandler
 func NewValidatingAdmissionPolicyBindingHandler(client *kubernetes.Clientset) *ValidatingAdmissionPolicyBindingHandler {
 	return &ValidatingAdmissionPolicyBindingHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the validatingadmissionpolicybinding informer
 func (h *ValidatingAdmissionPolicyBindingHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create validatingadmissionpolicybinding informer
-	h.informer = factory.Admissionregistration().V1beta1().ValidatingAdmissionPolicyBindings().Informer()
-
+	informer := factory.Admissionregistration().V1beta1().ValidatingAdmissionPolicyBindings().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *ValidatingAdmissionPolicyBindingHandler) Collect(ctx context.Context, n
 	var entries []types.LogEntry
 
 	// Get all validatingadmissionpolicybindings from the cache
-	vapbList := utils.SafeGetStoreList(h.informer)
+	vapbList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range vapbList {
 		vapb, ok := obj.(*admissionregistrationv1beta1.ValidatingAdmissionPolicyBinding)

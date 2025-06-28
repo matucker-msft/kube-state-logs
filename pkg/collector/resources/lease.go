@@ -7,7 +7,6 @@ import (
 	coordinationv1 "k8s.io/api/coordination/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // LeaseHandler handles collection of lease metrics
 type LeaseHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewLeaseHandler creates a new LeaseHandler
 func NewLeaseHandler(client *kubernetes.Clientset) *LeaseHandler {
 	return &LeaseHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the lease informer
 func (h *LeaseHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create lease informer
-	h.informer = factory.Coordination().V1().Leases().Informer()
-
+	informer := factory.Coordination().V1().Leases().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *LeaseHandler) Collect(ctx context.Context, namespaces []string) ([]type
 	var entries []types.LogEntry
 
 	// Get all leases from the cache
-	leaseList := utils.SafeGetStoreList(h.informer)
+	leaseList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range leaseList {
 		lease, ok := obj.(*coordinationv1.Lease)
@@ -64,33 +59,30 @@ func (h *LeaseHandler) Collect(ctx context.Context, namespaces []string) ([]type
 
 // createLogEntry creates a LogEntry from a lease
 func (h *LeaseHandler) createLogEntry(lease *coordinationv1.Lease) types.LogEntry {
-	// Get holder identity
+	// Extract timestamps
+	var renewTime *time.Time
+	var acquireTime *time.Time
+
+	if lease.Spec.RenewTime != nil {
+		renewTime = &lease.Spec.RenewTime.Time
+	}
+	if lease.Spec.AcquireTime != nil {
+		acquireTime = &lease.Spec.AcquireTime.Time
+	}
+
+	// Extract holder identity
 	holderIdentity := ""
 	if lease.Spec.HolderIdentity != nil {
 		holderIdentity = *lease.Spec.HolderIdentity
 	}
 
-	// Get lease duration seconds
-	// Default is 15 seconds when leaseDurationSeconds is nil
-	// See: https://kubernetes.io/docs/concepts/architecture/leases/
-	leaseDurationSeconds := int32(15) // Default value
+	// Extract lease duration seconds with nil check
+	leaseDurationSeconds := int32(0)
 	if lease.Spec.LeaseDurationSeconds != nil {
 		leaseDurationSeconds = *lease.Spec.LeaseDurationSeconds
 	}
 
-	// Get renew time
-	var renewTime *time.Time
-	if lease.Spec.RenewTime != nil {
-		renewTime = &lease.Spec.RenewTime.Time
-	}
-
-	// Get acquire time
-	var acquireTime *time.Time
-	if lease.Spec.AcquireTime != nil {
-		acquireTime = &lease.Spec.AcquireTime.Time
-	}
-
-	// Get lease transitions
+	// Extract lease transitions with nil check
 	leaseTransitions := int32(0)
 	if lease.Spec.LeaseTransitions != nil {
 		leaseTransitions = *lease.Spec.LeaseTransitions
@@ -98,7 +90,6 @@ func (h *LeaseHandler) createLogEntry(lease *coordinationv1.Lease) types.LogEntr
 
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(lease)
 
-	// Create data structure
 	data := types.LeaseData{
 		CreatedTimestamp:     utils.ExtractCreationTimestamp(lease),
 		Labels:               utils.ExtractLabels(lease),

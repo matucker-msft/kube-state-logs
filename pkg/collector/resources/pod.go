@@ -8,7 +8,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -17,25 +16,21 @@ import (
 
 // PodHandler handles collection of pod metrics
 type PodHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewPodHandler creates a new PodHandler
 func NewPodHandler(client *kubernetes.Clientset) *PodHandler {
 	return &PodHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the pod informer
 func (h *PodHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create pod informer
-	h.informer = factory.Core().V1().Pods().Informer()
-
+	informer := factory.Core().V1().Pods().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -44,7 +39,7 @@ func (h *PodHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 	var entries []types.LogEntry
 
 	// Get all pods from the cache
-	pods := utils.SafeGetStoreList(h.informer)
+	pods := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range pods {
 		pod, ok := obj.(*corev1.Pod)

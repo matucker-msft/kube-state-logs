@@ -7,7 +7,6 @@ import (
 	storagev1 "k8s.io/api/storage/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // VolumeAttachmentHandler handles collection of volumeattachment metrics
 type VolumeAttachmentHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewVolumeAttachmentHandler creates a new VolumeAttachmentHandler
 func NewVolumeAttachmentHandler(client *kubernetes.Clientset) *VolumeAttachmentHandler {
 	return &VolumeAttachmentHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the volumeattachment informer
 func (h *VolumeAttachmentHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create volumeattachment informer
-	h.informer = factory.Storage().V1().VolumeAttachments().Informer()
-
+	informer := factory.Storage().V1().VolumeAttachments().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *VolumeAttachmentHandler) Collect(ctx context.Context, namespaces []stri
 	var entries []types.LogEntry
 
 	// Get all volumeattachments from the cache
-	vaList := utils.SafeGetStoreList(h.informer)
+	vaList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range vaList {
 		va, ok := obj.(*storagev1.VolumeAttachment)

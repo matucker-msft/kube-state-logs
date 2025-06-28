@@ -7,7 +7,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // StatefulSetHandler handles collection of statefulset metrics
 type StatefulSetHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewStatefulSetHandler creates a new StatefulSetHandler
 func NewStatefulSetHandler(client *kubernetes.Clientset) *StatefulSetHandler {
 	return &StatefulSetHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the statefulset informer
 func (h *StatefulSetHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create statefulset informer
-	h.informer = factory.Apps().V1().StatefulSets().Informer()
-
+	informer := factory.Apps().V1().StatefulSets().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *StatefulSetHandler) Collect(ctx context.Context, namespaces []string) (
 	var entries []types.LogEntry
 
 	// Get all statefulsets from the cache
-	statefulsets := utils.SafeGetStoreList(h.informer)
+	statefulsets := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range statefulsets {
 		sts, ok := obj.(*appsv1.StatefulSet)

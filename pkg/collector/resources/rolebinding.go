@@ -7,7 +7,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // RoleBindingHandler handles collection of rolebinding metrics
 type RoleBindingHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewRoleBindingHandler creates a new RoleBindingHandler
 func NewRoleBindingHandler(client *kubernetes.Clientset) *RoleBindingHandler {
 	return &RoleBindingHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the rolebinding informer
 func (h *RoleBindingHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create rolebinding informer
-	h.informer = factory.Rbac().V1().RoleBindings().Informer()
-
+	informer := factory.Rbac().V1().RoleBindings().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *RoleBindingHandler) Collect(ctx context.Context, namespaces []string) (
 	var entries []types.LogEntry
 
 	// Get all rolebindings from the cache
-	rbList := utils.SafeGetStoreList(h.informer)
+	rbList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range rbList {
 		rb, ok := obj.(*rbacv1.RoleBinding)

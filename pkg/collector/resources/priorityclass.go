@@ -7,7 +7,6 @@ import (
 	schedulingv1 "k8s.io/api/scheduling/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // PriorityClassHandler handles collection of priorityclass metrics
 type PriorityClassHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewPriorityClassHandler creates a new PriorityClassHandler
 func NewPriorityClassHandler(client *kubernetes.Clientset) *PriorityClassHandler {
 	return &PriorityClassHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the priorityclass informer
 func (h *PriorityClassHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create priorityclass informer
-	h.informer = factory.Scheduling().V1().PriorityClasses().Informer()
-
+	informer := factory.Scheduling().V1().PriorityClasses().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *PriorityClassHandler) Collect(ctx context.Context, namespaces []string)
 	var entries []types.LogEntry
 
 	// Get all priorityclasses from the cache
-	pcList := utils.SafeGetStoreList(h.informer)
+	pcList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range pcList {
 		pc, ok := obj.(*schedulingv1.PriorityClass)

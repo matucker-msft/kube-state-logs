@@ -7,7 +7,6 @@ import (
 	batchv1 "k8s.io/api/batch/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // CronJobHandler handles collection of cronjob metrics
 type CronJobHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewCronJobHandler creates a new CronJobHandler
 func NewCronJobHandler(client *kubernetes.Clientset) *CronJobHandler {
 	return &CronJobHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the cronjob informer
 func (h *CronJobHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create cronjob informer
-	h.informer = factory.Batch().V1().CronJobs().Informer()
-
+	informer := factory.Batch().V1().CronJobs().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *CronJobHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 	var entries []types.LogEntry
 
 	// Get all cronjobs from the cache
-	cronjobs := utils.SafeGetStoreList(h.informer)
+	cronjobs := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range cronjobs {
 		cronjob, ok := obj.(*batchv1.CronJob)

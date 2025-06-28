@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // EndpointsHandler handles collection of endpoints metrics
 type EndpointsHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewEndpointsHandler creates a new EndpointsHandler
 func NewEndpointsHandler(client *kubernetes.Clientset) *EndpointsHandler {
 	return &EndpointsHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the endpoints informer
 func (h *EndpointsHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create endpoints informer
-	h.informer = factory.Core().V1().Endpoints().Informer()
-
+	informer := factory.Core().V1().Endpoints().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *EndpointsHandler) Collect(ctx context.Context, namespaces []string) ([]
 	var entries []types.LogEntry
 
 	// Get all endpoints from the cache
-	endpointsList := utils.SafeGetStoreList(h.informer)
+	endpointsList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range endpointsList {
 		endpoints, ok := obj.(*corev1.Endpoints)
@@ -62,7 +57,7 @@ func (h *EndpointsHandler) Collect(ctx context.Context, namespaces []string) ([]
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from an endpoints
+// createLogEntry creates a LogEntry from endpoints
 func (h *EndpointsHandler) createLogEntry(endpoints *corev1.Endpoints) types.LogEntry {
 	// Extract addresses and ports from all subsets
 	var addresses []types.EndpointAddressData

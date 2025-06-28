@@ -7,7 +7,6 @@ import (
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // ValidatingWebhookConfigurationHandler handles collection of validatingwebhookconfiguration metrics
 type ValidatingWebhookConfigurationHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewValidatingWebhookConfigurationHandler creates a new ValidatingWebhookConfigurationHandler
 func NewValidatingWebhookConfigurationHandler(client *kubernetes.Clientset) *ValidatingWebhookConfigurationHandler {
 	return &ValidatingWebhookConfigurationHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the validatingwebhookconfiguration informer
 func (h *ValidatingWebhookConfigurationHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create validatingwebhookconfiguration informer
-	h.informer = factory.Admissionregistration().V1().ValidatingWebhookConfigurations().Informer()
-
+	informer := factory.Admissionregistration().V1().ValidatingWebhookConfigurations().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *ValidatingWebhookConfigurationHandler) Collect(ctx context.Context, nam
 	var entries []types.LogEntry
 
 	// Get all validatingwebhookconfigurations from the cache
-	vwcList := utils.SafeGetStoreList(h.informer)
+	vwcList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range vwcList {
 		vwc, ok := obj.(*admissionregistrationv1.ValidatingWebhookConfiguration)

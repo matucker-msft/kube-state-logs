@@ -7,7 +7,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // ClusterRoleHandler handles collection of clusterrole metrics
 type ClusterRoleHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewClusterRoleHandler creates a new ClusterRoleHandler
 func NewClusterRoleHandler(client *kubernetes.Clientset) *ClusterRoleHandler {
 	return &ClusterRoleHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the clusterrole informer
 func (h *ClusterRoleHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create clusterrole informer
-	h.informer = factory.Rbac().V1().ClusterRoles().Informer()
-
+	informer := factory.Rbac().V1().ClusterRoles().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *ClusterRoleHandler) Collect(ctx context.Context, namespaces []string) (
 	var entries []types.LogEntry
 
 	// Get all clusterroles from the cache
-	crList := utils.SafeGetStoreList(h.informer)
+	crList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range crList {
 		cr, ok := obj.(*rbacv1.ClusterRole)

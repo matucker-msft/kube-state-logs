@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // ConfigMapHandler handles collection of configmap metrics
 type ConfigMapHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewConfigMapHandler creates a new ConfigMapHandler
 func NewConfigMapHandler(client *kubernetes.Clientset) *ConfigMapHandler {
 	return &ConfigMapHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the configmap informer
 func (h *ConfigMapHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create configmap informer
-	h.informer = factory.Core().V1().ConfigMaps().Informer()
-
+	informer := factory.Core().V1().ConfigMaps().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *ConfigMapHandler) Collect(ctx context.Context, namespaces []string) ([]
 	var entries []types.LogEntry
 
 	// Get all configmaps from the cache
-	configmaps := utils.SafeGetStoreList(h.informer)
+	configmaps := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range configmaps {
 		configmap, ok := obj.(*corev1.ConfigMap)

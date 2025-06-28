@@ -7,7 +7,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // DeploymentHandler handles collection of deployment metrics
 type DeploymentHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewDeploymentHandler creates a new DeploymentHandler
 func NewDeploymentHandler(client *kubernetes.Clientset) *DeploymentHandler {
 	return &DeploymentHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the deployment informer
 func (h *DeploymentHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create deployment informer
-	h.informer = factory.Apps().V1().Deployments().Informer()
-
+	informer := factory.Apps().V1().Deployments().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *DeploymentHandler) Collect(ctx context.Context, namespaces []string) ([
 	var entries []types.LogEntry
 
 	// Get all deployments from the cache
-	deployments := utils.SafeGetStoreList(h.informer)
+	deployments := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range deployments {
 		deployment, ok := obj.(*appsv1.Deployment)

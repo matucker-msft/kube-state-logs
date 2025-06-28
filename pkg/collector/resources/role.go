@@ -7,7 +7,6 @@ import (
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // RoleHandler handles collection of role metrics
 type RoleHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewRoleHandler creates a new RoleHandler
 func NewRoleHandler(client *kubernetes.Clientset) *RoleHandler {
 	return &RoleHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the role informer
 func (h *RoleHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create role informer
-	h.informer = factory.Rbac().V1().Roles().Informer()
-
+	informer := factory.Rbac().V1().Roles().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *RoleHandler) Collect(ctx context.Context, namespaces []string) ([]types
 	var entries []types.LogEntry
 
 	// Get all roles from the cache
-	roleList := utils.SafeGetStoreList(h.informer)
+	roleList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range roleList {
 		role, ok := obj.(*rbacv1.Role)

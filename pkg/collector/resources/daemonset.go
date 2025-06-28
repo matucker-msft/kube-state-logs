@@ -7,7 +7,6 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // DaemonSetHandler handles collection of daemonset metrics
 type DaemonSetHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewDaemonSetHandler creates a new DaemonSetHandler
 func NewDaemonSetHandler(client *kubernetes.Clientset) *DaemonSetHandler {
 	return &DaemonSetHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the daemonset informer
 func (h *DaemonSetHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create daemonset informer
-	h.informer = factory.Apps().V1().DaemonSets().Informer()
-
+	informer := factory.Apps().V1().DaemonSets().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *DaemonSetHandler) Collect(ctx context.Context, namespaces []string) ([]
 	var entries []types.LogEntry
 
 	// Get all daemonsets from the cache
-	daemonsets := utils.SafeGetStoreList(h.informer)
+	daemonsets := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range daemonsets {
 		ds, ok := obj.(*appsv1.DaemonSet)

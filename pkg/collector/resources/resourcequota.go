@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // ResourceQuotaHandler handles collection of resourcequota metrics
 type ResourceQuotaHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewResourceQuotaHandler creates a new ResourceQuotaHandler
 func NewResourceQuotaHandler(client *kubernetes.Clientset) *ResourceQuotaHandler {
 	return &ResourceQuotaHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the resourcequota informer
 func (h *ResourceQuotaHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create resourcequota informer
-	h.informer = factory.Core().V1().ResourceQuotas().Informer()
-
+	informer := factory.Core().V1().ResourceQuotas().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *ResourceQuotaHandler) Collect(ctx context.Context, namespaces []string)
 	var entries []types.LogEntry
 
 	// Get all resourcequotas from the cache
-	rqList := utils.SafeGetStoreList(h.informer)
+	rqList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range rqList {
 		rq, ok := obj.(*corev1.ResourceQuota)

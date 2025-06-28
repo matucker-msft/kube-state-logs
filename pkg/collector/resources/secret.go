@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // SecretHandler handles collection of secret metrics
 type SecretHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewSecretHandler creates a new SecretHandler
 func NewSecretHandler(client *kubernetes.Clientset) *SecretHandler {
 	return &SecretHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the secret informer
 func (h *SecretHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create secret informer
-	h.informer = factory.Core().V1().Secrets().Informer()
-
+	informer := factory.Core().V1().Secrets().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *SecretHandler) Collect(ctx context.Context, namespaces []string) ([]typ
 	var entries []types.LogEntry
 
 	// Get all secrets from the cache
-	secrets := utils.SafeGetStoreList(h.informer)
+	secrets := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range secrets {
 		secret, ok := obj.(*corev1.Secret)

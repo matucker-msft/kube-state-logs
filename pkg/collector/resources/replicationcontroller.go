@@ -7,7 +7,6 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // ReplicationControllerHandler handles collection of replicationcontroller metrics
 type ReplicationControllerHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewReplicationControllerHandler creates a new ReplicationControllerHandler
 func NewReplicationControllerHandler(client *kubernetes.Clientset) *ReplicationControllerHandler {
 	return &ReplicationControllerHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the replicationcontroller informer
 func (h *ReplicationControllerHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create replicationcontroller informer
-	h.informer = factory.Core().V1().ReplicationControllers().Informer()
-
+	informer := factory.Core().V1().ReplicationControllers().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *ReplicationControllerHandler) Collect(ctx context.Context, namespaces [
 	var entries []types.LogEntry
 
 	// Get all replicationcontrollers from the cache
-	rcList := utils.SafeGetStoreList(h.informer)
+	rcList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range rcList {
 		rc, ok := obj.(*corev1.ReplicationController)

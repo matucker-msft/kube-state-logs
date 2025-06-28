@@ -7,7 +7,6 @@ import (
 	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // PodDisruptionBudgetHandler handles collection of poddisruptionbudget metrics
 type PodDisruptionBudgetHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewPodDisruptionBudgetHandler creates a new PodDisruptionBudgetHandler
 func NewPodDisruptionBudgetHandler(client *kubernetes.Clientset) *PodDisruptionBudgetHandler {
 	return &PodDisruptionBudgetHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the poddisruptionbudget informer
 func (h *PodDisruptionBudgetHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create poddisruptionbudget informer
-	h.informer = factory.Policy().V1().PodDisruptionBudgets().Informer()
-
+	informer := factory.Policy().V1().PodDisruptionBudgets().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *PodDisruptionBudgetHandler) Collect(ctx context.Context, namespaces []s
 	var entries []types.LogEntry
 
 	// Get all poddisruptionbudgets from the cache
-	pdbList := utils.SafeGetStoreList(h.informer)
+	pdbList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range pdbList {
 		pdb, ok := obj.(*policyv1.PodDisruptionBudget)

@@ -7,7 +7,6 @@ import (
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // HorizontalPodAutoscalerHandler handles collection of horizontalpodautoscaler metrics
 type HorizontalPodAutoscalerHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewHorizontalPodAutoscalerHandler creates a new HorizontalPodAutoscalerHandler
 func NewHorizontalPodAutoscalerHandler(client *kubernetes.Clientset) *HorizontalPodAutoscalerHandler {
 	return &HorizontalPodAutoscalerHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the horizontalpodautoscaler informer
 func (h *HorizontalPodAutoscalerHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create horizontalpodautoscaler informer
-	h.informer = factory.Autoscaling().V2().HorizontalPodAutoscalers().Informer()
-
+	informer := factory.Autoscaling().V2().HorizontalPodAutoscalers().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,9 +38,9 @@ func (h *HorizontalPodAutoscalerHandler) Collect(ctx context.Context, namespaces
 	var entries []types.LogEntry
 
 	// Get all horizontalpodautoscalers from the cache
-	hpas := utils.SafeGetStoreList(h.informer)
+	hpaList := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range hpas {
+	for _, obj := range hpaList {
 		hpa, ok := obj.(*autoscalingv2.HorizontalPodAutoscaler)
 		if !ok {
 			continue

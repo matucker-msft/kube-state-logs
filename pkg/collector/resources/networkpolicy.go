@@ -7,7 +7,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // NetworkPolicyHandler handles collection of networkpolicy metrics
 type NetworkPolicyHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewNetworkPolicyHandler creates a new NetworkPolicyHandler
 func NewNetworkPolicyHandler(client *kubernetes.Clientset) *NetworkPolicyHandler {
 	return &NetworkPolicyHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the networkpolicy informer
 func (h *NetworkPolicyHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create networkpolicy informer
-	h.informer = factory.Networking().V1().NetworkPolicies().Informer()
-
+	informer := factory.Networking().V1().NetworkPolicies().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *NetworkPolicyHandler) Collect(ctx context.Context, namespaces []string)
 	var entries []types.LogEntry
 
 	// Get all networkpolicies from the cache
-	npList := utils.SafeGetStoreList(h.informer)
+	npList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range npList {
 		np, ok := obj.(*networkingv1.NetworkPolicy)

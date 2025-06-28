@@ -7,7 +7,6 @@ import (
 	networkingv1 "k8s.io/api/networking/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -16,25 +15,21 @@ import (
 
 // IngressClassHandler handles collection of ingressclass metrics
 type IngressClassHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewIngressClassHandler creates a new IngressClassHandler
 func NewIngressClassHandler(client *kubernetes.Clientset) *IngressClassHandler {
 	return &IngressClassHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the ingressclass informer
 func (h *IngressClassHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create ingressclass informer
-	h.informer = factory.Networking().V1().IngressClasses().Informer()
-
+	informer := factory.Networking().V1().IngressClasses().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -43,7 +38,7 @@ func (h *IngressClassHandler) Collect(ctx context.Context, namespaces []string) 
 	var entries []types.LogEntry
 
 	// Get all ingressclasses from the cache
-	icList := utils.SafeGetStoreList(h.informer)
+	icList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range icList {
 		ic, ok := obj.(*networkingv1.IngressClass)

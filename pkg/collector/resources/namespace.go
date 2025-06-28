@@ -8,7 +8,6 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -17,25 +16,21 @@ import (
 
 // NamespaceHandler handles collection of namespace metrics
 type NamespaceHandler struct {
-	client   *kubernetes.Clientset
-	informer cache.SharedIndexInformer
-	logger   interfaces.Logger
+	utils.BaseHandler
 }
 
 // NewNamespaceHandler creates a new NamespaceHandler
 func NewNamespaceHandler(client *kubernetes.Clientset) *NamespaceHandler {
 	return &NamespaceHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the namespace informer
 func (h *NamespaceHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create namespace informer
-	h.informer = factory.Core().V1().Namespaces().Informer()
-
+	informer := factory.Core().V1().Namespaces().Informer()
+	h.SetupBaseInformer(informer, logger)
 	return nil
 }
 
@@ -44,7 +39,7 @@ func (h *NamespaceHandler) Collect(ctx context.Context, namespaces []string) ([]
 	var entries []types.LogEntry
 
 	// Get all namespaces from the cache
-	namespaceList := utils.SafeGetStoreList(h.informer)
+	namespaceList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range namespaceList {
 		ns, ok := obj.(*corev1.Namespace)

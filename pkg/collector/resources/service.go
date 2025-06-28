@@ -17,25 +17,22 @@ import (
 
 // ServiceHandler handles collection of service metrics
 type ServiceHandler struct {
-	client            *kubernetes.Clientset
-	serviceInformer   cache.SharedIndexInformer
+	utils.BaseHandler
 	endpointsInformer cache.SharedIndexInformer
-	logger            interfaces.Logger
 }
 
 // NewServiceHandler creates a new ServiceHandler
 func NewServiceHandler(client *kubernetes.Clientset) *ServiceHandler {
 	return &ServiceHandler{
-		client: client,
+		BaseHandler: utils.NewBaseHandler(client),
 	}
 }
 
 // SetupInformer sets up the service informer
 func (h *ServiceHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
-	h.logger = logger
-
 	// Create service informer
-	h.serviceInformer = factory.Core().V1().Services().Informer()
+	serviceInformer := factory.Core().V1().Services().Informer()
+	h.SetupBaseInformer(serviceInformer, logger)
 
 	// Create endpoints informer
 	h.endpointsInformer = factory.Core().V1().Endpoints().Informer()
@@ -48,7 +45,7 @@ func (h *ServiceHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 	var entries []types.LogEntry
 
 	// Get all services from the cache
-	services := utils.SafeGetStoreList(h.serviceInformer)
+	services := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range services {
 		service, ok := obj.(*corev1.Service)
@@ -191,9 +188,4 @@ func (h *ServiceHandler) countEndpointsForService(namespace, serviceName string)
 	}
 
 	return 0
-}
-
-// convertToMap converts a struct to map[string]any for JSON serialization
-func (h *ServiceHandler) convertToMap(data any) map[string]any {
-	return utils.ConvertStructToMap(data)
 }
