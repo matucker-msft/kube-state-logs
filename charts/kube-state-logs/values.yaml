@@ -10,6 +10,7 @@ config:
   logInterval: "1m"
   resources:
     - pod
+    - container
     - service
     - node
     - deployment

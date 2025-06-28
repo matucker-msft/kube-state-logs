@@ -83,6 +83,7 @@ func (c *Collector) registerHandlers() {
 	// Register resource handlers
 	handlers := map[string]interfaces.ResourceHandler{
 		"pod":                              resources.NewPodHandler(c.client),
+		"container":                        resources.NewContainerHandler(c.client),
 		"service":                          resources.NewServiceHandler(c.client),
 		"node":                             resources.NewNodeHandler(c.client),
 		"deployment":                       resources.NewDeploymentHandler(c.client),

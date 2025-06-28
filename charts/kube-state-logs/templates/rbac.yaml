@@ -39,7 +39,7 @@ rules:
     resources: ["daemonsets"]
     verbs: ["list", "watch"]
 {{- end }}
-{{- if or (has "pods" $resources) (has "all" $resources) }}
+{{- if or (has "pods" $resources) (has "container" $resources) (has "all" $resources) }}
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["list", "watch"]
