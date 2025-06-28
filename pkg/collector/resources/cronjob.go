@@ -64,21 +64,14 @@ func (h *CronJobHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 
 // createLogEntry creates a LogEntry from a cronjob
 func (h *CronJobHandler) createLogEntry(cronjob *batchv1.CronJob) types.LogEntry {
-
-	// Get concurrency policy
-	// Default is "Allow" when spec.concurrencyPolicy is not set
-	// See: https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#concurrency-policy
 	concurrencyPolicy := string(cronjob.Spec.ConcurrencyPolicy)
-
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(cronjob)
 
-	// Get suspend status
 	var suspend *bool
 	if cronjob.Spec.Suspend != nil {
 		suspend = cronjob.Spec.Suspend
 	}
 
-	// Get history limits
 	var successfulJobsHistoryLimit *int32
 	var failedJobsHistoryLimit *int32
 	if cronjob.Spec.SuccessfulJobsHistoryLimit != nil {
@@ -88,20 +81,17 @@ func (h *CronJobHandler) createLogEntry(cronjob *batchv1.CronJob) types.LogEntry
 		failedJobsHistoryLimit = cronjob.Spec.FailedJobsHistoryLimit
 	}
 
-	// Get last and next schedule times
 	var lastScheduleTime *time.Time
 	if cronjob.Status.LastScheduleTime != nil {
 		lastScheduleTime = &cronjob.Status.LastScheduleTime.Time
 	}
 
-	// Get condition active - CronJob doesn't have conditions in the same way
-	// We'll determine if it's active based on whether it has active jobs
 	conditionActive := len(cronjob.Status.Active) > 0
 
 	data := types.CronJobData{
-		CreatedTimestamp:           cronjob.CreationTimestamp.Unix(),
-		Labels:                     cronjob.Labels,
-		Annotations:                cronjob.Annotations,
+		CreatedTimestamp:           utils.ExtractCreationTimestamp(cronjob),
+		Labels:                     utils.ExtractLabels(cronjob),
+		Annotations:                utils.ExtractAnnotations(cronjob),
 		Schedule:                   cronjob.Spec.Schedule,
 		ConcurrencyPolicy:          concurrencyPolicy,
 		Suspend:                    suspend,
@@ -109,22 +99,11 @@ func (h *CronJobHandler) createLogEntry(cronjob *batchv1.CronJob) types.LogEntry
 		FailedJobsHistoryLimit:     failedJobsHistoryLimit,
 		ActiveJobsCount:            int32(len(cronjob.Status.Active)),
 		LastScheduleTime:           lastScheduleTime,
-		NextScheduleTime:           nil, // Not available in v1 API
+		NextScheduleTime:           nil,
 		ConditionActive:            conditionActive,
 		CreatedByKind:              createdByKind,
 		CreatedByName:              createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "cronjob",
-		Name:         cronjob.Name,
-		Namespace:    cronjob.Namespace,
-		Data:         h.convertToMap(data),
-	}
-}
-
-// convertToMap converts a struct to map[string]any for JSON serialization
-func (h *CronJobHandler) convertToMap(data any) map[string]any {
-	return utils.ConvertStructToMap(data)
+	return utils.CreateLogEntry("cronjob", utils.ExtractName(cronjob), utils.ExtractNamespace(cronjob), data)
 }

@@ -128,26 +128,22 @@ func (h *IngressHandler) createLogEntry(ingress *networkingv1.Ingress) types.Log
 	// We'll check if load balancer ingress is available as a proxy for readiness
 	conditionLoadBalancerReady = len(ingress.Status.LoadBalancer.Ingress) > 0
 
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(ingress)
+
 	// Create data structure
 	data := types.IngressData{
-		CreatedTimestamp:           ingress.CreationTimestamp.Unix(),
-		Labels:                     ingress.Labels,
-		Annotations:                ingress.Annotations,
+		CreatedTimestamp:           utils.ExtractCreationTimestamp(ingress),
+		Labels:                     utils.ExtractLabels(ingress),
+		Annotations:                utils.ExtractAnnotations(ingress),
 		IngressClassName:           ingressClassName,
 		LoadBalancerIP:             "",
 		LoadBalancerIngress:        loadBalancerIngress,
 		Rules:                      rules,
 		TLS:                        tls,
 		ConditionLoadBalancerReady: conditionLoadBalancerReady,
-		CreatedByKind:              "",
-		CreatedByName:              "",
+		CreatedByKind:              createdByKind,
+		CreatedByName:              createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "ingress",
-		Name:         ingress.Name,
-		Namespace:    ingress.Namespace,
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("ingress", utils.ExtractName(ingress), utils.ExtractNamespace(ingress), data)
 }

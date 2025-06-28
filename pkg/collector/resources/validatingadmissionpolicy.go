@@ -60,15 +60,9 @@ func (h *ValidatingAdmissionPolicyHandler) Collect(ctx context.Context, namespac
 
 // createLogEntry creates a LogEntry from a ValidatingAdmissionPolicy
 func (h *ValidatingAdmissionPolicyHandler) createLogEntry(vap *admissionregistrationv1beta1.ValidatingAdmissionPolicy) types.LogEntry {
-	// Extract basic metadata
-	createdTimestamp := int64(0)
-	if creationTime := vap.GetCreationTimestamp(); !creationTime.IsZero() {
-		createdTimestamp = creationTime.Unix()
-	}
-
+	createdTimestamp := utils.ExtractCreationTimestamp(vap)
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(vap)
 
-	// Extract basic fields
 	failurePolicy := ""
 	if vap.Spec.FailurePolicy != nil {
 		failurePolicy = string(*vap.Spec.FailurePolicy)
@@ -84,31 +78,23 @@ func (h *ValidatingAdmissionPolicyHandler) createLogEntry(vap *admissionregistra
 		observedGeneration = vap.Status.ObservedGeneration
 	}
 
-	// Create data structure
-	// See: https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/
 	data := types.ValidatingAdmissionPolicyData{
 		CreatedTimestamp:   createdTimestamp,
 		Labels:             vap.GetLabels(),
 		Annotations:        vap.GetAnnotations(),
 		FailurePolicy:      failurePolicy,
-		MatchConstraints:   []string{}, // Simplified for now
-		Validations:        []string{}, // Simplified for now
-		AuditAnnotations:   []string{}, // Simplified for now
-		MatchConditions:    []string{}, // Simplified for now
-		Variables:          []string{}, // Simplified for now
+		MatchConstraints:   []string{},
+		Validations:        []string{},
+		AuditAnnotations:   []string{},
+		MatchConditions:    []string{},
+		Variables:          []string{},
 		ParamKind:          paramKind,
 		ObservedGeneration: observedGeneration,
-		TypeChecking:       "",         // Simplified for now
-		ExpressionWarnings: []string{}, // Simplified for now
+		TypeChecking:       "",
+		ExpressionWarnings: []string{},
 		CreatedByKind:      createdByKind,
 		CreatedByName:      createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "validatingadmissionpolicy",
-		Name:         vap.GetName(),
-		Namespace:    "", // ValidatingAdmissionPolicy is cluster-scoped
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("validatingadmissionpolicy", utils.ExtractName(vap), utils.ExtractNamespace(vap), data)
 }

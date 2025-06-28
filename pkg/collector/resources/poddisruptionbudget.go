@@ -87,9 +87,9 @@ func (h *PodDisruptionBudgetHandler) createLogEntry(pdb *policyv1.PodDisruptionB
 
 	// Create data structure
 	data := types.PodDisruptionBudgetData{
-		CreatedTimestamp:         pdb.CreationTimestamp.Unix(),
-		Labels:                   pdb.Labels,
-		Annotations:              pdb.Annotations,
+		CreatedTimestamp:         utils.ExtractCreationTimestamp(pdb),
+		Labels:                   utils.ExtractLabels(pdb),
+		Annotations:              utils.ExtractAnnotations(pdb),
 		MinAvailable:             minAvailable,
 		MaxUnavailable:           maxUnavailable,
 		CurrentHealthy:           currentHealthy,
@@ -108,11 +108,5 @@ func (h *PodDisruptionBudgetHandler) createLogEntry(pdb *policyv1.PodDisruptionB
 		CreatedByName:            createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "poddisruptionbudget",
-		Name:         pdb.Name,
-		Namespace:    pdb.Namespace,
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("poddisruptionbudget", utils.ExtractName(pdb), utils.ExtractNamespace(pdb), data)
 }

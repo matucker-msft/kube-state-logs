@@ -84,23 +84,19 @@ func (h *ServiceAccountHandler) createLogEntry(sa *corev1.ServiceAccount) types.
 		automountToken = *sa.AutomountServiceAccountToken
 	}
 
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(sa)
+
 	// Create data structure
 	data := types.ServiceAccountData{
-		CreatedTimestamp:             sa.CreationTimestamp.Unix(),
-		Labels:                       sa.Labels,
-		Annotations:                  sa.Annotations,
+		CreatedTimestamp:             utils.ExtractCreationTimestamp(sa),
+		Labels:                       utils.ExtractLabels(sa),
+		Annotations:                  utils.ExtractAnnotations(sa),
 		Secrets:                      secrets,
 		ImagePullSecrets:             imagePullSecrets,
-		CreatedByKind:                "",
-		CreatedByName:                "",
+		CreatedByKind:                createdByKind,
+		CreatedByName:                createdByName,
 		AutomountServiceAccountToken: &automountToken,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "serviceaccount",
-		Name:         sa.Name,
-		Namespace:    sa.Namespace,
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("serviceaccount", utils.ExtractName(sa), utils.ExtractNamespace(sa), data)
 }

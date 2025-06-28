@@ -96,9 +96,9 @@ func (h *NetworkPolicyHandler) createLogEntry(np *networkingv1.NetworkPolicy) ty
 
 	// Create data structure
 	data := types.NetworkPolicyData{
-		CreatedTimestamp: np.CreationTimestamp.Unix(),
-		Labels:           np.Labels,
-		Annotations:      np.Annotations,
+		CreatedTimestamp: utils.ExtractCreationTimestamp(np),
+		Labels:           utils.ExtractLabels(np),
+		Annotations:      utils.ExtractAnnotations(np),
 		PolicyTypes:      policyTypes,
 		IngressRules:     ingressRules,
 		EgressRules:      egressRules,
@@ -106,13 +106,7 @@ func (h *NetworkPolicyHandler) createLogEntry(np *networkingv1.NetworkPolicy) ty
 		CreatedByName:    createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "networkpolicy",
-		Name:         np.Name,
-		Namespace:    np.Namespace,
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("networkpolicy", utils.ExtractName(np), utils.ExtractNamespace(np), data)
 }
 
 // convertPorts converts networkingv1.NetworkPolicyPort to types.NetworkPolicyPort

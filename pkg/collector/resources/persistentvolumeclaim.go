@@ -64,20 +64,16 @@ func (h *PersistentVolumeClaimHandler) Collect(ctx context.Context, namespaces [
 
 // createLogEntry creates a LogEntry from a persistentvolumeclaim
 func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolumeClaim) types.LogEntry {
-	// Extract access modes
-	// See: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 	var accessModes []string
 	for _, mode := range pvc.Spec.AccessModes {
 		accessModes = append(accessModes, string(mode))
 	}
 
-	// Extract storage class name
 	var storageClassName *string
 	if pvc.Spec.StorageClassName != nil {
 		storageClassName = pvc.Spec.StorageClassName
 	}
 
-	// Extract capacity
 	capacity := make(map[string]string)
 	if pvc.Status.Capacity != nil {
 		for resource, quantity := range pvc.Status.Capacity {
@@ -85,7 +81,6 @@ func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolu
 		}
 	}
 
-	// Extract request storage
 	requestStorage := ""
 	if pvc.Spec.Resources.Requests != nil {
 		if storage, exists := pvc.Spec.Resources.Requests[corev1.ResourceStorage]; exists {
@@ -93,7 +88,6 @@ func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolu
 		}
 	}
 
-	// Extract used storage
 	usedStorage := ""
 	if pvc.Status.Capacity != nil {
 		if storage, exists := pvc.Status.Capacity[corev1.ResourceStorage]; exists {
@@ -101,12 +95,9 @@ func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolu
 		}
 	}
 
-	// Determine conditions
-	// See: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#phase
 	conditionPending := false
 	conditionBound := false
 	conditionLost := false
-
 	for _, condition := range pvc.Status.Conditions {
 		switch condition.Type {
 		case "Pending":
@@ -118,11 +109,12 @@ func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolu
 		}
 	}
 
-	// Create data structure
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(pvc)
+
 	data := types.PersistentVolumeClaimData{
-		CreatedTimestamp: pvc.CreationTimestamp.Unix(),
-		Labels:           pvc.Labels,
-		Annotations:      pvc.Annotations,
+		CreatedTimestamp: utils.ExtractCreationTimestamp(pvc),
+		Labels:           utils.ExtractLabels(pvc),
+		Annotations:      utils.ExtractAnnotations(pvc),
 		AccessModes:      accessModes,
 		StorageClassName: storageClassName,
 		VolumeName:       pvc.Spec.VolumeName,
@@ -131,17 +123,11 @@ func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolu
 		ConditionPending: conditionPending,
 		ConditionBound:   conditionBound,
 		ConditionLost:    conditionLost,
-		CreatedByKind:    "",
-		CreatedByName:    "",
+		CreatedByKind:    createdByKind,
+		CreatedByName:    createdByName,
 		RequestStorage:   requestStorage,
 		UsedStorage:      usedStorage,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "persistentvolumeclaim",
-		Name:         pvc.Name,
-		Namespace:    pvc.Namespace,
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("persistentvolumeclaim", utils.ExtractName(pvc), utils.ExtractNamespace(pvc), data)
 }

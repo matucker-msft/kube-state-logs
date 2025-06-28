@@ -85,21 +85,15 @@ func (h *LimitRangeHandler) createLogEntry(lr *corev1.LimitRange) types.LogEntry
 
 	// Create data structure
 	data := types.LimitRangeData{
-		CreatedTimestamp: lr.CreationTimestamp.Unix(),
-		Labels:           lr.Labels,
-		Annotations:      lr.Annotations,
+		CreatedTimestamp: utils.ExtractCreationTimestamp(lr),
+		Labels:           utils.ExtractLabels(lr),
+		Annotations:      utils.ExtractAnnotations(lr),
 		Limits:           limits,
 		CreatedByKind:    createdByKind,
 		CreatedByName:    createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "limitrange",
-		Name:         lr.Name,
-		Namespace:    lr.Namespace,
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("limitrange", utils.ExtractName(lr), utils.ExtractNamespace(lr), data)
 }
 
 // convertResourceList converts corev1.ResourceList to map[string]string

@@ -64,41 +64,35 @@ func (h *NamespaceHandler) Collect(ctx context.Context, namespaces []string) ([]
 
 // createLogEntry creates a LogEntry from a namespace
 func (h *NamespaceHandler) createLogEntry(ns *corev1.Namespace) types.LogEntry {
+	// Determine phase
+	phase := string(ns.Status.Phase)
+
+	// Determine conditions
+	conditionActive := false
+	conditionTerminating := false
+
+	for _, condition := range ns.Status.Conditions {
+		switch condition.Type {
+		case corev1.NamespaceConditionType("Active"):
+			conditionActive = condition.Status == corev1.ConditionTrue
+		case corev1.NamespaceConditionType("Terminating"):
+			conditionTerminating = condition.Status == corev1.ConditionTrue
+		}
+	}
 
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(ns)
 
 	data := types.NamespaceData{
-		CreatedTimestamp:     ns.CreationTimestamp.Unix(),
-		Labels:               ns.Labels,
-		Annotations:          ns.Annotations,
-		Phase:                string(ns.Status.Phase),
-		ConditionActive:      h.getConditionStatus(ns.Status.Conditions, "NamespaceActive"),
-		ConditionTerminating: h.getConditionStatus(ns.Status.Conditions, "NamespaceTerminating"),
+		CreatedTimestamp:     utils.ExtractCreationTimestamp(ns),
+		Labels:               utils.ExtractLabels(ns),
+		Annotations:          utils.ExtractAnnotations(ns),
+		Phase:                phase,
+		ConditionActive:      conditionActive,
+		ConditionTerminating: conditionTerminating,
 		CreatedByKind:        createdByKind,
 		CreatedByName:        createdByName,
 		DeletionTimestamp:    ns.DeletionTimestamp,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "namespace",
-		Name:         ns.Name,
-		Namespace:    ns.Name, // Namespace name is the same as the resource name
-		Data:         h.convertToMap(data),
-	}
-}
-
-// getConditionStatus checks if a condition is true
-func (h *NamespaceHandler) getConditionStatus(conditions []corev1.NamespaceCondition, conditionType string) bool {
-	for _, condition := range conditions {
-		if condition.Type == corev1.NamespaceConditionType(conditionType) {
-			return condition.Status == corev1.ConditionTrue
-		}
-	}
-	return false
-}
-
-// convertToMap converts a struct to map[string]any for JSON serialization
-func (h *NamespaceHandler) convertToMap(data any) map[string]any {
-	return utils.ConvertStructToMap(data)
+	return utils.CreateLogEntry("namespace", utils.ExtractName(ns), utils.ExtractNamespace(ns), data)
 }

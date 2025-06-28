@@ -64,33 +64,25 @@ func (h *StatefulSetHandler) Collect(ctx context.Context, namespaces []string) (
 
 // createLogEntry creates a LogEntry from a statefulset
 func (h *StatefulSetHandler) createLogEntry(sts *appsv1.StatefulSet) types.LogEntry {
-
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(sts)
 
-	// Get service name
 	serviceName := ""
 	if sts.Spec.ServiceName != "" {
 		serviceName = sts.Spec.ServiceName
 	}
 
-	// Get pod management policy
 	podManagementPolicy := string(sts.Spec.PodManagementPolicy)
-
-	// Get update strategy
 	updateStrategy := string(sts.Spec.UpdateStrategy.Type)
 
-	// Get desired replicas with nil check
-	// Default to 1 when spec.replicas is nil (Kubernetes API default)
-	// See: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#creating-a-statefulset
 	desiredReplicas := int32(1)
 	if sts.Spec.Replicas != nil {
 		desiredReplicas = *sts.Spec.Replicas
 	}
 
 	data := types.StatefulSetData{
-		CreatedTimestamp:        sts.CreationTimestamp.Unix(),
-		Labels:                  sts.Labels,
-		Annotations:             sts.Annotations,
+		CreatedTimestamp:        utils.ExtractCreationTimestamp(sts),
+		Labels:                  utils.ExtractLabels(sts),
+		Annotations:             utils.ExtractAnnotations(sts),
 		DesiredReplicas:         desiredReplicas,
 		CurrentReplicas:         sts.Status.Replicas,
 		ReadyReplicas:           sts.Status.ReadyReplicas,
@@ -98,9 +90,9 @@ func (h *StatefulSetHandler) createLogEntry(sts *appsv1.StatefulSet) types.LogEn
 		ObservedGeneration:      sts.Status.ObservedGeneration,
 		CurrentRevision:         sts.Status.CurrentRevision,
 		UpdateRevision:          sts.Status.UpdateRevision,
-		ConditionAvailable:      h.getConditionStatus(sts.Status.Conditions, "StatefulSetAvailable"),
-		ConditionProgressing:    h.getConditionStatus(sts.Status.Conditions, "StatefulSetProgressing"),
-		ConditionReplicaFailure: h.getConditionStatus(sts.Status.Conditions, "StatefulSetReplicaFailure"),
+		ConditionAvailable:      utils.GetConditionStatusGeneric(sts.Status.Conditions, "StatefulSetAvailable"),
+		ConditionProgressing:    utils.GetConditionStatusGeneric(sts.Status.Conditions, "StatefulSetProgressing"),
+		ConditionReplicaFailure: utils.GetConditionStatusGeneric(sts.Status.Conditions, "StatefulSetReplicaFailure"),
 		CreatedByKind:           createdByKind,
 		CreatedByName:           createdByName,
 		ServiceName:             serviceName,
@@ -108,26 +100,5 @@ func (h *StatefulSetHandler) createLogEntry(sts *appsv1.StatefulSet) types.LogEn
 		UpdateStrategy:          updateStrategy,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "statefulset",
-		Name:         sts.Name,
-		Namespace:    sts.Namespace,
-		Data:         h.convertToMap(data),
-	}
-}
-
-// getConditionStatus checks if a condition is true
-func (h *StatefulSetHandler) getConditionStatus(conditions []appsv1.StatefulSetCondition, conditionType string) bool {
-	for _, condition := range conditions {
-		if condition.Type == appsv1.StatefulSetConditionType(conditionType) {
-			return condition.Status == "True"
-		}
-	}
-	return false
-}
-
-// convertToMap converts a struct to map[string]any for JSON serialization
-func (h *StatefulSetHandler) convertToMap(data any) map[string]any {
-	return utils.ConvertStructToMap(data)
+	return utils.CreateLogEntry("statefulset", utils.ExtractName(sts), utils.ExtractNamespace(sts), data)
 }

@@ -60,15 +60,9 @@ func (h *ValidatingAdmissionPolicyBindingHandler) Collect(ctx context.Context, n
 
 // createLogEntry creates a LogEntry from a ValidatingAdmissionPolicyBinding
 func (h *ValidatingAdmissionPolicyBindingHandler) createLogEntry(vapb *admissionregistrationv1beta1.ValidatingAdmissionPolicyBinding) types.LogEntry {
-	// Extract basic metadata
-	createdTimestamp := int64(0)
-	if creationTime := vapb.GetCreationTimestamp(); !creationTime.IsZero() {
-		createdTimestamp = creationTime.Unix()
-	}
-
+	createdTimestamp := utils.ExtractCreationTimestamp(vapb)
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(vapb)
 
-	// Extract basic fields
 	policyName := ""
 	if vapb.Spec.PolicyName != "" {
 		policyName = vapb.Spec.PolicyName
@@ -80,28 +74,19 @@ func (h *ValidatingAdmissionPolicyBindingHandler) createLogEntry(vapb *admission
 	}
 
 	observedGeneration := int64(0)
-	// Status field not available in this API version
 
-	// Create data structure
-	// See: https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/
 	data := types.ValidatingAdmissionPolicyBindingData{
 		CreatedTimestamp:   createdTimestamp,
 		Labels:             vapb.GetLabels(),
 		Annotations:        vapb.GetAnnotations(),
 		PolicyName:         policyName,
 		ParamRef:           paramRef,
-		MatchResources:     []string{}, // Simplified for now
-		ValidationActions:  []string{}, // Simplified for now
+		MatchResources:     []string{},
+		ValidationActions:  []string{},
 		ObservedGeneration: observedGeneration,
 		CreatedByKind:      createdByKind,
 		CreatedByName:      createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "validatingadmissionpolicybinding",
-		Name:         vapb.GetName(),
-		Namespace:    "", // ValidatingAdmissionPolicyBinding is cluster-scoped
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("validatingadmissionpolicybinding", utils.ExtractName(vapb), utils.ExtractNamespace(vapb), data)
 }

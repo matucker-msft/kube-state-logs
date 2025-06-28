@@ -99,55 +99,31 @@ func (h *ReplicaSetHandler) Collect(ctx context.Context, namespaces []string) ([
 
 // createLogEntry creates a LogEntry from a replicaset
 func (h *ReplicaSetHandler) createLogEntry(rs *appsv1.ReplicaSet) types.LogEntry {
-
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(rs)
 
 	// Get desired replicas with nil check
-	// Default to 1 when spec.replicas is nil (Kubernetes API default)
-	// See: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/#replicaset-basics
 	desiredReplicas := int32(1)
 	if rs.Spec.Replicas != nil {
 		desiredReplicas = *rs.Spec.Replicas
 	}
 
 	data := types.ReplicaSetData{
-		CreatedTimestamp:        rs.CreationTimestamp.Unix(),
-		Labels:                  rs.Labels,
-		Annotations:             rs.Annotations,
+		CreatedTimestamp:        utils.ExtractCreationTimestamp(rs),
+		Labels:                  utils.ExtractLabels(rs),
+		Annotations:             utils.ExtractAnnotations(rs),
 		DesiredReplicas:         desiredReplicas,
 		CurrentReplicas:         rs.Status.Replicas,
 		ReadyReplicas:           rs.Status.ReadyReplicas,
 		AvailableReplicas:       rs.Status.AvailableReplicas,
 		FullyLabeledReplicas:    rs.Status.FullyLabeledReplicas,
 		ObservedGeneration:      rs.Status.ObservedGeneration,
-		ConditionAvailable:      h.getConditionStatus(rs.Status.Conditions, "ReplicaSetAvailable"),
-		ConditionProgressing:    h.getConditionStatus(rs.Status.Conditions, "ReplicaSetProgressing"),
-		ConditionReplicaFailure: h.getConditionStatus(rs.Status.Conditions, "ReplicaSetReplicaFailure"),
+		ConditionAvailable:      utils.GetConditionStatusGeneric(rs.Status.Conditions, "ReplicaSetAvailable"),
+		ConditionProgressing:    utils.GetConditionStatusGeneric(rs.Status.Conditions, "ReplicaSetProgressing"),
+		ConditionReplicaFailure: utils.GetConditionStatusGeneric(rs.Status.Conditions, "ReplicaSetReplicaFailure"),
 		CreatedByKind:           createdByKind,
 		CreatedByName:           createdByName,
 		IsCurrent:               rs.Labels["kube-state-logs/current"] == "true",
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "replicaset",
-		Name:         rs.Name,
-		Namespace:    rs.Namespace,
-		Data:         h.convertToMap(data),
-	}
-}
-
-// getConditionStatus checks if a condition is true
-func (h *ReplicaSetHandler) getConditionStatus(conditions []appsv1.ReplicaSetCondition, conditionType string) bool {
-	for _, condition := range conditions {
-		if condition.Type == appsv1.ReplicaSetConditionType(conditionType) {
-			return condition.Status == "True"
-		}
-	}
-	return false
-}
-
-// convertToMap converts a struct to map[string]any for JSON serialization
-func (h *ReplicaSetHandler) convertToMap(data any) map[string]any {
-	return utils.ConvertStructToMap(data)
+	return utils.CreateLogEntry("replicaset", utils.ExtractName(rs), utils.ExtractNamespace(rs), data)
 }

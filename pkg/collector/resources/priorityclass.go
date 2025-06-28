@@ -60,17 +60,14 @@ func (h *PriorityClassHandler) Collect(ctx context.Context, namespaces []string)
 
 // createLogEntry creates a LogEntry from a PriorityClass
 func (h *PriorityClassHandler) createLogEntry(pc *schedulingv1.PriorityClass) types.LogEntry {
-	// Extract basic metadata
-	createdTimestamp := int64(0)
-	if creationTime := pc.GetCreationTimestamp(); !creationTime.IsZero() {
-		createdTimestamp = creationTime.Unix()
-	}
-
+	createdTimestamp := utils.ExtractCreationTimestamp(pc)
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(pc)
 
-	// Create data structure
-	// Default preemption policy is "PreemptLowerOrEqual" when not specified
-	// See: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#preemption-policies
+	preemptionPolicy := ""
+	if pc.PreemptionPolicy != nil {
+		preemptionPolicy = string(*pc.PreemptionPolicy)
+	}
+
 	data := types.PriorityClassData{
 		CreatedTimestamp: createdTimestamp,
 		Labels:           pc.GetLabels(),
@@ -78,16 +75,10 @@ func (h *PriorityClassHandler) createLogEntry(pc *schedulingv1.PriorityClass) ty
 		Value:            pc.Value,
 		GlobalDefault:    pc.GlobalDefault,
 		Description:      pc.Description,
-		PreemptionPolicy: string(*pc.PreemptionPolicy),
+		PreemptionPolicy: preemptionPolicy,
 		CreatedByKind:    createdByKind,
 		CreatedByName:    createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "priorityclass",
-		Name:         pc.GetName(),
-		Namespace:    "", // PriorityClass is cluster-scoped
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("priorityclass", utils.ExtractName(pc), utils.ExtractNamespace(pc), data)
 }

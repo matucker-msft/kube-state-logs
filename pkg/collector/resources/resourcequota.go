@@ -83,23 +83,19 @@ func (h *ResourceQuotaHandler) createLogEntry(rq *corev1.ResourceQuota) types.Lo
 		scopes[i] = string(scope)
 	}
 
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(rq)
+
 	// Create data structure
 	data := types.ResourceQuotaData{
-		CreatedTimestamp: rq.CreationTimestamp.Unix(),
-		Labels:           rq.Labels,
-		Annotations:      rq.Annotations,
+		CreatedTimestamp: utils.ExtractCreationTimestamp(rq),
+		Labels:           utils.ExtractLabels(rq),
+		Annotations:      utils.ExtractAnnotations(rq),
 		Hard:             hard,
 		Used:             used,
-		CreatedByKind:    "",
-		CreatedByName:    "",
+		CreatedByKind:    createdByKind,
+		CreatedByName:    createdByName,
 		Scopes:           scopes,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "resourcequota",
-		Name:         rq.Name,
-		Namespace:    rq.Namespace,
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("resourcequota", utils.ExtractName(rq), utils.ExtractNamespace(rq), data)
 }

@@ -60,8 +60,6 @@ func (h *IngressClassHandler) Collect(ctx context.Context, namespaces []string) 
 
 // createLogEntry creates a LogEntry from an ingressclass
 func (h *IngressClassHandler) createLogEntry(ic *networkingv1.IngressClass) types.LogEntry {
-	// Check if this is the default ingress class
-	// See: https://kubernetes.io/docs/concepts/services-networking/ingress/#default-ingress-class
 	isDefault := false
 	if ic.Annotations != nil {
 		if _, exists := ic.Annotations["ingressclass.kubernetes.io/is-default-class"]; exists {
@@ -69,22 +67,17 @@ func (h *IngressClassHandler) createLogEntry(ic *networkingv1.IngressClass) type
 		}
 	}
 
-	// Create data structure
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(ic)
+
 	data := types.IngressClassData{
-		CreatedTimestamp: ic.CreationTimestamp.Unix(),
-		Labels:           ic.Labels,
-		Annotations:      ic.Annotations,
+		CreatedTimestamp: utils.ExtractCreationTimestamp(ic),
+		Labels:           utils.ExtractLabels(ic),
+		Annotations:      utils.ExtractAnnotations(ic),
 		Controller:       ic.Spec.Controller,
 		IsDefault:        isDefault,
-		CreatedByKind:    "",
-		CreatedByName:    "",
+		CreatedByKind:    createdByKind,
+		CreatedByName:    createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "ingressclass",
-		Name:         ic.Name,
-		Namespace:    "", // Cluster-scoped resource
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("ingressclass", utils.ExtractName(ic), utils.ExtractNamespace(ic), data)
 }

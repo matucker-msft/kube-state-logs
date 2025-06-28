@@ -65,7 +65,6 @@ func (h *RoleBindingHandler) Collect(ctx context.Context, namespaces []string) (
 // createLogEntry creates a LogEntry from a rolebinding
 func (h *RoleBindingHandler) createLogEntry(rb *rbacv1.RoleBinding) types.LogEntry {
 	// Convert role ref
-	// See: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#rolebinding-and-clusterrolebinding
 	roleRef := types.RoleRef{
 		APIGroup: rb.RoleRef.APIGroup,
 		Kind:     rb.RoleRef.Kind,
@@ -88,20 +87,14 @@ func (h *RoleBindingHandler) createLogEntry(rb *rbacv1.RoleBinding) types.LogEnt
 
 	// Create data structure
 	data := types.RoleBindingData{
-		CreatedTimestamp: rb.CreationTimestamp.Unix(),
-		Labels:           rb.Labels,
-		Annotations:      rb.Annotations,
+		CreatedTimestamp: utils.ExtractCreationTimestamp(rb),
+		Labels:           utils.ExtractLabels(rb),
+		Annotations:      utils.ExtractAnnotations(rb),
 		RoleRef:          roleRef,
 		Subjects:         subjects,
 		CreatedByKind:    createdByKind,
 		CreatedByName:    createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "rolebinding",
-		Name:         rb.Name,
-		Namespace:    rb.Namespace,
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("rolebinding", utils.ExtractName(rb), utils.ExtractNamespace(rb), data)
 }

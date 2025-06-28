@@ -118,10 +118,12 @@ func (h *HorizontalPodAutoscalerHandler) createLogEntry(hpa *autoscalingv2.Horiz
 		minReplicas = *hpa.Spec.MinReplicas
 	}
 
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(hpa)
+
 	data := types.HorizontalPodAutoscalerData{
-		CreatedTimestamp:                   hpa.CreationTimestamp.Unix(),
-		Labels:                             hpa.Labels,
-		Annotations:                        hpa.Annotations,
+		CreatedTimestamp:                   utils.ExtractCreationTimestamp(hpa),
+		Labels:                             utils.ExtractLabels(hpa),
+		Annotations:                        utils.ExtractAnnotations(hpa),
 		MinReplicas:                        &minReplicas,
 		MaxReplicas:                        hpa.Spec.MaxReplicas,
 		TargetCPUUtilizationPercentage:     targetCPUUtilizationPercentage,
@@ -133,17 +135,11 @@ func (h *HorizontalPodAutoscalerHandler) createLogEntry(hpa *autoscalingv2.Horiz
 		ConditionAbleToScale:               conditionAbleToScale,
 		ConditionScalingActive:             conditionScalingActive,
 		ConditionScalingLimited:            conditionScalingLimited,
-		CreatedByKind:                      "",
-		CreatedByName:                      "",
+		CreatedByKind:                      createdByKind,
+		CreatedByName:                      createdByName,
 		ScaleTargetRef:                     hpa.Spec.ScaleTargetRef.Name,
 		ScaleTargetKind:                    hpa.Spec.ScaleTargetRef.Kind,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "horizontalpodautoscaler",
-		Name:         hpa.Name,
-		Namespace:    hpa.Namespace,
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("horizontalpodautoscaler", utils.ExtractName(hpa), utils.ExtractNamespace(hpa), data)
 }

@@ -61,7 +61,6 @@ func (h *CertificateSigningRequestHandler) Collect(ctx context.Context, namespac
 // createLogEntry creates a LogEntry from a certificatesigningrequest
 func (h *CertificateSigningRequestHandler) createLogEntry(csr *certificatesv1.CertificateSigningRequest) types.LogEntry {
 	// Convert usages to strings
-	// See: https://kubernetes.io/docs/reference/access-authn-authz/certificate-signing-requests/#kubernetes-signers
 	var usages []string
 	for _, usage := range csr.Spec.Usages {
 		usages = append(usages, string(usage))
@@ -73,14 +72,13 @@ func (h *CertificateSigningRequestHandler) createLogEntry(csr *certificatesv1.Ce
 		status = string(csr.Status.Conditions[0].Type)
 	}
 
-	// Get created by info
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(csr)
 
 	// Create data structure
 	data := types.CertificateSigningRequestData{
-		CreatedTimestamp:  csr.CreationTimestamp.Unix(),
-		Labels:            csr.Labels,
-		Annotations:       csr.Annotations,
+		CreatedTimestamp:  utils.ExtractCreationTimestamp(csr),
+		Labels:            utils.ExtractLabels(csr),
+		Annotations:       utils.ExtractAnnotations(csr),
 		Status:            status,
 		SignerName:        csr.Spec.SignerName,
 		ExpirationSeconds: csr.Spec.ExpirationSeconds,
@@ -89,11 +87,5 @@ func (h *CertificateSigningRequestHandler) createLogEntry(csr *certificatesv1.Ce
 		CreatedByName:     createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "certificatesigningrequest",
-		Name:         csr.Name,
-		Namespace:    "", // CertificateSigningRequests are cluster-scoped
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("certificatesigningrequest", utils.ExtractName(csr), utils.ExtractNamespace(csr), data)
 }

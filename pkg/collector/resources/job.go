@@ -64,7 +64,6 @@ func (h *JobHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 
 // createLogEntry creates a LogEntry from a job
 func (h *JobHandler) createLogEntry(job *batchv1.Job) types.LogEntry {
-
 	// Determine job type
 	jobType := "Job"
 	if len(job.OwnerReferences) > 0 {
@@ -98,17 +97,15 @@ func (h *JobHandler) createLogEntry(job *batchv1.Job) types.LogEntry {
 	}
 
 	// Get backoff limit
-	// Default to 6 when spec.backoffLimit is nil (Kubernetes API default)
-	// See: https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-backoff-failure-policy
-	backoffLimit := int32(6) // Default value
+	backoffLimit := int32(6)
 	if job.Spec.BackoffLimit != nil {
 		backoffLimit = *job.Spec.BackoffLimit
 	}
 
 	data := types.JobData{
-		CreatedTimestamp:      job.CreationTimestamp.Unix(),
-		Labels:                job.Labels,
-		Annotations:           job.Annotations,
+		CreatedTimestamp:      utils.ExtractCreationTimestamp(job),
+		Labels:                utils.ExtractLabels(job),
+		Annotations:           utils.ExtractAnnotations(job),
 		ActivePods:            job.Status.Active,
 		SucceededPods:         job.Status.Succeeded,
 		FailedPods:            job.Status.Failed,
@@ -124,16 +121,5 @@ func (h *JobHandler) createLogEntry(job *batchv1.Job) types.LogEntry {
 		Suspend:               suspend,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "job",
-		Name:         job.Name,
-		Namespace:    job.Namespace,
-		Data:         h.convertToMap(data),
-	}
-}
-
-// convertToMap converts a struct to map[string]any for JSON serialization
-func (h *JobHandler) convertToMap(data any) map[string]any {
-	return utils.ConvertStructToMap(data)
+	return utils.CreateLogEntry("job", utils.ExtractName(job), utils.ExtractNamespace(job), data)
 }

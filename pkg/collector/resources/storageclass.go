@@ -110,11 +110,13 @@ func (h *StorageClassHandler) createLogEntry(sc *storagev1.StorageClass) types.L
 		}
 	}
 
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(sc)
+
 	// Create data structure
 	data := types.StorageClassData{
-		CreatedTimestamp:     sc.CreationTimestamp.Unix(),
-		Labels:               sc.Labels,
-		Annotations:          sc.Annotations,
+		CreatedTimestamp:     utils.ExtractCreationTimestamp(sc),
+		Labels:               utils.ExtractLabels(sc),
+		Annotations:          utils.ExtractAnnotations(sc),
 		Provisioner:          sc.Provisioner,
 		ReclaimPolicy:        reclaimPolicy,
 		VolumeBindingMode:    volumeBindingMode,
@@ -122,16 +124,10 @@ func (h *StorageClassHandler) createLogEntry(sc *storagev1.StorageClass) types.L
 		Parameters:           parameters,
 		MountOptions:         mountOptions,
 		AllowedTopologies:    allowedTopologies,
-		CreatedByKind:        "",
-		CreatedByName:        "",
+		CreatedByKind:        createdByKind,
+		CreatedByName:        createdByName,
 		IsDefaultClass:       isDefaultClass,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "storageclass",
-		Name:         sc.Name,
-		Namespace:    "", // StorageClasses are cluster-scoped
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("storageclass", utils.ExtractName(sc), utils.ExtractNamespace(sc), data)
 }

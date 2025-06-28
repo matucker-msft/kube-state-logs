@@ -61,7 +61,6 @@ func (h *VolumeAttachmentHandler) Collect(ctx context.Context, namespaces []stri
 // createLogEntry creates a LogEntry from a volumeattachment
 func (h *VolumeAttachmentHandler) createLogEntry(va *storagev1.VolumeAttachment) types.LogEntry {
 	// Get attachment metadata
-	// See: https://kubernetes.io/docs/concepts/storage/volume-attachments/
 	attachmentMetadata := make(map[string]string)
 	if va.Status.AttachmentMetadata != nil {
 		for key, value := range va.Status.AttachmentMetadata {
@@ -79,9 +78,9 @@ func (h *VolumeAttachmentHandler) createLogEntry(va *storagev1.VolumeAttachment)
 
 	// Create data structure
 	data := types.VolumeAttachmentData{
-		CreatedTimestamp:   va.CreationTimestamp.Unix(),
-		Labels:             va.Labels,
-		Annotations:        va.Annotations,
+		CreatedTimestamp:   utils.ExtractCreationTimestamp(va),
+		Labels:             utils.ExtractLabels(va),
+		Annotations:        utils.ExtractAnnotations(va),
 		Attacher:           va.Spec.Attacher,
 		VolumeName:         volumeName,
 		NodeName:           va.Spec.NodeName,
@@ -91,11 +90,5 @@ func (h *VolumeAttachmentHandler) createLogEntry(va *storagev1.VolumeAttachment)
 		CreatedByName:      createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "volumeattachment",
-		Name:         va.Name,
-		Namespace:    "", // VolumeAttachments are cluster-scoped
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("volumeattachment", utils.ExtractName(va), utils.ExtractNamespace(va), data)
 }

@@ -100,9 +100,9 @@ func (h *LeaseHandler) createLogEntry(lease *coordinationv1.Lease) types.LogEntr
 
 	// Create data structure
 	data := types.LeaseData{
-		CreatedTimestamp:     lease.CreationTimestamp.Unix(),
-		Labels:               lease.Labels,
-		Annotations:          lease.Annotations,
+		CreatedTimestamp:     utils.ExtractCreationTimestamp(lease),
+		Labels:               utils.ExtractLabels(lease),
+		Annotations:          utils.ExtractAnnotations(lease),
 		HolderIdentity:       holderIdentity,
 		LeaseDurationSeconds: leaseDurationSeconds,
 		RenewTime:            renewTime,
@@ -112,11 +112,5 @@ func (h *LeaseHandler) createLogEntry(lease *coordinationv1.Lease) types.LogEntr
 		CreatedByName:        createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "lease",
-		Name:         lease.Name,
-		Namespace:    lease.Namespace,
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("lease", utils.ExtractName(lease), utils.ExtractNamespace(lease), data)
 }

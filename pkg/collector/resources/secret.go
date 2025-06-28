@@ -66,33 +66,20 @@ func (h *SecretHandler) Collect(ctx context.Context, namespaces []string) ([]typ
 func (h *SecretHandler) createLogEntry(secret *corev1.Secret) types.LogEntry {
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(secret)
 
-	// Get data keys (we don't expose the actual secret data, just the keys)
-	// See: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types
 	var dataKeys []string
 	for key := range secret.Data {
 		dataKeys = append(dataKeys, key)
 	}
 
 	data := types.SecretData{
-		CreatedTimestamp: secret.CreationTimestamp.Unix(),
-		Labels:           secret.Labels,
-		Annotations:      secret.Annotations,
+		CreatedTimestamp: utils.ExtractCreationTimestamp(secret),
+		Labels:           utils.ExtractLabels(secret),
+		Annotations:      utils.ExtractAnnotations(secret),
 		Type:             string(secret.Type),
 		DataKeys:         dataKeys,
 		CreatedByKind:    createdByKind,
 		CreatedByName:    createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "secret",
-		Name:         secret.Name,
-		Namespace:    secret.Namespace,
-		Data:         h.convertToMap(data),
-	}
-}
-
-// convertToMap converts a struct to map[string]any for JSON serialization
-func (h *SecretHandler) convertToMap(data any) map[string]any {
-	return utils.ConvertStructToMap(data)
+	return utils.CreateLogEntry("secret", utils.ExtractName(secret), utils.ExtractNamespace(secret), data)
 }

@@ -64,34 +64,21 @@ func (h *ConfigMapHandler) Collect(ctx context.Context, namespaces []string) ([]
 
 // createLogEntry creates a LogEntry from a configmap
 func (h *ConfigMapHandler) createLogEntry(configmap *corev1.ConfigMap) types.LogEntry {
-
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(configmap)
 
-	// Get data keys
 	var dataKeys []string
 	for key := range configmap.Data {
 		dataKeys = append(dataKeys, key)
 	}
 
 	data := types.ConfigMapData{
-		CreatedTimestamp: configmap.CreationTimestamp.Unix(),
-		Labels:           configmap.Labels,
-		Annotations:      configmap.Annotations,
+		CreatedTimestamp: utils.ExtractCreationTimestamp(configmap),
+		Labels:           utils.ExtractLabels(configmap),
+		Annotations:      utils.ExtractAnnotations(configmap),
 		DataKeys:         dataKeys,
 		CreatedByKind:    createdByKind,
 		CreatedByName:    createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "configmap",
-		Name:         configmap.Name,
-		Namespace:    configmap.Namespace,
-		Data:         h.convertToMap(data),
-	}
-}
-
-// convertToMap converts a struct to map[string]any for JSON serialization
-func (h *ConfigMapHandler) convertToMap(data any) map[string]any {
-	return utils.ConvertStructToMap(data)
+	return utils.CreateLogEntry("configmap", utils.ExtractName(configmap), utils.ExtractNamespace(configmap), data)
 }

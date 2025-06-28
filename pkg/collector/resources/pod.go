@@ -471,18 +471,3 @@ func (h *PodHandler) createContainerLogEntry(pod *corev1.Pod, containerSpec *cor
 		Data:         utils.ConvertStructToMap(data),
 	}
 }
-
-// convertPodToMap converts PodData to map[string]any for JSON serialization
-func (h *PodHandler) convertPodToMap(data types.PodData) map[string]any {
-	return utils.ConvertStructToMap(data)
-}
-
-// convertContainerToMap converts ContainerData to map[string]any for JSON serialization
-func (h *PodHandler) convertContainerToMap(data types.ContainerData) map[string]any {
-	return utils.ConvertStructToMap(data)
-}
-
-// convertToMap converts a struct to map[string]any for JSON serialization
-func (h *PodHandler) convertToMap(data any) map[string]any {
-	return utils.ConvertStructToMap(data)
-}

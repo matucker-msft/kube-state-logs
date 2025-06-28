@@ -35,19 +35,6 @@ func (h *ClusterRoleBindingHandler) SetupInformer(factory informers.SharedInform
 	// Create clusterrolebinding informer
 	h.informer = factory.Rbac().V1().ClusterRoleBindings().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 
@@ -74,7 +61,6 @@ func (h *ClusterRoleBindingHandler) Collect(ctx context.Context, namespaces []st
 // createLogEntry creates a LogEntry from a clusterrolebinding
 func (h *ClusterRoleBindingHandler) createLogEntry(crb *rbacv1.ClusterRoleBinding) types.LogEntry {
 	// Convert role ref
-	// See: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#rolebinding-and-clusterrolebinding
 	roleRef := types.RoleRef{
 		APIGroup: crb.RoleRef.APIGroup,
 		Kind:     crb.RoleRef.Kind,
@@ -97,20 +83,14 @@ func (h *ClusterRoleBindingHandler) createLogEntry(crb *rbacv1.ClusterRoleBindin
 
 	// Create data structure
 	data := types.ClusterRoleBindingData{
-		CreatedTimestamp: crb.CreationTimestamp.Unix(),
-		Labels:           crb.Labels,
-		Annotations:      crb.Annotations,
+		CreatedTimestamp: utils.ExtractCreationTimestamp(crb),
+		Labels:           utils.ExtractLabels(crb),
+		Annotations:      utils.ExtractAnnotations(crb),
 		RoleRef:          roleRef,
 		Subjects:         subjects,
 		CreatedByKind:    createdByKind,
 		CreatedByName:    createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "clusterrolebinding",
-		Name:         crb.Name,
-		Namespace:    "", // ClusterRoleBindings are cluster-scoped
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("clusterrolebinding", utils.ExtractName(crb), utils.ExtractNamespace(crb), data)
 }

@@ -61,7 +61,6 @@ func (h *MutatingWebhookConfigurationHandler) Collect(ctx context.Context, names
 // createLogEntry creates a LogEntry from a mutatingwebhookconfiguration
 func (h *MutatingWebhookConfigurationHandler) createLogEntry(mwc *admissionregistrationv1.MutatingWebhookConfiguration) types.LogEntry {
 	// Extract webhooks
-	// See: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#mutatingadmissionwebhook
 	var webhooks []types.WebhookData
 	for _, webhook := range mwc.Webhooks {
 		// Extract client config
@@ -123,21 +122,17 @@ func (h *MutatingWebhookConfigurationHandler) createLogEntry(mwc *admissionregis
 		})
 	}
 
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(mwc)
+
 	// Create data structure
 	data := types.MutatingWebhookConfigurationData{
-		CreatedTimestamp: mwc.CreationTimestamp.Unix(),
-		Labels:           mwc.Labels,
-		Annotations:      mwc.Annotations,
+		CreatedTimestamp: utils.ExtractCreationTimestamp(mwc),
+		Labels:           utils.ExtractLabels(mwc),
+		Annotations:      utils.ExtractAnnotations(mwc),
 		Webhooks:         webhooks,
-		CreatedByKind:    "",
-		CreatedByName:    "",
+		CreatedByKind:    createdByKind,
+		CreatedByName:    createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "mutatingwebhookconfiguration",
-		Name:         mwc.Name,
-		Namespace:    "", // Cluster-scoped resource
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("mutatingwebhookconfiguration", utils.ExtractName(mwc), utils.ExtractNamespace(mwc), data)
 }

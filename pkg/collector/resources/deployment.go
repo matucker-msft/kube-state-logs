@@ -95,9 +95,9 @@ func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.
 	observedGeneration := deployment.Status.ObservedGeneration
 
 	data := types.DeploymentData{
-		CreatedTimestamp:                    deployment.CreationTimestamp.Unix(),
-		Labels:                              deployment.Labels,
-		Annotations:                         deployment.Annotations,
+		CreatedTimestamp:                    utils.ExtractCreationTimestamp(deployment),
+		Labels:                              utils.ExtractLabels(deployment),
+		Annotations:                         utils.ExtractAnnotations(deployment),
 		DesiredReplicas:                     desiredReplicas,
 		CurrentReplicas:                     currentReplicas,
 		ReadyReplicas:                       readyReplicas,
@@ -112,22 +112,16 @@ func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.
 		StrategyType:                        strategyType,
 		StrategyRollingUpdateMaxSurge:       strategyRollingUpdateMaxSurge,
 		StrategyRollingUpdateMaxUnavailable: strategyRollingUpdateMaxUnavailable,
-		ConditionAvailable:                  h.getConditionStatus(deployment.Status.Conditions, "Available"),
-		ConditionProgressing:                h.getConditionStatus(deployment.Status.Conditions, "Progressing"),
-		ConditionReplicaFailure:             h.getConditionStatus(deployment.Status.Conditions, "ReplicaFailure"),
+		ConditionAvailable:                  utils.GetConditionStatusGeneric(deployment.Status.Conditions, "Available"),
+		ConditionProgressing:                utils.GetConditionStatusGeneric(deployment.Status.Conditions, "Progressing"),
+		ConditionReplicaFailure:             utils.GetConditionStatusGeneric(deployment.Status.Conditions, "ReplicaFailure"),
 		CreatedByKind:                       createdByKind,
 		CreatedByName:                       createdByName,
 		Paused:                              deployment.Spec.Paused,
-		MetadataGeneration:                  deployment.ObjectMeta.Generation,
+		MetadataGeneration:                  utils.ExtractGeneration(deployment),
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "deployment",
-		Name:         deployment.Name,
-		Namespace:    deployment.Namespace,
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("deployment", utils.ExtractName(deployment), utils.ExtractNamespace(deployment), data)
 }
 
 // getConditionStatus checks if a condition is true
@@ -138,9 +132,4 @@ func (h *DeploymentHandler) getConditionStatus(conditions []appsv1.DeploymentCon
 		}
 	}
 	return false
-}
-
-// convertToMap converts a struct to map[string]any for JSON serialization
-func (h *DeploymentHandler) convertToMap(data any) map[string]any {
-	return utils.ConvertStructToMap(data)
 }

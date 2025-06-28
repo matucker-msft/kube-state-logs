@@ -102,23 +102,19 @@ func (h *EndpointsHandler) createLogEntry(endpoints *corev1.Endpoints) types.Log
 	// Determine if endpoints are ready (have addresses)
 	ready := len(addresses) > 0
 
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(endpoints)
+
 	// Create data structure
 	data := types.EndpointsData{
-		CreatedTimestamp: endpoints.CreationTimestamp.Unix(),
-		Labels:           endpoints.Labels,
-		Annotations:      endpoints.Annotations,
+		CreatedTimestamp: utils.ExtractCreationTimestamp(endpoints),
+		Labels:           utils.ExtractLabels(endpoints),
+		Annotations:      utils.ExtractAnnotations(endpoints),
 		Addresses:        addresses,
 		Ports:            ports,
-		CreatedByKind:    "",
-		CreatedByName:    "",
+		CreatedByKind:    createdByKind,
+		CreatedByName:    createdByName,
 		Ready:            ready,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "endpoints",
-		Name:         endpoints.Name,
-		Namespace:    endpoints.Namespace,
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("endpoints", utils.ExtractName(endpoints), utils.ExtractNamespace(endpoints), data)
 }

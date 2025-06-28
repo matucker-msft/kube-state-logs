@@ -83,11 +83,13 @@ func (h *PersistentVolumeHandler) createLogEntry(pv *corev1.PersistentVolume) ty
 	// Get persistent volume source
 	persistentVolumeSource := h.getPersistentVolumeSource(pv)
 
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(pv)
+
 	// Create data structure
 	data := types.PersistentVolumeData{
-		CreatedTimestamp:       pv.CreationTimestamp.Unix(),
-		Labels:                 pv.Labels,
-		Annotations:            pv.Annotations,
+		CreatedTimestamp:       utils.ExtractCreationTimestamp(pv),
+		Labels:                 utils.ExtractLabels(pv),
+		Annotations:            utils.ExtractAnnotations(pv),
 		CapacityBytes:          capacityBytes,
 		AccessModes:            accessModes,
 		ReclaimPolicy:          string(pv.Spec.PersistentVolumeReclaimPolicy),
@@ -96,18 +98,12 @@ func (h *PersistentVolumeHandler) createLogEntry(pv *corev1.PersistentVolume) ty
 		VolumeMode:             string(*pv.Spec.VolumeMode),
 		VolumePluginName:       volumePluginName,
 		PersistentVolumeSource: persistentVolumeSource,
-		CreatedByKind:          "",
-		CreatedByName:          "",
+		CreatedByKind:          createdByKind,
+		CreatedByName:          createdByName,
 		IsDefaultClass:         false, // This is typically determined by StorageClass, not PV
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "persistentvolume",
-		Name:         pv.Name,
-		Namespace:    "", // PVs are cluster-scoped
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("persistentvolume", utils.ExtractName(pv), utils.ExtractNamespace(pv), data)
 }
 
 // getVolumePluginName determines the volume plugin name from the PV spec

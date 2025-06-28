@@ -35,19 +35,6 @@ func (h *ValidatingWebhookConfigurationHandler) SetupInformer(factory informers.
 	// Create validatingwebhookconfiguration informer
 	h.informer = factory.Admissionregistration().V1().ValidatingWebhookConfigurations().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 
@@ -74,7 +61,6 @@ func (h *ValidatingWebhookConfigurationHandler) Collect(ctx context.Context, nam
 // createLogEntry creates a LogEntry from a validatingwebhookconfiguration
 func (h *ValidatingWebhookConfigurationHandler) createLogEntry(vwc *admissionregistrationv1.ValidatingWebhookConfiguration) types.LogEntry {
 	// Extract webhooks
-	// See: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#validatingadmissionwebhook
 	var webhooks []types.WebhookData
 	for _, webhook := range vwc.Webhooks {
 		// Extract client config
@@ -136,21 +122,17 @@ func (h *ValidatingWebhookConfigurationHandler) createLogEntry(vwc *admissionreg
 		})
 	}
 
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(vwc)
+
 	// Create data structure
 	data := types.ValidatingWebhookConfigurationData{
-		CreatedTimestamp: vwc.CreationTimestamp.Unix(),
-		Labels:           vwc.Labels,
-		Annotations:      vwc.Annotations,
+		CreatedTimestamp: utils.ExtractCreationTimestamp(vwc),
+		Labels:           utils.ExtractLabels(vwc),
+		Annotations:      utils.ExtractAnnotations(vwc),
 		Webhooks:         webhooks,
-		CreatedByKind:    "",
-		CreatedByName:    "",
+		CreatedByKind:    createdByKind,
+		CreatedByName:    createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "validatingwebhookconfiguration",
-		Name:         vwc.Name,
-		Namespace:    "", // Cluster-scoped resource
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("validatingwebhookconfiguration", utils.ExtractName(vwc), utils.ExtractNamespace(vwc), data)
 }
