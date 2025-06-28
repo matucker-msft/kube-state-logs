@@ -51,7 +51,6 @@ func (h *LeaseHandler) Collect(ctx context.Context, namespaces []string) ([]type
 			continue
 		}
 
-		// Filter by namespace if specified
 		if !utils.ShouldIncludeNamespace(namespaces, lease.Namespace) {
 			continue
 		}

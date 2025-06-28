@@ -51,7 +51,6 @@ func (h *JobHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 			continue
 		}
 
-		// Filter by namespace if specified
 		if !utils.ShouldIncludeNamespace(namespaces, job.Namespace) {
 			continue
 		}

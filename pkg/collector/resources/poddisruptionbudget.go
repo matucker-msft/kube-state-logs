@@ -51,7 +51,6 @@ func (h *PodDisruptionBudgetHandler) Collect(ctx context.Context, namespaces []s
 			continue
 		}
 
-		// Filter by namespace if specified
 		if !utils.ShouldIncludeNamespace(namespaces, pdb.Namespace) {
 			continue
 		}

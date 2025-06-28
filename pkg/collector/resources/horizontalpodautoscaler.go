@@ -51,7 +51,6 @@ func (h *HorizontalPodAutoscalerHandler) Collect(ctx context.Context, namespaces
 			continue
 		}
 
-		// Filter by namespace if specified
 		if !utils.ShouldIncludeNamespace(namespaces, hpa.Namespace) {
 			continue
 		}

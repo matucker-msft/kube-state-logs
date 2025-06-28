@@ -58,12 +58,8 @@ func (h *CRDHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 			continue
 		}
 
-		// Filter by namespace if specified
-		if len(namespaces) > 0 {
-			namespace := unstructuredObj.GetNamespace()
-			if namespace != "" && !contains(namespaces, namespace) {
-				continue
-			}
+		if !utils.ShouldIncludeNamespace(namespaces, unstructuredObj.GetNamespace()) {
+			continue
 		}
 
 		entry := h.createLogEntry(unstructuredObj)
@@ -128,14 +124,4 @@ func (h *CRDHandler) createLogEntry(obj *unstructured.Unstructured) types.LogEnt
 // extractField extracts a field from an object using a dot-separated path
 func (h *CRDHandler) extractField(obj map[string]any, path string) any {
 	return utils.ExtractField(obj, path)
-}
-
-// contains checks if a slice contains a string
-func contains(slice []string, item string) bool {
-	for _, s := range slice {
-		if s == item {
-			return true
-		}
-	}
-	return false
 }

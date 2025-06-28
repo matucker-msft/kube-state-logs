@@ -51,7 +51,6 @@ func (h *EndpointsHandler) Collect(ctx context.Context, namespaces []string) ([]
 			continue
 		}
 
-		// Filter by namespace if specified
 		if !utils.ShouldIncludeNamespace(namespaces, endpoints.Namespace) {
 			continue
 		}

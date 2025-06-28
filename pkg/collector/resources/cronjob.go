@@ -51,7 +51,6 @@ func (h *CronJobHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 			continue
 		}
 
-		// Filter by namespace if specified
 		if !utils.ShouldIncludeNamespace(namespaces, cronjob.Namespace) {
 			continue
 		}

@@ -51,7 +51,6 @@ func (h *PersistentVolumeClaimHandler) Collect(ctx context.Context, namespaces [
 			continue
 		}
 
-		// Filter by namespace if specified
 		if !utils.ShouldIncludeNamespace(namespaces, pvc.Namespace) {
 			continue
 		}

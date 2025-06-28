@@ -52,7 +52,6 @@ func (h *IngressHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 			continue
 		}
 
-		// Filter by namespace if specified
 		if !utils.ShouldIncludeNamespace(namespaces, ingress.Namespace) {
 			continue
 		}

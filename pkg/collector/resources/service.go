@@ -55,7 +55,6 @@ func (h *ServiceHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 			continue
 		}
 
-		// Filter by namespace if specified
 		if !utils.ShouldIncludeNamespace(namespaces, service.Namespace) {
 			continue
 		}

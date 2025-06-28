@@ -51,7 +51,6 @@ func (h *SecretHandler) Collect(ctx context.Context, namespaces []string) ([]typ
 			continue
 		}
 
-		// Filter by namespace if specified
 		if !utils.ShouldIncludeNamespace(namespaces, secret.Namespace) {
 			continue
 		}

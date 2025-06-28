@@ -51,7 +51,6 @@ func (h *ReplicationControllerHandler) Collect(ctx context.Context, namespaces [
 			continue
 		}
 
-		// Filter by namespace if specified
 		if !utils.ShouldIncludeNamespace(namespaces, rc.Namespace) {
 			continue
 		}

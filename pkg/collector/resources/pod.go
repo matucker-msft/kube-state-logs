@@ -51,7 +51,6 @@ func (h *PodHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 			continue
 		}
 
-		// Filter by namespace if specified
 		if !utils.ShouldIncludeNamespace(namespaces, pod.Namespace) {
 			continue
 		}
