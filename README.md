@@ -2,6 +2,10 @@
 
 A Kubernetes operator that generates structured logs containing cluster state metrics, similar to kube-state-metrics but outputting logs instead of Prometheus metrics.
 
+## 🤖 AI-Assisted Development Notice
+
+**Transparency Notice**: This project was primarily developed with the assistance of AI tools. While the core concepts, architecture decisions, and requirements were human-defined, the majority of the implementation code, documentation, and testing was generated with AI assistance. We believe in being transparent about this development approach and welcome contributions from both human developers and AI-assisted workflows.
+
 ## Overview
 
 Kube-State-Logs is designed to provide the same rich Kubernetes resource state information that kube-state-metrics offers, but in a log-based format. Instead of exposing Prometheus metrics, it periodically logs the current state of Kubernetes resources with calculated metrics and conditions.
