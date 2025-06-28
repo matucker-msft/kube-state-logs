@@ -63,8 +63,29 @@ kube-state-logs supports logging for the following Kubernetes resources:
 - ServiceAccount
 - Endpoints
 - ResourceQuota
-- **PodDisruptionBudget**
-- ...
+- PodDisruptionBudget
+- StorageClass
+- NetworkPolicy
+- ReplicationController
+- LimitRange
+- Lease
+- Role
+- ClusterRole
+- RoleBinding
+- ClusterRoleBinding
+- VolumeAttachment
+- CertificateSigningRequest
+- Namespace
+- DaemonSet
+- StatefulSet
+- ReplicaSet
+- MutatingWebhookConfiguration
+- ValidatingWebhookConfiguration
+- IngressClass
+- PriorityClass
+- RuntimeClass
+- ValidatingAdmissionPolicy
+- ValidatingAdmissionPolicyBinding
 
 ### CRD Logging (Generic Custom Resource Support)
 

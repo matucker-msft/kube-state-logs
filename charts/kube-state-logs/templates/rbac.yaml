@@ -189,6 +189,26 @@ rules:
     resources: ["ingressclasses"]
     verbs: ["list", "watch"]
 {{- end }}
+{{- if has "priorityclass" $resources }}
+  - apiGroups: ["scheduling.k8s.io"]
+    resources: ["priorityclasses"]
+    verbs: ["list", "watch"]
+{{- end }}
+{{- if has "runtimeclass" $resources }}
+  - apiGroups: ["node.k8s.io"]
+    resources: ["runtimeclasses"]
+    verbs: ["list", "watch"]
+{{- end }}
+{{- if has "validatingadmissionpolicy" $resources }}
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingadmissionpolicies"]
+    verbs: ["list", "watch"]
+{{- end }}
+{{- if has "validatingadmissionpolicybinding" $resources }}
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingadmissionpolicybindings"]
+    verbs: ["list", "watch"]
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

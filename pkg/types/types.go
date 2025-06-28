@@ -1063,6 +1063,82 @@ type IngressClassData struct {
 	CreatedByName string `json:"createdByName"`
 }
 
+// PriorityClassData represents priorityclass-specific metrics (matching kube-state-metrics)
+type PriorityClassData struct {
+	// Basic priorityclass info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// PriorityClass specific
+	Value            int32  `json:"value"`
+	GlobalDefault    bool   `json:"globalDefault"`
+	Description      string `json:"description"`
+	PreemptionPolicy string `json:"preemptionPolicy"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// RuntimeClassData represents runtimeclass-specific metrics (matching kube-state-metrics)
+type RuntimeClassData struct {
+	// Basic runtimeclass info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// RuntimeClass specific
+	Handler string `json:"handler"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// ValidatingAdmissionPolicyData represents validatingadmissionpolicy-specific metrics (matching kube-state-metrics)
+type ValidatingAdmissionPolicyData struct {
+	// Basic validatingadmissionpolicy info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// ValidatingAdmissionPolicy specific
+	FailurePolicy      string   `json:"failurePolicy"`
+	MatchConstraints   []string `json:"matchConstraints"`
+	Validations        []string `json:"validations"`
+	AuditAnnotations   []string `json:"auditAnnotations"`
+	MatchConditions    []string `json:"matchConditions"`
+	Variables          []string `json:"variables"`
+	ParamKind          string   `json:"paramKind"`
+	ObservedGeneration int64    `json:"observedGeneration"`
+	TypeChecking       string   `json:"typeChecking"`
+	ExpressionWarnings []string `json:"expressionWarnings"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// ValidatingAdmissionPolicyBindingData represents validatingadmissionpolicybinding-specific metrics (matching kube-state-metrics)
+type ValidatingAdmissionPolicyBindingData struct {
+	// Basic validatingadmissionpolicybinding info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// ValidatingAdmissionPolicyBinding specific
+	PolicyName         string   `json:"policyName"`
+	ParamRef           string   `json:"paramRef"`
+	MatchResources     []string `json:"matchResources"`
+	ValidationActions  []string `json:"validationActions"`
+	ObservedGeneration int64    `json:"observedGeneration"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
 // convertStructToMap converts a struct to a map[string]any for JSON serialization
 func convertStructToMap(obj any) map[string]any {
 	result := make(map[string]any)
