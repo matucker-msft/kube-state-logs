@@ -30,6 +30,12 @@ config:
     - replicationcontroller
     - limitrange
     - lease
+    - role
+    - clusterrole
+    - rolebinding
+    - clusterrolebinding
+    - volumeattachment
+    - certificatesigningrequest
   namespaces: ""
   logLevel: "info"
 

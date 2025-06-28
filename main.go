@@ -18,7 +18,7 @@ func main() {
 	// Parse command line flags
 	var (
 		logInterval     = flag.Duration("log-interval", 1*time.Minute, "Default interval between log outputs")
-		resources       = flag.String("resources", "pod,service,node,deployment,job,cronjob,configmap,secret,persistentvolumeclaim,ingress,horizontalpodautoscaler,serviceaccount,endpoints,persistentvolume,resourcequota,poddisruptionbudget,storageclass,networkpolicy,replicationcontroller,limitrange,lease", "Comma-separated list of resources to monitor")
+		resources       = flag.String("resources", "pod,service,node,deployment,job,cronjob,configmap,secret,persistentvolumeclaim,ingress,horizontalpodautoscaler,serviceaccount,endpoints,persistentvolume,resourcequota,poddisruptionbudget,storageclass,networkpolicy,replicationcontroller,limitrange,lease,role,clusterrole,rolebinding,clusterrolebinding,volumeattachment,certificatesigningrequest", "Comma-separated list of resources to monitor")
 		resourceConfigs = flag.String("resource-configs", "", "Comma-separated list of resource:interval pairs (e.g., 'deployments:5m,pods:1m,services:2m'). If not specified, uses log-interval for all resources.")
 		namespaces      = flag.String("namespaces", "", "Comma-separated list of namespaces to monitor (empty for all)")
 		logLevel        = flag.String("log-level", "info", "Log level (debug, info, warn, error)")

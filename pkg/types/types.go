@@ -855,3 +855,125 @@ type LeaseData struct {
 	CreatedByKind string `json:"createdByKind"`
 	CreatedByName string `json:"createdByName"`
 }
+
+// RoleData represents role-specific metrics (matching kube-state-metrics)
+type RoleData struct {
+	// Basic role info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// Role specific
+	Rules []PolicyRule `json:"rules"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// ClusterRoleData represents clusterrole-specific metrics (matching kube-state-metrics)
+type ClusterRoleData struct {
+	// Basic clusterrole info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// ClusterRole specific
+	Rules []PolicyRule `json:"rules"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// RoleBindingData represents rolebinding-specific metrics (matching kube-state-metrics)
+type RoleBindingData struct {
+	// Basic rolebinding info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// RoleBinding specific
+	RoleRef  RoleRef   `json:"roleRef"`
+	Subjects []Subject `json:"subjects"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// ClusterRoleBindingData represents clusterrolebinding-specific metrics (matching kube-state-metrics)
+type ClusterRoleBindingData struct {
+	// Basic clusterrolebinding info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// ClusterRoleBinding specific
+	RoleRef  RoleRef   `json:"roleRef"`
+	Subjects []Subject `json:"subjects"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// PolicyRule represents a policy rule in RBAC
+type PolicyRule struct {
+	APIGroups     []string `json:"apiGroups"`
+	Resources     []string `json:"resources"`
+	ResourceNames []string `json:"resourceNames"`
+	Verbs         []string `json:"verbs"`
+}
+
+// RoleRef represents a role reference in RBAC
+type RoleRef struct {
+	APIGroup string `json:"apiGroup"`
+	Kind     string `json:"kind"`
+	Name     string `json:"name"`
+}
+
+// Subject represents a subject in RBAC
+type Subject struct {
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	APIGroup  string `json:"apiGroup"`
+}
+
+// VolumeAttachmentData represents volumeattachment-specific metrics (matching kube-state-metrics)
+type VolumeAttachmentData struct {
+	// Basic volumeattachment info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// VolumeAttachment specific
+	Attacher           string            `json:"attacher"`
+	VolumeName         string            `json:"volumeName"`
+	NodeName           string            `json:"nodeName"`
+	Attached           bool              `json:"attached"`
+	AttachmentMetadata map[string]string `json:"attachmentMetadata"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// CertificateSigningRequestData represents certificatesigningrequest-specific metrics (matching kube-state-metrics)
+type CertificateSigningRequestData struct {
+	// Basic certificatesigningrequest info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// CertificateSigningRequest specific
+	Status            string   `json:"status"`
+	SignerName        string   `json:"signerName"`
+	ExpirationSeconds *int32   `json:"expirationSeconds"`
+	Usages            []string `json:"usages"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
