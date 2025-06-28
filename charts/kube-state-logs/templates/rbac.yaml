@@ -78,6 +78,26 @@ rules:
     resources: ["secrets"]
     verbs: ["get", "list", "watch"]
 {{- end }}
+{{- if contains "persistentvolumeclaims" .Values.config.resources }}
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
+{{- if contains "ingresses" .Values.config.resources }}
+  - apiGroups: ["networking.k8s.io"]
+    resources: ["ingresses"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
+{{- if contains "horizontalpodautoscalers" .Values.config.resources }}
+  - apiGroups: ["autoscaling"]
+    resources: ["horizontalpodautoscalers"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
+{{- if contains "serviceaccounts" .Values.config.resources }}
+  - apiGroups: [""]
+    resources: ["serviceaccounts"]
+    verbs: ["get", "list", "watch"]
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding

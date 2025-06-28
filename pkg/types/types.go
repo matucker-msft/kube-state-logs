@@ -465,3 +465,133 @@ type SecretData struct {
 	CreatedByKind string `json:"createdByKind"`
 	CreatedByName string `json:"createdByName"`
 }
+
+// PersistentVolumeClaimData represents persistentvolumeclaim-specific metrics (matching kube-state-metrics)
+type PersistentVolumeClaimData struct {
+	// Basic persistentvolumeclaim info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// PVC spec
+	AccessModes      []string `json:"accessModes"`
+	StorageClassName *string  `json:"storageClassName"`
+	VolumeName       string   `json:"volumeName"`
+
+	// PVC status
+	Phase    string            `json:"phase"`
+	Capacity map[string]string `json:"capacity"`
+
+	// Conditions
+	ConditionPending bool `json:"conditionPending"`
+	ConditionBound   bool `json:"conditionBound"`
+	ConditionLost    bool `json:"conditionLost"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+
+	// PVC specific
+	RequestStorage string `json:"requestStorage"`
+	UsedStorage    string `json:"usedStorage"`
+}
+
+// IngressData represents ingress-specific metrics (matching kube-state-metrics)
+type IngressData struct {
+	// Basic ingress info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// Ingress spec
+	IngressClassName *string `json:"ingressClassName"`
+	LoadBalancerIP   string  `json:"loadBalancerIP"`
+
+	// Ingress status
+	LoadBalancerIngress []LoadBalancerIngressData `json:"loadBalancerIngress"`
+
+	// Ingress rules
+	Rules []IngressRuleData `json:"rules"`
+
+	// TLS configuration
+	TLS []IngressTLSData `json:"tls"`
+
+	// Conditions
+	ConditionLoadBalancerReady bool `json:"conditionLoadBalancerReady"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// IngressRuleData represents ingress rule information
+type IngressRuleData struct {
+	Host  string            `json:"host"`
+	Paths []IngressPathData `json:"paths"`
+}
+
+// IngressPathData represents ingress path information
+type IngressPathData struct {
+	Path     string `json:"path"`
+	PathType string `json:"pathType"`
+	Service  string `json:"service"`
+	Port     string `json:"port"`
+}
+
+// IngressTLSData represents ingress TLS configuration
+type IngressTLSData struct {
+	Hosts      []string `json:"hosts"`
+	SecretName string   `json:"secretName"`
+}
+
+// HorizontalPodAutoscalerData represents horizontalpodautoscaler-specific metrics (matching kube-state-metrics)
+type HorizontalPodAutoscalerData struct {
+	// Basic horizontalpodautoscaler info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// HPA spec
+	MinReplicas                       *int32 `json:"minReplicas"`
+	MaxReplicas                       int32  `json:"maxReplicas"`
+	TargetCPUUtilizationPercentage    *int32 `json:"targetCPUUtilizationPercentage"`
+	TargetMemoryUtilizationPercentage *int32 `json:"targetMemoryUtilizationPercentage"`
+
+	// HPA status
+	CurrentReplicas                    int32  `json:"currentReplicas"`
+	DesiredReplicas                    int32  `json:"desiredReplicas"`
+	CurrentCPUUtilizationPercentage    *int32 `json:"currentCPUUtilizationPercentage"`
+	CurrentMemoryUtilizationPercentage *int32 `json:"currentMemoryUtilizationPercentage"`
+
+	// Conditions
+	ConditionAbleToScale    bool `json:"conditionAbleToScale"`
+	ConditionScalingActive  bool `json:"conditionScalingActive"`
+	ConditionScalingLimited bool `json:"conditionScalingLimited"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+
+	// HPA specific
+	ScaleTargetRef  string `json:"scaleTargetRef"`
+	ScaleTargetKind string `json:"scaleTargetKind"`
+}
+
+// ServiceAccountData represents serviceaccount-specific metrics (matching kube-state-metrics)
+type ServiceAccountData struct {
+	// Basic serviceaccount info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// ServiceAccount specific
+	Secrets          []string `json:"secrets"`
+	ImagePullSecrets []string `json:"imagePullSecrets"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+
+	// ServiceAccount specific
+	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken"`
+}

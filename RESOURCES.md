@@ -20,6 +20,10 @@ Kube-state-logs supports the following Kubernetes resource types:
 - **CronJobs** - Scheduled job configuration and execution history
 - **ConfigMaps** - Configuration data and metadata
 - **Secrets** - Sensitive data configuration and metadata
+- **PersistentVolumeClaims** - Storage claims and their binding status
+- **Ingresses** - External access configuration and load balancer status
+- **HorizontalPodAutoscalers** - Autoscaling configuration and current metrics
+- **ServiceAccounts** - RBAC service accounts and their associated secrets
 
 ## Resource Examples
 
@@ -569,5 +573,9 @@ Each resource type includes fields that match the corresponding kube-state-metri
 - **CronJobs**: Schedule configuration, execution history, and concurrency policies
 - **ConfigMaps**: Configuration data keys and metadata
 - **Secrets**: Sensitive data keys, types, and metadata (without exposing actual values)
+- **PersistentVolumeClaims**: Storage requests, capacity, access modes, and binding status
+- **Ingresses**: Host rules, TLS configuration, load balancer status, and path mappings
+- **HorizontalPodAutoscalers**: Target metrics, current utilization, scaling conditions, and replica ranges
+- **ServiceAccounts**: Associated secrets, image pull secrets, and token mounting configuration
 
 For detailed field descriptions and their meanings, refer to the [Kubernetes API documentation](https://kubernetes.io/docs/reference/kubernetes-api/). 

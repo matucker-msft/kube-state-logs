@@ -98,6 +98,10 @@ func (c *Collector) registerHandlers() {
 	c.handlers["cronjobs"] = resources.NewCronJobHandler(c.client)
 	c.handlers["configmaps"] = resources.NewConfigMapHandler(c.client)
 	c.handlers["secrets"] = resources.NewSecretHandler(c.client)
+	c.handlers["persistentvolumeclaims"] = resources.NewPersistentVolumeClaimHandler(c.client)
+	c.handlers["ingresses"] = resources.NewIngressHandler(c.client)
+	c.handlers["horizontalpodautoscalers"] = resources.NewHorizontalPodAutoscalerHandler(c.client)
+	c.handlers["serviceaccounts"] = resources.NewServiceAccountHandler(c.client)
 }
 
 // Run starts the informers and collection loop

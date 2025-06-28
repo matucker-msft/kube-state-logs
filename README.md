@@ -17,6 +17,8 @@ This approach is particularly useful for:
 - **Comprehensive Resource Coverage**: Monitors all major Kubernetes resources including:
   - Deployments, ReplicaSets (current only), StatefulSets, DaemonSets
   - Pods, Services, Nodes, Namespaces
+  - Jobs, CronJobs, ConfigMaps, Secrets
+  - PersistentVolumeClaims, Ingresses, HorizontalPodAutoscalers, ServiceAccounts
   - Container-level metrics and states
 
 - **Rich State Information**: Each log entry includes:
@@ -69,7 +71,7 @@ image:
 
 config:
   logInterval: "1m"  # Default interval for resources without specific configs
-  resources: "deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces,jobs,cronjobs,configmaps,secrets"
+  resources: "deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces,jobs,cronjobs,configmaps,secrets,persistentvolumeclaims,ingresses,horizontalpodautoscalers,serviceaccounts"
   resourceConfigs: "deployments:5m,pods:1m,services:2m"  # Individual resource intervals
   namespaces: ""  # Empty for all namespaces
   logLevel: "info"
@@ -88,7 +90,7 @@ resources:
 ```bash
 ./kube-state-logs \
   --log-interval=1m \
-  --resources=deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces,jobs,cronjobs,configmaps,secrets \
+  --resources=deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces,jobs,cronjobs,configmaps,secrets,persistentvolumeclaims,ingresses,horizontalpodautoscalers,serviceaccounts \
   --resource-configs=deployments:5m,pods:1m,services:2m \
   --namespaces=default,kube-system \
   --log-level=info \
@@ -108,6 +110,8 @@ You can specify different logging intervals for different resource types using t
 - `--resource-configs=deployments:5m,pods:1m` - Deployments every 5 minutes, pods every 1 minute
 - `--resource-configs=namespaces:10m` - Only namespaces every 10 minutes
 - `--resource-configs=pods:30s,services:2m` - Pods every 30 seconds, services every 2 minutes
+- `--resource-configs=horizontalpodautoscalers:30s,persistentvolumeclaims:5m` - HPAs every 30 seconds, PVCs every 5 minutes
+- `--resource-configs=ingresses:1m,serviceaccounts:10m` - Ingresses every 1 minute, service accounts every 10 minutes
 
 **Rules:**
 - Resources not specified in `--resource-configs` use the `--log-interval` value
