@@ -70,8 +70,8 @@ func (h *PriorityClassHandler) createLogEntry(pc *schedulingv1.PriorityClass) ty
 
 	data := types.PriorityClassData{
 		CreatedTimestamp: createdTimestamp,
-		Labels:           pc.GetLabels(),
-		Annotations:      pc.GetAnnotations(),
+		Labels:           utils.ExtractLabels(pc),
+		Annotations:      utils.ExtractAnnotations(pc),
 		Value:            pc.Value,
 		GlobalDefault:    pc.GlobalDefault,
 		Description:      pc.Description,

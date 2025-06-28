@@ -64,17 +64,8 @@ func (h *ResourceQuotaHandler) Collect(ctx context.Context, namespaces []string)
 
 // createLogEntry creates a LogEntry from a resourcequota
 func (h *ResourceQuotaHandler) createLogEntry(rq *corev1.ResourceQuota) types.LogEntry {
-	// Convert hard limits to int64 values
-	hard := make(map[string]int64)
-	for resourceName, quantity := range rq.Spec.Hard {
-		hard[resourceName.String()] = quantity.Value()
-	}
-
-	// Convert used limits to int64 values
-	used := make(map[string]int64)
-	for resourceName, quantity := range rq.Status.Used {
-		used[resourceName.String()] = quantity.Value()
-	}
+	hard := resourceListToInt64Map(rq.Spec.Hard)
+	used := resourceListToInt64Map(rq.Status.Used)
 
 	// Format scopes
 	// See: https://kubernetes.io/docs/concepts/policy/resource-quotas/#quota-scopes
@@ -98,4 +89,13 @@ func (h *ResourceQuotaHandler) createLogEntry(rq *corev1.ResourceQuota) types.Lo
 	}
 
 	return utils.CreateLogEntry("resourcequota", utils.ExtractName(rq), utils.ExtractNamespace(rq), data)
+}
+
+// resourceListToInt64Map converts corev1.ResourceList to map[string]int64
+func resourceListToInt64Map(rl corev1.ResourceList) map[string]int64 {
+	result := make(map[string]int64)
+	for resourceName, quantity := range rl {
+		result[string(resourceName)] = quantity.Value()
+	}
+	return result
 }

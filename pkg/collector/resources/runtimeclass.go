@@ -60,30 +60,18 @@ func (h *RuntimeClassHandler) Collect(ctx context.Context, namespaces []string) 
 
 // createLogEntry creates a LogEntry from a RuntimeClass
 func (h *RuntimeClassHandler) createLogEntry(rc *nodev1.RuntimeClass) types.LogEntry {
-	// Extract basic metadata
-	createdTimestamp := int64(0)
-	if creationTime := rc.GetCreationTimestamp(); !creationTime.IsZero() {
-		createdTimestamp = creationTime.Unix()
-	}
-
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(rc)
 
 	// Create data structure
 	// See: https://kubernetes.io/docs/concepts/containers/runtime-class/
 	data := types.RuntimeClassData{
-		CreatedTimestamp: createdTimestamp,
-		Labels:           rc.GetLabels(),
-		Annotations:      rc.GetAnnotations(),
+		CreatedTimestamp: utils.ExtractCreationTimestamp(rc),
+		Labels:           utils.ExtractLabels(rc),
+		Annotations:      utils.ExtractAnnotations(rc),
 		Handler:          rc.Handler,
 		CreatedByKind:    createdByKind,
 		CreatedByName:    createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "runtimeclass",
-		Name:         rc.GetName(),
-		Namespace:    "", // RuntimeClass is cluster-scoped
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("runtimeclass", utils.ExtractName(rc), utils.ExtractNamespace(rc), data)
 }

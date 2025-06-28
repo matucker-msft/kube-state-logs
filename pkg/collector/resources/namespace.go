@@ -5,6 +5,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -82,6 +83,12 @@ func (h *NamespaceHandler) createLogEntry(ns *corev1.Namespace) types.LogEntry {
 
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(ns)
 
+	var deletionTimestamp *v1.Time
+	if t := utils.ExtractDeletionTimestamp(ns); t != nil {
+		ts := v1.NewTime(*t)
+		deletionTimestamp = &ts
+	}
+
 	data := types.NamespaceData{
 		CreatedTimestamp:     utils.ExtractCreationTimestamp(ns),
 		Labels:               utils.ExtractLabels(ns),
@@ -91,7 +98,7 @@ func (h *NamespaceHandler) createLogEntry(ns *corev1.Namespace) types.LogEntry {
 		ConditionTerminating: conditionTerminating,
 		CreatedByKind:        createdByKind,
 		CreatedByName:        createdByName,
-		DeletionTimestamp:    ns.DeletionTimestamp,
+		DeletionTimestamp:    deletionTimestamp,
 	}
 
 	return utils.CreateLogEntry("namespace", utils.ExtractName(ns), utils.ExtractNamespace(ns), data)

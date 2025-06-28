@@ -71,12 +71,6 @@ func (h *CRDHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 
 // createLogEntry creates a LogEntry from a CRD resource
 func (h *CRDHandler) createLogEntry(obj *unstructured.Unstructured) types.LogEntry {
-	// Extract basic metadata
-	createdTimestamp := int64(0)
-	if creationTime := obj.GetCreationTimestamp(); !creationTime.IsZero() {
-		createdTimestamp = creationTime.Unix()
-	}
-
 	// Extract spec and status
 	spec := make(map[string]any)
 	if specObj, exists, _ := unstructured.NestedMap(obj.Object, "spec"); exists {
@@ -100,9 +94,9 @@ func (h *CRDHandler) createLogEntry(obj *unstructured.Unstructured) types.LogEnt
 
 	// Create data structure
 	data := types.CRDData{
-		CreatedTimestamp: createdTimestamp,
-		Labels:           obj.GetLabels(),
-		Annotations:      obj.GetAnnotations(),
+		CreatedTimestamp: utils.ExtractCreationTimestamp(obj),
+		Labels:           utils.ExtractLabels(obj),
+		Annotations:      utils.ExtractAnnotations(obj),
 		APIVersion:       obj.GetAPIVersion(),
 		Kind:             obj.GetKind(),
 		Spec:             spec,
@@ -112,13 +106,7 @@ func (h *CRDHandler) createLogEntry(obj *unstructured.Unstructured) types.LogEnt
 		CreatedByName:    createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: h.resourceName,
-		Name:         obj.GetName(),
-		Namespace:    obj.GetNamespace(),
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("crd", utils.ExtractName(obj), utils.ExtractNamespace(obj), data)
 }
 
 // extractField extracts a field from an object using a dot-separated path

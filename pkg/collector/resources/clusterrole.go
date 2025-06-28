@@ -77,19 +77,13 @@ func (h *ClusterRoleHandler) createLogEntry(cr *rbacv1.ClusterRole) types.LogEnt
 
 	// Create data structure
 	data := types.ClusterRoleData{
-		CreatedTimestamp: cr.CreationTimestamp.Unix(),
-		Labels:           cr.Labels,
-		Annotations:      cr.Annotations,
+		CreatedTimestamp: utils.ExtractCreationTimestamp(cr),
+		Labels:           utils.ExtractLabels(cr),
+		Annotations:      utils.ExtractAnnotations(cr),
 		Rules:            rules,
 		CreatedByKind:    createdByKind,
 		CreatedByName:    createdByName,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "clusterrole",
-		Name:         cr.Name,
-		Namespace:    "", // ClusterRoles are cluster-scoped
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("clusterrole", utils.ExtractName(cr), utils.ExtractNamespace(cr), data)
 }

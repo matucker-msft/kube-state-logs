@@ -285,8 +285,8 @@ func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
 		RestartCount:           totalRestartCount,
 		CreatedByKind:          createdByKind,
 		CreatedByName:          createdByName,
-		Labels:                 pod.Labels,
-		Annotations:            pod.Annotations,
+		Labels:                 utils.ExtractLabels(pod),
+		Annotations:            utils.ExtractAnnotations(pod),
 		DeletionTimestamp:      deletionTimestamp,
 		StartTime:              startTime,
 		InitializedTime:        initializedTime,
@@ -309,13 +309,7 @@ func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
 		ResourceRequests:       resourceRequests,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "pod",
-		Name:         pod.Name,
-		Namespace:    pod.Namespace,
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("pod", utils.ExtractName(pod), utils.ExtractNamespace(pod), data)
 }
 
 // createContainerLogEntries creates LogEntry for each container in a pod

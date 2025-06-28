@@ -76,30 +76,16 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 		}
 	}
 
-	// Convert capacity and allocatable to string maps
-	capacity := make(map[string]string)
-	allocatable := make(map[string]string)
+	// Use resource utils for capacity and allocatable extraction
+	capacity := utils.ExtractResourceMap(node.Status.Capacity)
+	allocatable := utils.ExtractResourceMap(node.Status.Allocatable)
 
-	if node.Status.Capacity != nil {
-		for key, value := range node.Status.Capacity {
-			capacity[string(key)] = value.String()
-		}
-	}
-	if node.Status.Allocatable != nil {
-		for key, value := range node.Status.Allocatable {
-			allocatable[string(key)] = value.String()
-		}
-	}
-
-	// Check node conditions
+	// Use condition utils for node conditions
 	conditions := make(map[string]bool)
-	ready := false
+	ready := utils.GetConditionStatusGeneric(node.Status.Conditions, string(corev1.NodeReady))
 	if node.Status.Conditions != nil {
 		for _, condition := range node.Status.Conditions {
 			conditions[string(condition.Type)] = condition.Status == corev1.ConditionTrue
-			if condition.Type == corev1.NodeReady {
-				ready = condition.Status == corev1.ConditionTrue
-			}
 		}
 	}
 
@@ -136,11 +122,8 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 		}
 	}
 
-	// Get deletion timestamp
-	var deletionTimestamp *time.Time
-	if node.DeletionTimestamp != nil {
-		deletionTimestamp = &node.DeletionTimestamp.Time
-	}
+	// Use field extraction utils for timestamps
+	deletionTimestamp := utils.ExtractDeletionTimestamp(node)
 
 	// Get node info with nil checks
 	architecture := ""
@@ -168,8 +151,8 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 		Capacity:                capacity,
 		Allocatable:             allocatable,
 		Conditions:              conditions,
-		Labels:                  node.Labels,
-		Annotations:             node.Annotations,
+		Labels:                  utils.ExtractLabels(node),
+		Annotations:             utils.ExtractAnnotations(node),
 		InternalIP:              internalIP,
 		ExternalIP:              externalIP,
 		Hostname:                hostname,
@@ -177,20 +160,14 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 		Ready:                   ready,
 		CreatedByKind:           createdByKind,
 		CreatedByName:           createdByName,
-		CreatedTimestamp:        node.CreationTimestamp.Unix(),
+		CreatedTimestamp:        utils.ExtractCreationTimestamp(node),
 		Role:                    nodeRole,
 		Taints:                  taints,
 		DeletionTimestamp:       deletionTimestamp,
 		Phase:                   phase,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "node",
-		Name:         node.Name,
-		Namespace:    "", // Nodes don't have namespaces
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("node", utils.ExtractName(node), utils.ExtractNamespace(node), data)
 }
 
 // convertToMap converts a struct to map[string]any for JSON serialization

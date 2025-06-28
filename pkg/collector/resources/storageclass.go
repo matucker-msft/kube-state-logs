@@ -104,8 +104,9 @@ func (h *StorageClassHandler) createLogEntry(sc *storagev1.StorageClass) types.L
 
 	// Check if this is the default storage class
 	isDefaultClass := false
-	if sc.Annotations != nil {
-		if sc.Annotations["storageclass.kubernetes.io/is-default-class"] == "true" {
+	annotations := utils.ExtractAnnotations(sc)
+	if annotations != nil {
+		if annotations["storageclass.kubernetes.io/is-default-class"] == "true" {
 			isDefaultClass = true
 		}
 	}
@@ -116,7 +117,7 @@ func (h *StorageClassHandler) createLogEntry(sc *storagev1.StorageClass) types.L
 	data := types.StorageClassData{
 		CreatedTimestamp:     utils.ExtractCreationTimestamp(sc),
 		Labels:               utils.ExtractLabels(sc),
-		Annotations:          utils.ExtractAnnotations(sc),
+		Annotations:          annotations,
 		Provisioner:          sc.Provisioner,
 		ReclaimPolicy:        reclaimPolicy,
 		VolumeBindingMode:    volumeBindingMode,

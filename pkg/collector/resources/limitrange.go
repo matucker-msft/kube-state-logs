@@ -72,11 +72,11 @@ func (h *LimitRangeHandler) createLogEntry(lr *corev1.LimitRange) types.LogEntry
 			Type:                 string(limit.Type),
 			ResourceType:         "",
 			ResourceName:         "",
-			Min:                  h.convertResourceList(limit.Min),
-			Max:                  h.convertResourceList(limit.Max),
-			Default:              h.convertResourceList(limit.Default),
-			DefaultRequest:       h.convertResourceList(limit.DefaultRequest),
-			MaxLimitRequestRatio: h.convertResourceList(limit.MaxLimitRequestRatio),
+			Min:                  utils.ExtractResourceMap(limit.Min),
+			Max:                  utils.ExtractResourceMap(limit.Max),
+			Default:              utils.ExtractResourceMap(limit.Default),
+			DefaultRequest:       utils.ExtractResourceMap(limit.DefaultRequest),
+			MaxLimitRequestRatio: utils.ExtractResourceMap(limit.MaxLimitRequestRatio),
 		}
 		limits = append(limits, limitItem)
 	}
@@ -94,13 +94,4 @@ func (h *LimitRangeHandler) createLogEntry(lr *corev1.LimitRange) types.LogEntry
 	}
 
 	return utils.CreateLogEntry("limitrange", utils.ExtractName(lr), utils.ExtractNamespace(lr), data)
-}
-
-// convertResourceList converts corev1.ResourceList to map[string]string
-func (h *LimitRangeHandler) convertResourceList(resourceList corev1.ResourceList) map[string]string {
-	result := make(map[string]string)
-	for resource, quantity := range resourceList {
-		result[string(resource)] = quantity.String()
-	}
-	return result
 }

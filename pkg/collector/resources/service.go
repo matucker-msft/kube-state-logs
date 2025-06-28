@@ -146,15 +146,15 @@ func (h *ServiceHandler) createLogEntry(service *corev1.Service) types.LogEntry 
 		LoadBalancerIP:                        service.Spec.LoadBalancerIP,
 		Ports:                                 ports,
 		Selector:                              service.Spec.Selector,
-		Labels:                                service.Labels,
-		Annotations:                           service.Annotations,
+		Labels:                                utils.ExtractLabels(service),
+		Annotations:                           utils.ExtractAnnotations(service),
 		EndpointsCount:                        endpointsCount,
 		LoadBalancerIngress:                   loadBalancerIngress,
 		SessionAffinity:                       string(service.Spec.SessionAffinity),
 		ExternalName:                          service.Spec.ExternalName,
 		CreatedByKind:                         createdByKind,
 		CreatedByName:                         createdByName,
-		CreatedTimestamp:                      service.CreationTimestamp.Unix(),
+		CreatedTimestamp:                      utils.ExtractCreationTimestamp(service),
 		InternalTrafficPolicy:                 internalTrafficPolicy,
 		ExternalTrafficPolicy:                 externalTrafficPolicy,
 		SessionAffinityClientIPTimeoutSeconds: sessionAffinityTimeout,
@@ -163,13 +163,7 @@ func (h *ServiceHandler) createLogEntry(service *corev1.Service) types.LogEntry 
 		LoadBalancerSourceRanges:              service.Spec.LoadBalancerSourceRanges,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "service",
-		Name:         service.Name,
-		Namespace:    service.Namespace,
-		Data:         utils.ConvertStructToMap(data),
-	}
+	return utils.CreateLogEntry("service", utils.ExtractName(service), utils.ExtractNamespace(service), data)
 }
 
 // countEndpointsForService counts the number of endpoints for a given service

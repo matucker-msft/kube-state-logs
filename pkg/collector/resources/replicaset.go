@@ -82,12 +82,15 @@ func (h *ReplicaSetHandler) Collect(ctx context.Context, namespaces []string) ([
 
 		// Mark the first (newest) replicaset as current
 		if len(rsList) > 0 {
+			if rsList[0].Labels == nil {
+				rsList[0].Labels = make(map[string]string)
+			}
 			rsList[0].Labels["kube-state-logs/current"] = "true"
 		}
 
 		// Only log current replicasets
 		for _, rs := range rsList {
-			if rs.Labels["kube-state-logs/current"] == "true" {
+			if rs.Labels != nil && rs.Labels["kube-state-logs/current"] == "true" {
 				entry := h.createLogEntry(rs)
 				entries = append(entries, entry)
 			}
@@ -122,7 +125,12 @@ func (h *ReplicaSetHandler) createLogEntry(rs *appsv1.ReplicaSet) types.LogEntry
 		ConditionReplicaFailure: utils.GetConditionStatusGeneric(rs.Status.Conditions, "ReplicaSetReplicaFailure"),
 		CreatedByKind:           createdByKind,
 		CreatedByName:           createdByName,
-		IsCurrent:               rs.Labels["kube-state-logs/current"] == "true",
+		IsCurrent: func() bool {
+			if rs.Labels != nil {
+				return rs.Labels["kube-state-logs/current"] == "true"
+			}
+			return false
+		}(),
 	}
 
 	return utils.CreateLogEntry("replicaset", utils.ExtractName(rs), utils.ExtractNamespace(rs), data)

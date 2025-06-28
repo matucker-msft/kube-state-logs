@@ -64,16 +64,15 @@ func (h *DaemonSetHandler) Collect(ctx context.Context, namespaces []string) ([]
 
 // createLogEntry creates a LogEntry from a daemonset
 func (h *DaemonSetHandler) createLogEntry(ds *appsv1.DaemonSet) types.LogEntry {
-
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(ds)
 
 	// Get update strategy
 	updateStrategy := string(ds.Spec.UpdateStrategy.Type)
 
 	data := types.DaemonSetData{
-		CreatedTimestamp:        ds.CreationTimestamp.Unix(),
-		Labels:                  ds.Labels,
-		Annotations:             ds.Annotations,
+		CreatedTimestamp:        utils.ExtractCreationTimestamp(ds),
+		Labels:                  utils.ExtractLabels(ds),
+		Annotations:             utils.ExtractAnnotations(ds),
 		DesiredNumberScheduled:  ds.Status.DesiredNumberScheduled,
 		CurrentNumberScheduled:  ds.Status.CurrentNumberScheduled,
 		NumberReady:             ds.Status.NumberReady,
@@ -82,34 +81,13 @@ func (h *DaemonSetHandler) createLogEntry(ds *appsv1.DaemonSet) types.LogEntry {
 		NumberMisscheduled:      ds.Status.NumberMisscheduled,
 		UpdatedNumberScheduled:  ds.Status.UpdatedNumberScheduled,
 		ObservedGeneration:      ds.Status.ObservedGeneration,
-		ConditionAvailable:      h.getConditionStatus(ds.Status.Conditions, "DaemonSetAvailable"),
-		ConditionProgressing:    h.getConditionStatus(ds.Status.Conditions, "DaemonSetProgressing"),
-		ConditionReplicaFailure: h.getConditionStatus(ds.Status.Conditions, "DaemonSetReplicaFailure"),
+		ConditionAvailable:      utils.GetConditionStatusGeneric(ds.Status.Conditions, "DaemonSetAvailable"),
+		ConditionProgressing:    utils.GetConditionStatusGeneric(ds.Status.Conditions, "DaemonSetProgressing"),
+		ConditionReplicaFailure: utils.GetConditionStatusGeneric(ds.Status.Conditions, "DaemonSetReplicaFailure"),
 		CreatedByKind:           createdByKind,
 		CreatedByName:           createdByName,
 		UpdateStrategy:          updateStrategy,
 	}
 
-	return types.LogEntry{
-		Timestamp:    time.Now(),
-		ResourceType: "daemonset",
-		Name:         ds.Name,
-		Namespace:    ds.Namespace,
-		Data:         h.convertToMap(data),
-	}
-}
-
-// getConditionStatus checks if a condition is true
-func (h *DaemonSetHandler) getConditionStatus(conditions []appsv1.DaemonSetCondition, conditionType string) bool {
-	for _, condition := range conditions {
-		if condition.Type == appsv1.DaemonSetConditionType(conditionType) {
-			return condition.Status == "True"
-		}
-	}
-	return false
-}
-
-// convertToMap converts a struct to map[string]any for JSON serialization
-func (h *DaemonSetHandler) convertToMap(data any) map[string]any {
-	return utils.ConvertStructToMap(data)
+	return utils.CreateLogEntry("daemonset", utils.ExtractName(ds), utils.ExtractNamespace(ds), data)
 }

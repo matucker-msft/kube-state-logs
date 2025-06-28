@@ -94,21 +94,10 @@ func (h *HorizontalPodAutoscalerHandler) createLogEntry(hpa *autoscalingv2.Horiz
 		}
 	}
 
-	// Determine conditions
-	conditionAbleToScale := false
-	conditionScalingActive := false
-	conditionScalingLimited := false
-
-	for _, condition := range hpa.Status.Conditions {
-		switch condition.Type {
-		case autoscalingv2.AbleToScale:
-			conditionAbleToScale = condition.Status == "True"
-		case autoscalingv2.ScalingActive:
-			conditionScalingActive = condition.Status == "True"
-		case autoscalingv2.ScalingLimited:
-			conditionScalingLimited = condition.Status == "True"
-		}
-	}
+	// Use utils for condition checks
+	conditionAbleToScale := utils.GetConditionStatusGeneric(hpa.Status.Conditions, string(autoscalingv2.AbleToScale))
+	conditionScalingActive := utils.GetConditionStatusGeneric(hpa.Status.Conditions, string(autoscalingv2.ScalingActive))
+	conditionScalingLimited := utils.GetConditionStatusGeneric(hpa.Status.Conditions, string(autoscalingv2.ScalingLimited))
 
 	// Create data structure
 	// Default min replicas is 1 when spec.minReplicas is nil

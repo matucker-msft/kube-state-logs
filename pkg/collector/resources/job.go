@@ -73,16 +73,8 @@ func (h *JobHandler) createLogEntry(job *batchv1.Job) types.LogEntry {
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(job)
 
 	// Get job conditions
-	conditionComplete := false
-	conditionFailed := false
-	for _, condition := range job.Status.Conditions {
-		switch condition.Type {
-		case batchv1.JobComplete:
-			conditionComplete = condition.Status == "True"
-		case batchv1.JobFailed:
-			conditionFailed = condition.Status == "True"
-		}
-	}
+	conditionComplete := utils.GetConditionStatusGeneric(job.Status.Conditions, string(batchv1.JobComplete))
+	conditionFailed := utils.GetConditionStatusGeneric(job.Status.Conditions, string(batchv1.JobFailed))
 
 	// Get suspend status
 	var suspend *bool

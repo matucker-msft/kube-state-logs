@@ -74,12 +74,7 @@ func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolu
 		storageClassName = pvc.Spec.StorageClassName
 	}
 
-	capacity := make(map[string]string)
-	if pvc.Status.Capacity != nil {
-		for resource, quantity := range pvc.Status.Capacity {
-			capacity[string(resource)] = quantity.String()
-		}
-	}
+	capacity := utils.ExtractResourceMap(pvc.Status.Capacity)
 
 	requestStorage := ""
 	if pvc.Spec.Resources.Requests != nil {
