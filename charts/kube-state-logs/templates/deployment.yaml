@@ -44,6 +44,9 @@ spec:
           args:
             - --log-interval={{ .Values.config.logInterval }}
             - --resources={{ .Values.config.resources }}
+            {{- if .Values.config.resourceConfigs }}
+            - --resource-configs={{ .Values.config.resourceConfigs }}
+            {{- end }}
             {{- if .Values.config.namespaces }}
             - --namespaces={{ .Values.config.namespaces }}
             {{- end }}

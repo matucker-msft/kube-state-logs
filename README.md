@@ -27,6 +27,7 @@ This approach is particularly useful for:
 
 - **Configurable Logging**: 
   - Adjustable logging intervals
+  - **Individual resource intervals** - Different intervals for different resource types
   - Resource type filtering
   - Namespace filtering
   - Custom log levels
@@ -67,8 +68,9 @@ image:
   tag: "0.1.0"
 
 config:
-  logInterval: "1m"
+  logInterval: "1m"  # Default interval for resources without specific configs
   resources: "deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces,jobs,cronjobs,configmaps,secrets"
+  resourceConfigs: "deployments:5m,pods:1m,services:2m"  # Individual resource intervals
   namespaces: ""  # Empty for all namespaces
   logLevel: "info"
 
@@ -87,10 +89,30 @@ resources:
 ./kube-state-logs \
   --log-interval=1m \
   --resources=deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces,jobs,cronjobs,configmaps,secrets \
+  --resource-configs=deployments:5m,pods:1m,services:2m \
   --namespaces=default,kube-system \
   --log-level=info \
   --kubeconfig=/path/to/kubeconfig
 ```
+
+### Individual Resource Intervals
+
+You can specify different logging intervals for different resource types using the `--resource-configs` flag:
+
+```bash
+# Format: resource:interval,resource:interval
+--resource-configs=deployments:5m,pods:1m,services:2m,namespaces:10m
+```
+
+**Examples:**
+- `--resource-configs=deployments:5m,pods:1m` - Deployments every 5 minutes, pods every 1 minute
+- `--resource-configs=namespaces:10m` - Only namespaces every 10 minutes
+- `--resource-configs=pods:30s,services:2m` - Pods every 30 seconds, services every 2 minutes
+
+**Rules:**
+- Resources not specified in `--resource-configs` use the `--log-interval` value
+- All resources listed in `--resources` will be monitored
+- Intervals can use standard time units: `s`, `m`, `h` (e.g., `30s`, `5m`, `2h`)
 
 ## Usage
 

@@ -17,11 +17,12 @@ import (
 func main() {
 	// Parse command line flags
 	var (
-		logInterval = flag.Duration("log-interval", 1*time.Minute, "Interval between log outputs")
-		resources   = flag.String("resources", "deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces,jobs,cronjobs,configmaps,secrets", "Comma-separated list of resources to monitor")
-		namespaces  = flag.String("namespaces", "", "Comma-separated list of namespaces to monitor (empty for all)")
-		logLevel    = flag.String("log-level", "info", "Log level (debug, info, warn, error)")
-		kubeconfig  = flag.String("kubeconfig", "", "Path to kubeconfig file (empty for in-cluster config)")
+		logInterval     = flag.Duration("log-interval", 1*time.Minute, "Default interval between log outputs")
+		resources       = flag.String("resources", "deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces,jobs,cronjobs,configmaps,secrets", "Comma-separated list of resources to monitor")
+		resourceConfigs = flag.String("resource-configs", "", "Comma-separated list of resource:interval pairs (e.g., 'deployments:5m,pods:1m,services:2m'). If not specified, uses log-interval for all resources.")
+		namespaces      = flag.String("namespaces", "", "Comma-separated list of namespaces to monitor (empty for all)")
+		logLevel        = flag.String("log-level", "info", "Log level (debug, info, warn, error)")
+		kubeconfig      = flag.String("kubeconfig", "", "Path to kubeconfig file (empty for in-cluster config)")
 	)
 	flag.Parse()
 
@@ -32,12 +33,27 @@ func main() {
 
 	klog.Info("Starting kube-state-logs...")
 
+	// Parse resource configurations
+	resourceConfigsList := config.ParseResourceConfigs(*resourceConfigs, *logInterval)
+
+	// If no specific resource configs provided, create default ones from resources list
+	if len(resourceConfigsList) == 0 {
+		resourcesList := config.ParseResourceList(*resources)
+		for _, resource := range resourcesList {
+			resourceConfigsList = append(resourceConfigsList, config.ResourceConfig{
+				Name:     resource,
+				Interval: *logInterval,
+			})
+		}
+	}
+
 	// Create configuration
 	cfg := &config.Config{
-		LogInterval: *logInterval,
-		Resources:   config.ParseResourceList(*resources),
-		Namespaces:  config.ParseNamespaceList(*namespaces),
-		Kubeconfig:  *kubeconfig,
+		LogInterval:     *logInterval,
+		Resources:       config.ParseResourceList(*resources),
+		ResourceConfigs: resourceConfigsList,
+		Namespaces:      config.ParseNamespaceList(*namespaces),
+		Kubeconfig:      *kubeconfig,
 	}
 
 	// Create collector

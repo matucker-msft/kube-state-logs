@@ -65,9 +65,8 @@ func New(cfg *config.Config) (*Collector, error) {
 	// Create logger
 	logger := NewLogger()
 
-	// Create shared informer factory with resync period from command line flag
-	// This ensures the cache is refreshed every interval to keep data current
-	factory := informers.NewSharedInformerFactory(client, cfg.LogInterval)
+	// Create shared informer factory with no resync (0 means no resync)
+	factory := informers.NewSharedInformerFactory(client, 0)
 
 	// Create collector
 	c := &Collector{
@@ -103,7 +102,7 @@ func (c *Collector) registerHandlers() {
 
 // Run starts the informers and collection loop
 func (c *Collector) Run(ctx context.Context) error {
-	klog.Info("Starting kube-state-logs with informers...")
+	klog.Info("Starting kube-state-logs with individual tickers...")
 
 	// Setup informers for each configured resource type
 	for _, resourceType := range c.config.Resources {
@@ -113,7 +112,8 @@ func (c *Collector) Run(ctx context.Context) error {
 			continue
 		}
 
-		if err := handler.SetupInformer(c.factory, c.logger, c.config.LogInterval); err != nil {
+		// Setup informer with no resync period
+		if err := handler.SetupInformer(c.factory, c.logger, 0); err != nil {
 			klog.Errorf("Failed to setup informer for %s: %v", resourceType, err)
 			continue
 		}
@@ -133,22 +133,81 @@ func (c *Collector) Run(ctx context.Context) error {
 
 	klog.Info("All informers synced successfully")
 
-	// Start periodic collection loop
-	ticker := time.NewTicker(c.config.LogInterval)
-	defer ticker.Stop()
+	// Start individual tickers for each resource
+	c.startResourceTickers(ctx)
 
-	for {
-		select {
-		case <-ctx.Done():
-			close(c.stopCh)
-			c.wg.Wait()
-			return ctx.Err()
-		case <-ticker.C:
-			if err := c.collectAndLog(ctx); err != nil {
-				klog.Errorf("Collection failed: %v", err)
-			}
+	// Wait for context cancellation
+	<-ctx.Done()
+	close(c.stopCh)
+	c.wg.Wait()
+	return ctx.Err()
+}
+
+// startResourceTickers starts individual tickers for each resource based on their configured intervals
+func (c *Collector) startResourceTickers(ctx context.Context) {
+	// Create a map of resource names to their intervals
+	resourceIntervals := make(map[string]time.Duration)
+
+	// First, populate with specific resource configs
+	for _, resourceConfig := range c.config.ResourceConfigs {
+		resourceIntervals[resourceConfig.Name] = resourceConfig.Interval
+	}
+
+	// Then, ensure all resources in the Resources list have an interval (use default if not specified)
+	for _, resourceName := range c.config.Resources {
+		if _, exists := resourceIntervals[resourceName]; !exists {
+			resourceIntervals[resourceName] = c.config.LogInterval
 		}
 	}
+
+	// Start tickers for all resources
+	for resourceName, interval := range resourceIntervals {
+		// Check if we have a handler for this resource
+		handler, exists := c.handlers[resourceName]
+		if !exists {
+			klog.Warningf("No handler found for resource type: %s", resourceName)
+			continue
+		}
+
+		klog.Infof("Starting ticker for %s with interval %v", resourceName, interval)
+
+		c.wg.Add(1)
+		go func(name string, tickerInterval time.Duration, h ResourceHandler) {
+			defer c.wg.Done()
+
+			ticker := time.NewTicker(tickerInterval)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					if err := c.collectAndLogResource(ctx, name, h); err != nil {
+						klog.Errorf("Collection failed for %s: %v", name, err)
+					}
+				}
+			}
+		}(resourceName, interval, handler)
+	}
+}
+
+// collectAndLogResource collects and logs data for a specific resource
+func (c *Collector) collectAndLogResource(ctx context.Context, resourceName string, handler ResourceHandler) error {
+	entries, err := handler.Collect(ctx, c.config.Namespaces)
+	if err != nil {
+		return fmt.Errorf("failed to collect %s: %w", resourceName, err)
+	}
+
+	// Log all collected entries
+	for _, entry := range entries {
+		if err := c.logger.Log(entry); err != nil {
+			klog.Errorf("Failed to log entry for %s: %v", resourceName, err)
+		}
+	}
+
+	klog.V(2).Infof("Collected and logged %d entries for %s", len(entries), resourceName)
+	return nil
 }
 
 // collectAndLog collects data from all configured resources and logs them

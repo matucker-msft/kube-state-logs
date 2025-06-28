@@ -8,12 +8,19 @@ import (
 	"k8s.io/klog/v2"
 )
 
+// ResourceConfig holds configuration for a specific resource type
+type ResourceConfig struct {
+	Name     string
+	Interval time.Duration
+}
+
 // Config holds the configuration for kube-state-logs
 type Config struct {
-	LogInterval time.Duration
-	Resources   []string
-	Namespaces  []string
-	Kubeconfig  string
+	LogInterval     time.Duration
+	Resources       []string
+	ResourceConfigs []ResourceConfig // Individual resource configurations
+	Namespaces      []string
+	Kubeconfig      string
 }
 
 // ParseResourceList parses a comma-separated string into a slice of resource types
@@ -22,6 +29,61 @@ func ParseResourceList(resources string) []string {
 		return []string{}
 	}
 	return strings.Split(resources, ",")
+}
+
+// ParseResourceConfigs parses a comma-separated string of resource:interval pairs
+// Format: "deployments:5m,pods:1m,services:2m"
+func ParseResourceConfigs(resourceConfigs string, defaultInterval time.Duration) []ResourceConfig {
+	if resourceConfigs == "" {
+		return []ResourceConfig{}
+	}
+
+	var configs []ResourceConfig
+	pairs := strings.Split(resourceConfigs, ",")
+
+	for _, pair := range pairs {
+		pair = strings.TrimSpace(pair)
+		if pair == "" {
+			continue
+		}
+
+		parts := strings.Split(pair, ":")
+		if len(parts) == 1 {
+			// Just resource name, use default interval
+			configs = append(configs, ResourceConfig{
+				Name:     strings.TrimSpace(parts[0]),
+				Interval: defaultInterval,
+			})
+		} else if len(parts) == 2 {
+			// Resource name and interval
+			resourceName := strings.TrimSpace(parts[0])
+			intervalStr := strings.TrimSpace(parts[1])
+
+			interval, err := time.ParseDuration(intervalStr)
+			if err != nil {
+				klog.Warningf("Invalid interval '%s' for resource '%s', using default: %v", intervalStr, resourceName, err)
+				interval = defaultInterval
+			}
+
+			configs = append(configs, ResourceConfig{
+				Name:     resourceName,
+				Interval: interval,
+			})
+		}
+	}
+
+	return configs
+}
+
+// GetResourceInterval returns the interval for a specific resource
+func (c *Config) GetResourceInterval(resourceName string) time.Duration {
+	for _, config := range c.ResourceConfigs {
+		if config.Name == resourceName {
+			return config.Interval
+		}
+	}
+	// Fallback to default interval
+	return c.LogInterval
 }
 
 // ParseNamespaceList parses a comma-separated string into a slice of namespace names
