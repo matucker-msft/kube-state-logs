@@ -12,6 +12,38 @@ This approach is particularly useful for:
 - Systems that prefer structured JSON logs over time-series metrics
 - Debugging and monitoring scenarios where log-based analysis is preferred
 
+## Inspired by kube-state-metrics
+
+🚀 **This project is heavily inspired by [kube-state-metrics](https://github.com/kubernetes/kube-state-metrics)**, the official Kubernetes project that exposes cluster state as Prometheus metrics. 
+
+**Key differences:**
+- **kube-state-metrics**: Exposes Prometheus metrics via HTTP endpoint
+- **kube-state-logs**: Outputs structured JSON logs to stdout/stderr
+
+**What we share:**
+- ✅ **100% resource coverage** - All resources supported by kube-state-metrics
+- ✅ **Same calculated metrics** - Replica counts, conditions, status fields
+- ✅ **Same filtering capabilities** - Namespace and resource type filtering
+- ✅ **Same RBAC requirements** - Identical permissions needed
+
+**What we enhance:**
+- 📊 **Richer data structure** - JSON objects instead of flat metrics
+- 🔗 **Better relationships** - Owner references and object links
+- ⏰ **Enhanced timestamps** - Creation, modification, and deletion times
+- 📝 **Additional context** - Labels, annotations, and metadata arrays
+
+For a detailed comparison, see [docs/comparison.md](docs/comparison.md).
+
+## Documentation
+
+📚 **Comprehensive documentation is available in the [docs/](docs/) directory:**
+
+- **[📋 Resource Coverage](docs/resources.md)** - Complete list of all supported Kubernetes resources
+- **[🚀 Deployment Guide](docs/deployment.md)** - Installation and configuration instructions
+- **[📊 Comparison with kube-state-metrics](docs/comparison.md)** - Detailed comparison showing 100% coverage
+- **[✨ Enhanced Features](docs/enhanced-fields.md)** - Additional fields and capabilities beyond kube-state-metrics
+- **[📖 Quick Comparison](docs/comparison-summary.md)** - Summary comparison table
+
 ## Features
 
 - **Comprehensive Resource Coverage**: Monitors all major Kubernetes resources including:
@@ -93,7 +125,7 @@ kube-state-logs can log any Kubernetes Custom Resource Definition (CRD) generica
 
 #### Example CLI usage:
 
-```
+```bash
 --crd-configs="mygroup.example.com/v1:widgets:spec.size|spec.color,anothergroup.io/v1:foos:spec.enabled"
 ```
 
@@ -120,7 +152,7 @@ config:
 - `spec` and `status` fields (full objects)
 - Any custom fields you specify
 
-See [RESOURCES.md](RESOURCES.md) for more details.
+See [docs/resources.md](docs/resources.md) for more details.
 
 ## Installation
 
@@ -253,7 +285,7 @@ kubectl logs -f deployment/kube-state-logs -n monitoring
 }
 ```
 
-For comprehensive examples of all supported resource types (pods, containers, services, nodes, replicasets, statefulsets, daemonsets, namespaces), see [RESOURCES.md](RESOURCES.md).
+For comprehensive examples of all supported resource types (pods, containers, services, nodes, replicasets, statefulsets, daemonsets, namespaces), see [docs/resources.md](docs/resources.md).
 
 ## Integration
 
@@ -298,7 +330,7 @@ make test
 
 ## Deployment
 
-For detailed deployment instructions, see [DEPLOYMENT.md](DEPLOYMENT.md).
+For detailed deployment instructions, see [docs/deployment.md](docs/deployment.md).
 
 ## Contributing
 
@@ -310,5 +342,5 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## Related Projects
 
-- [kube-state-metrics](https://github.com/kubernetes/kube-state-metrics) - The original Prometheus metrics exporter
+- **[kube-state-metrics](https://github.com/kubernetes/kube-state-metrics)** - The original Prometheus metrics exporter that inspired this project. This is the official Kubernetes project that exposes cluster state as Prometheus metrics.
 - [kubernetes](https://github.com/kubernetes/kubernetes) - The Kubernetes project
