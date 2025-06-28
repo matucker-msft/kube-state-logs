@@ -8,7 +8,22 @@ image:
 # Application configuration
 config:
   logInterval: "1m"
-  resources: "deployments,pods,services,nodes,replicasets,statefulsets,daemonsets,namespaces,jobs,cronjobs,configmaps,secrets,persistentvolumeclaims,ingresses,horizontalpodautoscalers,serviceaccounts"
+  resources:
+    - pods
+    - services
+    - endpoints
+    - nodes
+    - deployments
+    - jobs
+    - cronjobs
+    - configmaps
+    - secrets
+    - persistentvolumeclaims
+    - persistentvolumes
+    - resourcequotas
+    - ingresses
+    - horizontalpodautoscalers
+    - serviceaccounts
   namespaces: ""
   logLevel: "info"
 

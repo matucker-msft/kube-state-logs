@@ -595,3 +595,81 @@ type ServiceAccountData struct {
 	// ServiceAccount specific
 	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken"`
 }
+
+// EndpointsData represents endpoints-specific metrics (matching kube-state-metrics)
+type EndpointsData struct {
+	// Basic endpoints info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// Endpoints specific
+	Addresses []EndpointAddressData `json:"addresses"`
+	Ports     []EndpointPortData    `json:"ports"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+
+	// Endpoints specific
+	Ready bool `json:"ready"`
+}
+
+// EndpointAddressData represents endpoint address information
+type EndpointAddressData struct {
+	IP        string `json:"ip"`
+	Hostname  string `json:"hostname"`
+	NodeName  string `json:"nodeName"`
+	TargetRef string `json:"targetRef"`
+}
+
+// EndpointPortData represents endpoint port information
+type EndpointPortData struct {
+	Name     string `json:"name"`
+	Protocol string `json:"protocol"`
+	Port     int32  `json:"port"`
+}
+
+// PersistentVolumeData represents persistentvolume-specific metrics (matching kube-state-metrics)
+type PersistentVolumeData struct {
+	// Basic persistentvolume info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// PersistentVolume specific
+	CapacityBytes          int64  `json:"capacityBytes"`
+	AccessModes            string `json:"accessModes"`
+	ReclaimPolicy          string `json:"reclaimPolicy"`
+	Status                 string `json:"status"`
+	StorageClassName       string `json:"storageClassName"`
+	VolumeMode             string `json:"volumeMode"`
+	VolumePluginName       string `json:"volumePluginName"`
+	PersistentVolumeSource string `json:"persistentVolumeSource"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+
+	// PersistentVolume specific
+	IsDefaultClass bool `json:"isDefaultClass"`
+}
+
+// ResourceQuotaData represents resourcequota-specific metrics (matching kube-state-metrics)
+type ResourceQuotaData struct {
+	// Basic resourcequota info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// ResourceQuota specific
+	Hard map[string]int64 `json:"hard"`
+	Used map[string]int64 `json:"used"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+
+	// ResourceQuota specific
+	Scopes []string `json:"scopes"`
+}

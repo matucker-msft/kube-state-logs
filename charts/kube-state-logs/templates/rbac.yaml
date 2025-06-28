@@ -18,85 +18,101 @@ metadata:
     app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
 rules:
-{{- if contains "deployments" .Values.config.resources }}
+{{- $resources := .Values.config.resources | toStrings }}
+{{- if has "deployments" $resources }}
   - apiGroups: ["apps"]
     resources: ["deployments"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "replicasets" .Values.config.resources }}
+{{- if has "replicasets" $resources }}
   - apiGroups: ["apps"]
     resources: ["replicasets"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "statefulsets" .Values.config.resources }}
+{{- if has "statefulsets" $resources }}
   - apiGroups: ["apps"]
     resources: ["statefulsets"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "daemonsets" .Values.config.resources }}
+{{- if has "daemonsets" $resources }}
   - apiGroups: ["apps"]
     resources: ["daemonsets"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "pods" .Values.config.resources }}
+{{- if or (has "pods" $resources) (has "all" $resources) }}
   - apiGroups: [""]
     resources: ["pods"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "services" .Values.config.resources }}
+{{- if or (has "services" $resources) (has "all" $resources) }}
   - apiGroups: [""]
-    resources: ["services", "endpoints"]
-    verbs: ["get", "list", "watch"]
+    resources: ["services"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "nodes" .Values.config.resources }}
+{{- if or (has "endpoints" $resources) (has "all" $resources) }}
+  - apiGroups: [""]
+    resources: ["endpoints"]
+    verbs: ["list", "watch"]
+{{- end }}
+{{- if or (has "nodes" $resources) (has "all" $resources) }}
   - apiGroups: [""]
     resources: ["nodes"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "namespaces" .Values.config.resources }}
+{{- if has "namespaces" $resources }}
   - apiGroups: [""]
     resources: ["namespaces"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "jobs" .Values.config.resources }}
+{{- if has "jobs" $resources }}
   - apiGroups: ["batch"]
     resources: ["jobs"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "cronjobs" .Values.config.resources }}
+{{- if has "cronjobs" $resources }}
   - apiGroups: ["batch"]
     resources: ["cronjobs"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "configmaps" .Values.config.resources }}
+{{- if has "configmaps" $resources }}
   - apiGroups: [""]
     resources: ["configmaps"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "secrets" .Values.config.resources }}
+{{- if has "secrets" $resources }}
   - apiGroups: [""]
     resources: ["secrets"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "persistentvolumeclaims" .Values.config.resources }}
+{{- if or (has "persistentvolumeclaims" $resources) (has "all" $resources) }}
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "ingresses" .Values.config.resources }}
+{{- if or (has "persistentvolumes" $resources) (has "all" $resources) }}
+  - apiGroups: [""]
+    resources: ["persistentvolumes"]
+    verbs: ["list", "watch"]
+{{- end }}
+{{- if or (has "resourcequotas" $resources) (has "all" $resources) }}
+  - apiGroups: [""]
+    resources: ["resourcequotas"]
+    verbs: ["list", "watch"]
+{{- end }}
+{{- if has "ingresses" $resources }}
   - apiGroups: ["networking.k8s.io"]
     resources: ["ingresses"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "horizontalpodautoscalers" .Values.config.resources }}
+{{- if has "horizontalpodautoscalers" $resources }}
   - apiGroups: ["autoscaling"]
     resources: ["horizontalpodautoscalers"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
-{{- if contains "serviceaccounts" .Values.config.resources }}
+{{- if has "serviceaccounts" $resources }}
   - apiGroups: [""]
     resources: ["serviceaccounts"]
-    verbs: ["get", "list", "watch"]
+    verbs: ["list", "watch"]
 {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1

@@ -416,7 +416,7 @@ func (h *PodHandler) createContainerLogEntry(pod *corev1.Pod, containerSpec *cor
 
 	// Get state started time (when container first started)
 	var stateStarted *time.Time
-	if containerStatus != nil && !containerStatus.State.Running.StartedAt.IsZero() {
+	if containerStatus != nil && containerStatus.State.Running != nil && !containerStatus.State.Running.StartedAt.IsZero() {
 		stateStarted = &containerStatus.State.Running.StartedAt.Time
 	}
 

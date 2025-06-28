@@ -102,6 +102,9 @@ func (c *Collector) registerHandlers() {
 	c.handlers["ingresses"] = resources.NewIngressHandler(c.client)
 	c.handlers["horizontalpodautoscalers"] = resources.NewHorizontalPodAutoscalerHandler(c.client)
 	c.handlers["serviceaccounts"] = resources.NewServiceAccountHandler(c.client)
+	c.handlers["endpoints"] = resources.NewEndpointsHandler(c.client)
+	c.handlers["persistentvolumes"] = resources.NewPersistentVolumeHandler(c.client)
+	c.handlers["resourcequotas"] = resources.NewResourceQuotaHandler(c.client)
 }
 
 // Run starts the informers and collection loop
