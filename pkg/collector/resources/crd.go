@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -128,28 +127,7 @@ func (h *CRDHandler) createLogEntry(obj *unstructured.Unstructured) types.LogEnt
 
 // extractField extracts a field from an object using a dot-separated path
 func (h *CRDHandler) extractField(obj map[string]any, path string) any {
-	parts := strings.Split(path, ".")
-	current := obj
-
-	for i, part := range parts {
-		if current == nil {
-			return nil
-		}
-
-		if i == len(parts)-1 {
-			// Last part, return the value
-			return current[part]
-		}
-
-		// Navigate deeper
-		if next, ok := current[part].(map[string]any); ok {
-			current = next
-		} else {
-			return nil
-		}
-	}
-
-	return nil
+	return utils.ExtractField(obj, path)
 }
 
 // contains checks if a slice contains a string

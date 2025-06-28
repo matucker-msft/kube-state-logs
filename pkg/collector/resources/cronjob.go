@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -53,7 +52,7 @@ func (h *CronJobHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 		}
 
 		// Filter by namespace if specified
-		if len(namespaces) > 0 && !slices.Contains(namespaces, cronjob.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, cronjob.Namespace) {
 			continue
 		}
 

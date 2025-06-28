@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // EndpointsHandler handles collection of endpoints metrics
@@ -52,7 +52,7 @@ func (h *EndpointsHandler) Collect(ctx context.Context, namespaces []string) ([]
 		}
 
 		// Filter by namespace if specified
-		if len(namespaces) > 0 && !slices.Contains(namespaces, endpoints.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, endpoints.Namespace) {
 			continue
 		}
 

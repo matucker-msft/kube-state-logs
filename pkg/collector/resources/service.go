@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -57,7 +56,7 @@ func (h *ServiceHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 		}
 
 		// Filter by namespace if specified
-		if len(namespaces) > 0 && !slices.Contains(namespaces, service.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, service.Namespace) {
 			continue
 		}
 

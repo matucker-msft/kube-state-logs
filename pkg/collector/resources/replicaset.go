@@ -56,7 +56,7 @@ func (h *ReplicaSetHandler) Collect(ctx context.Context, namespaces []string) ([
 		}
 
 		// Filter by namespace if specified
-		if len(namespaces) > 0 && !slices.Contains(namespaces, rs.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, rs.Namespace) {
 			continue
 		}
 

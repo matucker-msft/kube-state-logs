@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	policyv1 "k8s.io/api/policy/v1"
@@ -53,7 +52,7 @@ func (h *PodDisruptionBudgetHandler) Collect(ctx context.Context, namespaces []s
 		}
 
 		// Filter by namespace if specified
-		if len(namespaces) > 0 && !slices.Contains(namespaces, pdb.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, pdb.Namespace) {
 			continue
 		}
 

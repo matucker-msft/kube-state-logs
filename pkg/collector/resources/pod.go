@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"slices"
 	"strconv"
 	"time"
 
@@ -53,7 +52,7 @@ func (h *PodHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 		}
 
 		// Filter by namespace if specified
-		if len(namespaces) > 0 && !slices.Contains(namespaces, pod.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, pod.Namespace) {
 			continue
 		}
 

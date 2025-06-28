@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -53,7 +52,7 @@ func (h *NamespaceHandler) Collect(ctx context.Context, namespaces []string) ([]
 		}
 
 		// Filter by namespace if specified
-		if len(namespaces) > 0 && !slices.Contains(namespaces, ns.Name) {
+		if !utils.ShouldIncludeNamespace(namespaces, ns.Name) {
 			continue
 		}
 

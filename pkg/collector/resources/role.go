@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -53,7 +52,7 @@ func (h *RoleHandler) Collect(ctx context.Context, namespaces []string) ([]types
 		}
 
 		// Filter by namespace if specified
-		if len(namespaces) > 0 && !slices.Contains(namespaces, role.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, role.Namespace) {
 			continue
 		}
 

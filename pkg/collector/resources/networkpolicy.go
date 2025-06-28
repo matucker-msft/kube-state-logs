@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	networkingv1 "k8s.io/api/networking/v1"
@@ -53,7 +52,7 @@ func (h *NetworkPolicyHandler) Collect(ctx context.Context, namespaces []string)
 		}
 
 		// Filter by namespace if specified
-		if len(namespaces) > 0 && !slices.Contains(namespaces, np.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, np.Namespace) {
 			continue
 		}
 

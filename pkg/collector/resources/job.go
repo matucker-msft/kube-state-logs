@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
@@ -53,7 +52,7 @@ func (h *JobHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 		}
 
 		// Filter by namespace if specified
-		if len(namespaces) > 0 && !slices.Contains(namespaces, job.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, job.Namespace) {
 			continue
 		}
 

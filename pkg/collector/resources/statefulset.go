@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -53,7 +52,7 @@ func (h *StatefulSetHandler) Collect(ctx context.Context, namespaces []string) (
 		}
 
 		// Filter by namespace if specified
-		if len(namespaces) > 0 && !slices.Contains(namespaces, sts.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, sts.Namespace) {
 			continue
 		}
 

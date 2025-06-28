@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	coordinationv1 "k8s.io/api/coordination/v1"
@@ -53,7 +52,7 @@ func (h *LeaseHandler) Collect(ctx context.Context, namespaces []string) ([]type
 		}
 
 		// Filter by namespace if specified
-		if len(namespaces) > 0 && !slices.Contains(namespaces, lease.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, lease.Namespace) {
 			continue
 		}
 
