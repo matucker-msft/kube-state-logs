@@ -79,6 +79,8 @@ func (h *NetworkPolicyHandler) Collect(ctx context.Context, namespaces []string)
 // createLogEntry creates a LogEntry from a networkpolicy
 func (h *NetworkPolicyHandler) createLogEntry(np *networkingv1.NetworkPolicy) types.LogEntry {
 	// Get policy types
+	// Default includes "Ingress" when policyTypes is not specified
+	// See: https://kubernetes.io/docs/concepts/services-networking/network-policies/#default-policies
 	policyTypes := make([]string, len(np.Spec.PolicyTypes))
 	for i, policyType := range np.Spec.PolicyTypes {
 		policyTypes[i] = string(policyType)

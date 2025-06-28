@@ -87,6 +87,8 @@ func (h *PriorityClassHandler) createLogEntry(pc *schedulingv1.PriorityClass) ty
 	}
 
 	// Create data structure
+	// Default preemption policy is "PreemptLowerOrEqual" when not specified
+	// See: https://kubernetes.io/docs/concepts/scheduling-eviction/pod-priority-preemption/#preemption-policies
 	data := types.PriorityClassData{
 		CreatedTimestamp: createdTimestamp,
 		Labels:           pc.GetLabels(),

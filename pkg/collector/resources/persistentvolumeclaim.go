@@ -79,6 +79,7 @@ func (h *PersistentVolumeClaimHandler) Collect(ctx context.Context, namespaces [
 // createLogEntry creates a LogEntry from a persistentvolumeclaim
 func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolumeClaim) types.LogEntry {
 	// Extract access modes
+	// See: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#access-modes
 	var accessModes []string
 	for _, mode := range pvc.Spec.AccessModes {
 		accessModes = append(accessModes, string(mode))
@@ -115,6 +116,7 @@ func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolu
 	}
 
 	// Determine conditions
+	// See: https://kubernetes.io/docs/concepts/storage/persistent-volumes/#phase
 	conditionPending := false
 	conditionBound := false
 	conditionLost := false

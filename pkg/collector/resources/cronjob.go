@@ -87,6 +87,8 @@ func (h *CronJobHandler) createLogEntry(cronjob *batchv1.CronJob) types.LogEntry
 	}
 
 	// Get concurrency policy
+	// Default is "Allow" when spec.concurrencyPolicy is not set
+	// See: https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#concurrency-policy
 	concurrencyPolicy := string(cronjob.Spec.ConcurrencyPolicy)
 
 	// Get suspend status

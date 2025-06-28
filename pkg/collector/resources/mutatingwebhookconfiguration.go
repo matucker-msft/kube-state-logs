@@ -73,6 +73,7 @@ func (h *MutatingWebhookConfigurationHandler) Collect(ctx context.Context, names
 // createLogEntry creates a LogEntry from a mutatingwebhookconfiguration
 func (h *MutatingWebhookConfigurationHandler) createLogEntry(mwc *admissionregistrationv1.MutatingWebhookConfiguration) types.LogEntry {
 	// Extract webhooks
+	// See: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#mutatingadmissionwebhook
 	var webhooks []types.WebhookData
 	for _, webhook := range mwc.Webhooks {
 		// Extract client config

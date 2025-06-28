@@ -79,6 +79,8 @@ func (h *ReplicationControllerHandler) Collect(ctx context.Context, namespaces [
 // createLogEntry creates a LogEntry from a replicationcontroller
 func (h *ReplicationControllerHandler) createLogEntry(rc *corev1.ReplicationController) types.LogEntry {
 	// Get desired replicas
+	// Default to 1 when spec.replicas is nil (Kubernetes API default)
+	// See: https://kubernetes.io/docs/concepts/workloads/controllers/replicationcontroller/#replicationcontroller
 	desiredReplicas := int32(1) // Default value
 	if rc.Spec.Replicas != nil {
 		desiredReplicas = *rc.Spec.Replicas

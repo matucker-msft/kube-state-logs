@@ -87,6 +87,7 @@ func (h *SecretHandler) createLogEntry(secret *corev1.Secret) types.LogEntry {
 	}
 
 	// Get data keys (we don't expose the actual secret data, just the keys)
+	// See: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types
 	var dataKeys []string
 	for key := range secret.Data {
 		dataKeys = append(dataKeys, key)

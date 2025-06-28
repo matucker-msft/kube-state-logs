@@ -79,6 +79,7 @@ func (h *LimitRangeHandler) Collect(ctx context.Context, namespaces []string) ([
 // createLogEntry creates a LogEntry from a limitrange
 func (h *LimitRangeHandler) createLogEntry(lr *corev1.LimitRange) types.LogEntry {
 	// Convert limits
+	// See: https://kubernetes.io/docs/concepts/policy/limit-range/#limit-range
 	var limits []types.LimitRangeItem
 	for _, limit := range lr.Spec.Limits {
 		limitItem := types.LimitRangeItem{

@@ -73,6 +73,7 @@ func (h *ValidatingWebhookConfigurationHandler) Collect(ctx context.Context, nam
 // createLogEntry creates a LogEntry from a validatingwebhookconfiguration
 func (h *ValidatingWebhookConfigurationHandler) createLogEntry(vwc *admissionregistrationv1.ValidatingWebhookConfiguration) types.LogEntry {
 	// Extract webhooks
+	// See: https://kubernetes.io/docs/reference/access-authn-authz/admission-controllers/#validatingadmissionwebhook
 	var webhooks []types.WebhookData
 	for _, webhook := range vwc.Webhooks {
 		// Extract client config

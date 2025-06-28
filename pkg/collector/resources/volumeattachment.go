@@ -73,6 +73,7 @@ func (h *VolumeAttachmentHandler) Collect(ctx context.Context, namespaces []stri
 // createLogEntry creates a LogEntry from a volumeattachment
 func (h *VolumeAttachmentHandler) createLogEntry(va *storagev1.VolumeAttachment) types.LogEntry {
 	// Get attachment metadata
+	// See: https://kubernetes.io/docs/concepts/storage/volume-attachments/
 	attachmentMetadata := make(map[string]string)
 	if va.Status.AttachmentMetadata != nil {
 		for key, value := range va.Status.AttachmentMetadata {

@@ -87,6 +87,7 @@ func (h *RuntimeClassHandler) createLogEntry(rc *nodev1.RuntimeClass) types.LogE
 	}
 
 	// Create data structure
+	// See: https://kubernetes.io/docs/concepts/containers/runtime-class/
 	data := types.RuntimeClassData{
 		CreatedTimestamp: createdTimestamp,
 		Labels:           rc.GetLabels(),

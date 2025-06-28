@@ -79,6 +79,7 @@ func (h *PodDisruptionBudgetHandler) Collect(ctx context.Context, namespaces []s
 // createLogEntry creates a LogEntry from a poddisruptionbudget
 func (h *PodDisruptionBudgetHandler) createLogEntry(pdb *policyv1.PodDisruptionBudget) types.LogEntry {
 	// Get min available and max unavailable
+	// See: https://kubernetes.io/docs/concepts/workloads/pods/disruptions/#pod-disruption-budgets
 	minAvailable := int32(0)
 	maxUnavailable := int32(0)
 

@@ -90,6 +90,14 @@ func (h *ServiceAccountHandler) createLogEntry(sa *corev1.ServiceAccount) types.
 		imagePullSecrets = append(imagePullSecrets, secret.Name)
 	}
 
+	// Get automount service account token setting
+	// Default is true when automountServiceAccountToken is nil
+	// See: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#use-the-default-service-account-to-access-the-api-server
+	automountToken := true
+	if sa.AutomountServiceAccountToken != nil {
+		automountToken = *sa.AutomountServiceAccountToken
+	}
+
 	// Create data structure
 	data := types.ServiceAccountData{
 		CreatedTimestamp:             sa.CreationTimestamp.Unix(),
@@ -99,7 +107,7 @@ func (h *ServiceAccountHandler) createLogEntry(sa *corev1.ServiceAccount) types.
 		ImagePullSecrets:             imagePullSecrets,
 		CreatedByKind:                "",
 		CreatedByName:                "",
-		AutomountServiceAccountToken: sa.AutomountServiceAccountToken,
+		AutomountServiceAccountToken: &automountToken,
 	}
 
 	// Convert to map[string]any for the LogEntry

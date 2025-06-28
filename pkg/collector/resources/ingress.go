@@ -104,6 +104,8 @@ func (h *IngressHandler) createLogEntry(ingress *networkingv1.Ingress) types.Log
 				if path.PathType != nil {
 					pathType = string(*path.PathType)
 				}
+				// Default path type is "ImplementationSpecific" when not specified
+				// See: https://kubernetes.io/docs/concepts/services-networking/ingress/#path-types
 
 				port := ""
 				if path.Backend.Service != nil {

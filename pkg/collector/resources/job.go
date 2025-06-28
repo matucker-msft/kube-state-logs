@@ -117,6 +117,8 @@ func (h *JobHandler) createLogEntry(job *batchv1.Job) types.LogEntry {
 	}
 
 	// Get backoff limit
+	// Default to 6 when spec.backoffLimit is nil (Kubernetes API default)
+	// See: https://kubernetes.io/docs/concepts/workloads/controllers/job/#pod-backoff-failure-policy
 	backoffLimit := int32(6) // Default value
 	if job.Spec.BackoffLimit != nil {
 		backoffLimit = *job.Spec.BackoffLimit

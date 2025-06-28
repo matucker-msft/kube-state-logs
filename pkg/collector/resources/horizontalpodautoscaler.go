@@ -125,11 +125,18 @@ func (h *HorizontalPodAutoscalerHandler) createLogEntry(hpa *autoscalingv2.Horiz
 	}
 
 	// Create data structure
+	// Default min replicas is 1 when spec.minReplicas is nil
+	// See: https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/
+	minReplicas := int32(1)
+	if hpa.Spec.MinReplicas != nil {
+		minReplicas = *hpa.Spec.MinReplicas
+	}
+
 	data := types.HorizontalPodAutoscalerData{
 		CreatedTimestamp:                   hpa.CreationTimestamp.Unix(),
 		Labels:                             hpa.Labels,
 		Annotations:                        hpa.Annotations,
-		MinReplicas:                        hpa.Spec.MinReplicas,
+		MinReplicas:                        &minReplicas,
 		MaxReplicas:                        hpa.Spec.MaxReplicas,
 		TargetCPUUtilizationPercentage:     targetCPUUtilizationPercentage,
 		TargetMemoryUtilizationPercentage:  targetMemoryUtilizationPercentage,

@@ -91,6 +91,7 @@ func (h *ResourceQuotaHandler) createLogEntry(rq *corev1.ResourceQuota) types.Lo
 	}
 
 	// Format scopes
+	// See: https://kubernetes.io/docs/concepts/policy/resource-quotas/#quota-scopes
 	scopes := make([]string, len(rq.Spec.Scopes))
 	for i, scope := range rq.Spec.Scopes {
 		scopes[i] = string(scope)

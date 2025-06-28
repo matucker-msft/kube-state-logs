@@ -73,6 +73,7 @@ func (h *IngressClassHandler) Collect(ctx context.Context, namespaces []string) 
 // createLogEntry creates a LogEntry from an ingressclass
 func (h *IngressClassHandler) createLogEntry(ic *networkingv1.IngressClass) types.LogEntry {
 	// Check if this is the default ingress class
+	// See: https://kubernetes.io/docs/concepts/services-networking/ingress/#default-ingress-class
 	isDefault := false
 	if ic.Annotations != nil {
 		if _, exists := ic.Annotations["ingressclass.kubernetes.io/is-default-class"]; exists {

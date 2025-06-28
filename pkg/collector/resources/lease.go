@@ -85,6 +85,8 @@ func (h *LeaseHandler) createLogEntry(lease *coordinationv1.Lease) types.LogEntr
 	}
 
 	// Get lease duration seconds
+	// Default is 15 seconds when leaseDurationSeconds is nil
+	// See: https://kubernetes.io/docs/concepts/architecture/leases/
 	leaseDurationSeconds := int32(15) // Default value
 	if lease.Spec.LeaseDurationSeconds != nil {
 		leaseDurationSeconds = *lease.Spec.LeaseDurationSeconds

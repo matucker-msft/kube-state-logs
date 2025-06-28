@@ -101,6 +101,7 @@ func (h *ValidatingAdmissionPolicyBindingHandler) createLogEntry(vapb *admission
 	// Status field not available in this API version
 
 	// Create data structure
+	// See: https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/
 	data := types.ValidatingAdmissionPolicyBindingData{
 		CreatedTimestamp:   createdTimestamp,
 		Labels:             vapb.GetLabels(),

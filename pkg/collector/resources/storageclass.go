@@ -73,18 +73,24 @@ func (h *StorageClassHandler) Collect(ctx context.Context, namespaces []string) 
 // createLogEntry creates a LogEntry from a storageclass
 func (h *StorageClassHandler) createLogEntry(sc *storagev1.StorageClass) types.LogEntry {
 	// Get reclaim policy
+	// Default is "Delete" when reclaimPolicy is nil
+	// See: https://kubernetes.io/docs/concepts/storage/storage-classes/#reclaim-policy
 	reclaimPolicy := ""
 	if sc.ReclaimPolicy != nil {
 		reclaimPolicy = string(*sc.ReclaimPolicy)
 	}
 
 	// Get volume binding mode
+	// Default is "Immediate" when volumeBindingMode is nil
+	// See: https://kubernetes.io/docs/concepts/storage/storage-classes/#volume-binding-mode
 	volumeBindingMode := ""
 	if sc.VolumeBindingMode != nil {
 		volumeBindingMode = string(*sc.VolumeBindingMode)
 	}
 
 	// Get allow volume expansion
+	// Default is false when allowVolumeExpansion is nil
+	// See: https://kubernetes.io/docs/concepts/storage/storage-classes/#allow-volume-expansion
 	allowVolumeExpansion := false
 	if sc.AllowVolumeExpansion != nil {
 		allowVolumeExpansion = *sc.AllowVolumeExpansion

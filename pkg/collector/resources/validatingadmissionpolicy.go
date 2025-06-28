@@ -103,6 +103,7 @@ func (h *ValidatingAdmissionPolicyHandler) createLogEntry(vap *admissionregistra
 	}
 
 	// Create data structure
+	// See: https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/
 	data := types.ValidatingAdmissionPolicyData{
 		CreatedTimestamp:   createdTimestamp,
 		Labels:             vap.GetLabels(),

@@ -79,6 +79,7 @@ func (h *RoleHandler) Collect(ctx context.Context, namespaces []string) ([]types
 // createLogEntry creates a LogEntry from a role
 func (h *RoleHandler) createLogEntry(role *rbacv1.Role) types.LogEntry {
 	// Convert rules
+	// See: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-and-clusterrole
 	var rules []types.PolicyRule
 	for _, rule := range role.Rules {
 		policyRule := types.PolicyRule{

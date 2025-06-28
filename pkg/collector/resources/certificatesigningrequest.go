@@ -73,6 +73,7 @@ func (h *CertificateSigningRequestHandler) Collect(ctx context.Context, namespac
 // createLogEntry creates a LogEntry from a certificatesigningrequest
 func (h *CertificateSigningRequestHandler) createLogEntry(csr *certificatesv1.CertificateSigningRequest) types.LogEntry {
 	// Convert usages to strings
+	// See: https://kubernetes.io/docs/reference/access-authn-authz/certificate-signing-requests/#kubernetes-signers
 	var usages []string
 	for _, usage := range csr.Spec.Usages {
 		usages = append(usages, string(usage))
