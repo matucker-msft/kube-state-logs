@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // NodeHandler handles collection of node metrics
@@ -120,23 +122,19 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 		phase = string(node.Status.Phase)
 	}
 
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(node.OwnerReferences) > 0 {
-		createdByKind = node.OwnerReferences[0].Kind
-		createdByName = node.OwnerReferences[0].Name
-	}
-
 	// Get node role
-	role := ""
-	if node.Labels != nil {
-		if node.Labels["node-role.kubernetes.io/control-plane"] == "true" || node.Labels["node-role.kubernetes.io/master"] == "true" {
-			role = "master"
-		} else {
-			role = "worker"
+	nodeRole := ""
+	for key := range node.Labels {
+		if strings.HasPrefix(key, "node-role.kubernetes.io/") {
+			role := strings.TrimPrefix(key, "node-role.kubernetes.io/")
+			if role != "" {
+				nodeRole = role
+				break
+			}
 		}
 	}
+
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(node)
 
 	// Get taints
 	var taints []types.TaintData
@@ -192,7 +190,7 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 		CreatedByKind:           createdByKind,
 		CreatedByName:           createdByName,
 		CreatedTimestamp:        node.CreationTimestamp.Unix(),
-		Role:                    role,
+		Role:                    nodeRole,
 		Taints:                  taints,
 		DeletionTimestamp:       deletionTimestamp,
 		Phase:                   phase,

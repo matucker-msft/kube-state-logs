@@ -11,6 +11,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // VolumeAttachmentHandler handles collection of volumeattachment metrics
@@ -87,13 +88,8 @@ func (h *VolumeAttachmentHandler) createLogEntry(va *storagev1.VolumeAttachment)
 		volumeName = *va.Spec.Source.PersistentVolumeName
 	}
 
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(va.OwnerReferences) > 0 {
-		createdByKind = va.OwnerReferences[0].Kind
-		createdByName = va.OwnerReferences[0].Name
-	}
+	
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(va)
 
 	// Create data structure
 	data := types.VolumeAttachmentData{

@@ -12,6 +12,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // PodDisruptionBudgetHandler handles collection of poddisruptionbudget metrics
@@ -97,13 +98,8 @@ func (h *PodDisruptionBudgetHandler) createLogEntry(pdb *policyv1.PodDisruptionB
 	disruptionsAllowed := pdb.Status.DisruptionsAllowed
 	disruptionAllowed := disruptionsAllowed > 0
 
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(pdb.OwnerReferences) > 0 {
-		createdByKind = pdb.OwnerReferences[0].Kind
-		createdByName = pdb.OwnerReferences[0].Name
-	}
+	
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(pdb)
 
 	// Create data structure
 	data := types.PodDisruptionBudgetData{

@@ -12,6 +12,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // ReplicationControllerHandler handles collection of replicationcontroller metrics
@@ -86,13 +87,8 @@ func (h *ReplicationControllerHandler) createLogEntry(rc *corev1.ReplicationCont
 		desiredReplicas = *rc.Spec.Replicas
 	}
 
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(rc.OwnerReferences) > 0 {
-		createdByKind = rc.OwnerReferences[0].Kind
-		createdByName = rc.OwnerReferences[0].Name
-	}
+	
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(rc)
 
 	// Create data structure
 	data := types.ReplicationControllerData{

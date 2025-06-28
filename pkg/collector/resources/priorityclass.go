@@ -11,6 +11,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // PriorityClassHandler handles collection of priorityclass metrics
@@ -78,13 +79,8 @@ func (h *PriorityClassHandler) createLogEntry(pc *schedulingv1.PriorityClass) ty
 		createdTimestamp = creationTime.Unix()
 	}
 
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if ownerRefs := pc.GetOwnerReferences(); len(ownerRefs) > 0 {
-		createdByKind = ownerRefs[0].Kind
-		createdByName = ownerRefs[0].Name
-	}
+	
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(pc)
 
 	// Create data structure
 	// Default preemption policy is "PreemptLowerOrEqual" when not specified

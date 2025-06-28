@@ -12,6 +12,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // NamespaceHandler handles collection of namespace metrics
@@ -78,13 +79,8 @@ func (h *NamespaceHandler) Collect(ctx context.Context, namespaces []string) ([]
 
 // createLogEntry creates a LogEntry from a namespace
 func (h *NamespaceHandler) createLogEntry(ns *corev1.Namespace) types.LogEntry {
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(ns.OwnerReferences) > 0 {
-		createdByKind = ns.OwnerReferences[0].Kind
-		createdByName = ns.OwnerReferences[0].Name
-	}
+	
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(ns)
 
 	data := types.NamespaceData{
 		CreatedTimestamp:     ns.CreationTimestamp.Unix(),

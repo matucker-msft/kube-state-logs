@@ -12,6 +12,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // CronJobHandler handles collection of cronjob metrics
@@ -78,18 +79,13 @@ func (h *CronJobHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 
 // createLogEntry creates a LogEntry from a cronjob
 func (h *CronJobHandler) createLogEntry(cronjob *batchv1.CronJob) types.LogEntry {
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(cronjob.OwnerReferences) > 0 {
-		createdByKind = cronjob.OwnerReferences[0].Kind
-		createdByName = cronjob.OwnerReferences[0].Name
-	}
 
 	// Get concurrency policy
 	// Default is "Allow" when spec.concurrencyPolicy is not set
 	// See: https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/#concurrency-policy
 	concurrencyPolicy := string(cronjob.Spec.ConcurrencyPolicy)
+
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(cronjob)
 
 	// Get suspend status
 	var suspend *bool

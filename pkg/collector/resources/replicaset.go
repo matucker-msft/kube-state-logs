@@ -12,6 +12,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // ReplicaSetHandler handles collection of replicaset metrics
@@ -112,13 +113,8 @@ func (h *ReplicaSetHandler) Collect(ctx context.Context, namespaces []string) ([
 
 // createLogEntry creates a LogEntry from a replicaset
 func (h *ReplicaSetHandler) createLogEntry(rs *appsv1.ReplicaSet) types.LogEntry {
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(rs.OwnerReferences) > 0 {
-		createdByKind = rs.OwnerReferences[0].Kind
-		createdByName = rs.OwnerReferences[0].Name
-	}
+	
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(rs)
 
 	// Get desired replicas with nil check
 	// Default to 1 when spec.replicas is nil (Kubernetes API default)

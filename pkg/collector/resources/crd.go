@@ -13,6 +13,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // CRDHandler handles collection of generic CRD metrics
@@ -113,13 +114,8 @@ func (h *CRDHandler) createLogEntry(obj *unstructured.Unstructured) types.LogEnt
 		}
 	}
 
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if ownerRefs := obj.GetOwnerReferences(); len(ownerRefs) > 0 {
-		createdByKind = ownerRefs[0].Kind
-		createdByName = ownerRefs[0].Name
-	}
+	
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(obj)
 
 	// Create data structure
 	data := types.CRDData{

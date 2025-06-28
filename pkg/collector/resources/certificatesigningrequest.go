@@ -11,6 +11,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // CertificateSigningRequestHandler handles collection of certificatesigningrequest metrics
@@ -86,12 +87,7 @@ func (h *CertificateSigningRequestHandler) createLogEntry(csr *certificatesv1.Ce
 	}
 
 	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(csr.OwnerReferences) > 0 {
-		createdByKind = csr.OwnerReferences[0].Kind
-		createdByName = csr.OwnerReferences[0].Name
-	}
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(csr)
 
 	// Create data structure
 	data := types.CertificateSigningRequestData{

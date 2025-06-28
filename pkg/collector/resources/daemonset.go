@@ -12,6 +12,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // DaemonSetHandler handles collection of daemonset metrics
@@ -78,13 +79,8 @@ func (h *DaemonSetHandler) Collect(ctx context.Context, namespaces []string) ([]
 
 // createLogEntry creates a LogEntry from a daemonset
 func (h *DaemonSetHandler) createLogEntry(ds *appsv1.DaemonSet) types.LogEntry {
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(ds.OwnerReferences) > 0 {
-		createdByKind = ds.OwnerReferences[0].Kind
-		createdByName = ds.OwnerReferences[0].Name
-	}
+	
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(ds)
 
 	// Get update strategy
 	updateStrategy := string(ds.Spec.UpdateStrategy.Type)

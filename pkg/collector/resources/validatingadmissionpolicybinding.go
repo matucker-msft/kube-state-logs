@@ -11,6 +11,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // ValidatingAdmissionPolicyBindingHandler handles collection of validatingadmissionpolicybinding metrics
@@ -78,13 +79,8 @@ func (h *ValidatingAdmissionPolicyBindingHandler) createLogEntry(vapb *admission
 		createdTimestamp = creationTime.Unix()
 	}
 
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if ownerRefs := vapb.GetOwnerReferences(); len(ownerRefs) > 0 {
-		createdByKind = ownerRefs[0].Kind
-		createdByName = ownerRefs[0].Name
-	}
+	
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(vapb)
 
 	// Extract basic fields
 	policyName := ""

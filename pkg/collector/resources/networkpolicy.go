@@ -12,6 +12,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // NetworkPolicyHandler handles collection of networkpolicy metrics
@@ -106,13 +107,8 @@ func (h *NetworkPolicyHandler) createLogEntry(np *networkingv1.NetworkPolicy) ty
 		egressRules = append(egressRules, egressRule)
 	}
 
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(np.OwnerReferences) > 0 {
-		createdByKind = np.OwnerReferences[0].Kind
-		createdByName = np.OwnerReferences[0].Name
-	}
+	
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(np)
 
 	// Create data structure
 	data := types.NetworkPolicyData{

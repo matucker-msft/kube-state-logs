@@ -12,6 +12,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // DeploymentHandler handles collection of deployment metrics
@@ -91,21 +92,13 @@ func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.
 		}
 	}
 
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(deployment.OwnerReferences) > 0 {
-		createdByKind = deployment.OwnerReferences[0].Kind
-		createdByName = deployment.OwnerReferences[0].Name
-	}
-
 	// Get desired replicas with nil check
-	// Default to 1 when spec.replicas is nil (Kubernetes API default)
-	// See: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#creating-a-deployment
-	desiredReplicas := int32(1)
+	desiredReplicas := int32(1) // Default value per Kubernetes API
 	if deployment.Spec.Replicas != nil {
 		desiredReplicas = *deployment.Spec.Replicas
 	}
+
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(deployment)
 
 	// Get status fields with nil checks
 	currentReplicas := deployment.Status.Replicas

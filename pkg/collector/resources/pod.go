@@ -13,6 +13,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // PodHandler handles collection of pod metrics
@@ -96,13 +97,7 @@ func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
 		priorityClass = pod.Spec.PriorityClassName
 	}
 
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(pod.OwnerReferences) > 0 {
-		createdByKind = pod.OwnerReferences[0].Kind
-		createdByName = pod.OwnerReferences[0].Name
-	}
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(pod)
 
 	// Check pod conditions
 	ready := false

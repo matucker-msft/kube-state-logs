@@ -11,6 +11,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // RuntimeClassHandler handles collection of runtimeclass metrics
@@ -78,13 +79,8 @@ func (h *RuntimeClassHandler) createLogEntry(rc *nodev1.RuntimeClass) types.LogE
 		createdTimestamp = creationTime.Unix()
 	}
 
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if ownerRefs := rc.GetOwnerReferences(); len(ownerRefs) > 0 {
-		createdByKind = ownerRefs[0].Kind
-		createdByName = ownerRefs[0].Name
-	}
+	
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(rc)
 
 	// Create data structure
 	// See: https://kubernetes.io/docs/concepts/containers/runtime-class/

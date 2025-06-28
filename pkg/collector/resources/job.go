@@ -12,6 +12,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // JobHandler handles collection of job metrics
@@ -78,19 +79,14 @@ func (h *JobHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 
 // createLogEntry creates a LogEntry from a job
 func (h *JobHandler) createLogEntry(job *batchv1.Job) types.LogEntry {
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(job.OwnerReferences) > 0 {
-		createdByKind = job.OwnerReferences[0].Kind
-		createdByName = job.OwnerReferences[0].Name
-	}
 
 	// Determine job type
 	jobType := "Job"
-	if createdByKind == "CronJob" {
-		jobType = "CronJob"
+	if len(job.OwnerReferences) > 0 {
+		jobType = job.OwnerReferences[0].Kind
 	}
+
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(job)
 
 	// Get job conditions
 	conditionComplete := false

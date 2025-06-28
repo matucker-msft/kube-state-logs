@@ -12,6 +12,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // SecretHandler handles collection of secret metrics
@@ -78,13 +79,7 @@ func (h *SecretHandler) Collect(ctx context.Context, namespaces []string) ([]typ
 
 // createLogEntry creates a LogEntry from a secret
 func (h *SecretHandler) createLogEntry(secret *corev1.Secret) types.LogEntry {
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(secret.OwnerReferences) > 0 {
-		createdByKind = secret.OwnerReferences[0].Kind
-		createdByName = secret.OwnerReferences[0].Name
-	}
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(secret)
 
 	// Get data keys (we don't expose the actual secret data, just the keys)
 	// See: https://kubernetes.io/docs/concepts/configuration/secret/#secret-types

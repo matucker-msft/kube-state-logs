@@ -12,6 +12,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // StatefulSetHandler handles collection of statefulset metrics
@@ -78,13 +79,8 @@ func (h *StatefulSetHandler) Collect(ctx context.Context, namespaces []string) (
 
 // createLogEntry creates a LogEntry from a statefulset
 func (h *StatefulSetHandler) createLogEntry(sts *appsv1.StatefulSet) types.LogEntry {
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(sts.OwnerReferences) > 0 {
-		createdByKind = sts.OwnerReferences[0].Kind
-		createdByName = sts.OwnerReferences[0].Name
-	}
+	
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(sts)
 
 	// Get service name
 	serviceName := ""

@@ -11,6 +11,7 @@ import (
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 // ClusterRoleHandler handles collection of clusterrole metrics
@@ -85,13 +86,8 @@ func (h *ClusterRoleHandler) createLogEntry(cr *rbacv1.ClusterRole) types.LogEnt
 		rules = append(rules, policyRule)
 	}
 
-	// Get created by info
-	createdByKind := ""
-	createdByName := ""
-	if len(cr.OwnerReferences) > 0 {
-		createdByKind = cr.OwnerReferences[0].Kind
-		createdByName = cr.OwnerReferences[0].Name
-	}
+	
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(cr)
 
 	// Create data structure
 	data := types.ClusterRoleData{
