@@ -35,19 +35,6 @@ func (h *VolumeAttachmentHandler) SetupInformer(factory informers.SharedInformer
 	// Create volumeattachment informer
 	h.informer = factory.Storage().V1().VolumeAttachments().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 
@@ -88,7 +75,6 @@ func (h *VolumeAttachmentHandler) createLogEntry(va *storagev1.VolumeAttachment)
 		volumeName = *va.Spec.Source.PersistentVolumeName
 	}
 
-	
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(va)
 
 	// Create data structure

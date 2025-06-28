@@ -33,21 +33,8 @@ func NewDeploymentHandler(client *kubernetes.Clientset) *DeploymentHandler {
 func (h *DeploymentHandler) SetupInformer(factory informers.SharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
 	h.logger = logger
 
-	// Create deployment informer with resync period
+	// Create deployment informer
 	h.informer = factory.Apps().V1().Deployments().Informer()
-
-	// Add event handler that logs on resync (periodic full state)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
 
 	return nil
 }

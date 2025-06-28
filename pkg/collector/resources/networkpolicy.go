@@ -36,19 +36,6 @@ func (h *NetworkPolicyHandler) SetupInformer(factory informers.SharedInformerFac
 	// Create networkpolicy informer
 	h.informer = factory.Networking().V1().NetworkPolicies().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 
@@ -107,7 +94,6 @@ func (h *NetworkPolicyHandler) createLogEntry(np *networkingv1.NetworkPolicy) ty
 		egressRules = append(egressRules, egressRule)
 	}
 
-	
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(np)
 
 	// Create data structure

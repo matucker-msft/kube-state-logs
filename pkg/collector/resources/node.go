@@ -36,19 +36,6 @@ func (h *NodeHandler) SetupInformer(factory informers.SharedInformerFactory, log
 	// Create node informer
 	h.informer = factory.Core().V1().Nodes().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 

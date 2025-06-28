@@ -36,19 +36,6 @@ func (h *PodDisruptionBudgetHandler) SetupInformer(factory informers.SharedInfor
 	// Create poddisruptionbudget informer
 	h.informer = factory.Policy().V1().PodDisruptionBudgets().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 
@@ -98,7 +85,6 @@ func (h *PodDisruptionBudgetHandler) createLogEntry(pdb *policyv1.PodDisruptionB
 	disruptionsAllowed := pdb.Status.DisruptionsAllowed
 	disruptionAllowed := disruptionsAllowed > 0
 
-	
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(pdb)
 
 	// Create data structure

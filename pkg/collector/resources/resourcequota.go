@@ -35,19 +35,6 @@ func (h *ResourceQuotaHandler) SetupInformer(factory informers.SharedInformerFac
 	// Create resourcequota informer
 	h.informer = factory.Core().V1().ResourceQuotas().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 

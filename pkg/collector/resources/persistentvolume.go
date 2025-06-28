@@ -34,19 +34,6 @@ func (h *PersistentVolumeHandler) SetupInformer(factory informers.SharedInformer
 	// Create persistentvolume informer
 	h.informer = factory.Core().V1().PersistentVolumes().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 

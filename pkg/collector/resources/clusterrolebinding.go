@@ -93,7 +93,6 @@ func (h *ClusterRoleBindingHandler) createLogEntry(crb *rbacv1.ClusterRoleBindin
 		subjects = append(subjects, subj)
 	}
 
-	
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(crb)
 
 	// Create data structure

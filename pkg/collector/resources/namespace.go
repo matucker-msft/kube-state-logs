@@ -36,19 +36,6 @@ func (h *NamespaceHandler) SetupInformer(factory informers.SharedInformerFactory
 	// Create namespace informer
 	h.informer = factory.Core().V1().Namespaces().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 
@@ -79,7 +66,7 @@ func (h *NamespaceHandler) Collect(ctx context.Context, namespaces []string) ([]
 
 // createLogEntry creates a LogEntry from a namespace
 func (h *NamespaceHandler) createLogEntry(ns *corev1.Namespace) types.LogEntry {
-	
+
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(ns)
 
 	data := types.NamespaceData{

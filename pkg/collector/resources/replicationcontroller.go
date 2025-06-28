@@ -36,19 +36,6 @@ func (h *ReplicationControllerHandler) SetupInformer(factory informers.SharedInf
 	// Create replicationcontroller informer
 	h.informer = factory.Core().V1().ReplicationControllers().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 
@@ -87,7 +74,6 @@ func (h *ReplicationControllerHandler) createLogEntry(rc *corev1.ReplicationCont
 		desiredReplicas = *rc.Spec.Replicas
 	}
 
-	
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(rc)
 
 	// Create data structure

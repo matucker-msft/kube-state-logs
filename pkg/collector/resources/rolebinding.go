@@ -36,19 +36,6 @@ func (h *RoleBindingHandler) SetupInformer(factory informers.SharedInformerFacto
 	// Create rolebinding informer
 	h.informer = factory.Rbac().V1().RoleBindings().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 
@@ -99,7 +86,6 @@ func (h *RoleBindingHandler) createLogEntry(rb *rbacv1.RoleBinding) types.LogEnt
 		subjects = append(subjects, subj)
 	}
 
-	
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(rb)
 
 	// Create data structure

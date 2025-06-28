@@ -35,19 +35,6 @@ func (h *RuntimeClassHandler) SetupInformer(factory informers.SharedInformerFact
 	// Create runtimeclass informer
 	h.informer = factory.Node().V1().RuntimeClasses().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 
@@ -79,7 +66,6 @@ func (h *RuntimeClassHandler) createLogEntry(rc *nodev1.RuntimeClass) types.LogE
 		createdTimestamp = creationTime.Unix()
 	}
 
-	
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(rc)
 
 	// Create data structure

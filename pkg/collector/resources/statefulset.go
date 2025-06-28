@@ -36,19 +36,6 @@ func (h *StatefulSetHandler) SetupInformer(factory informers.SharedInformerFacto
 	// Create statefulset informer
 	h.informer = factory.Apps().V1().StatefulSets().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 
@@ -79,7 +66,7 @@ func (h *StatefulSetHandler) Collect(ctx context.Context, namespaces []string) (
 
 // createLogEntry creates a LogEntry from a statefulset
 func (h *StatefulSetHandler) createLogEntry(sts *appsv1.StatefulSet) types.LogEntry {
-	
+
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(sts)
 
 	// Get service name

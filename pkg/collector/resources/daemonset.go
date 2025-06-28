@@ -36,19 +36,6 @@ func (h *DaemonSetHandler) SetupInformer(factory informers.SharedInformerFactory
 	// Create daemonset informer
 	h.informer = factory.Apps().V1().DaemonSets().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 
@@ -79,7 +66,7 @@ func (h *DaemonSetHandler) Collect(ctx context.Context, namespaces []string) ([]
 
 // createLogEntry creates a LogEntry from a daemonset
 func (h *DaemonSetHandler) createLogEntry(ds *appsv1.DaemonSet) types.LogEntry {
-	
+
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(ds)
 
 	// Get update strategy

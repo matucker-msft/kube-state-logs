@@ -35,19 +35,6 @@ func (h *ValidatingAdmissionPolicyHandler) SetupInformer(factory informers.Share
 	// Create validatingadmissionpolicy informer
 	h.informer = factory.Admissionregistration().V1beta1().ValidatingAdmissionPolicies().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 
@@ -79,7 +66,6 @@ func (h *ValidatingAdmissionPolicyHandler) createLogEntry(vap *admissionregistra
 		createdTimestamp = creationTime.Unix()
 	}
 
-	
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(vap)
 
 	// Extract basic fields

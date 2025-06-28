@@ -35,19 +35,6 @@ func (h *ClusterRoleHandler) SetupInformer(factory informers.SharedInformerFacto
 	// Create clusterrole informer
 	h.informer = factory.Rbac().V1().ClusterRoles().Informer()
 
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
-
 	return nil
 }
 
@@ -86,7 +73,6 @@ func (h *ClusterRoleHandler) createLogEntry(cr *rbacv1.ClusterRole) types.LogEnt
 		rules = append(rules, policyRule)
 	}
 
-	
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(cr)
 
 	// Create data structure

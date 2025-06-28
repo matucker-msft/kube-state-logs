@@ -40,21 +40,8 @@ func NewCRDHandler(client dynamic.Interface, gvr schema.GroupVersionResource, re
 func (h *CRDHandler) SetupInformer(factory dynamicinformer.DynamicSharedInformerFactory, logger interfaces.Logger, resyncPeriod time.Duration) error {
 	h.logger = logger
 
-	// Create CRD informer using dynamic factory
+	// Create dynamic informer for the CRD
 	h.informer = factory.ForResource(h.gvr).Informer()
-
-	// Add event handlers (no logging on events)
-	h.informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			// No logging on add events
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			// No logging on update events
-		},
-		DeleteFunc: func(obj any) {
-			// No logging on delete events
-		},
-	})
 
 	return nil
 }
@@ -114,7 +101,6 @@ func (h *CRDHandler) createLogEntry(obj *unstructured.Unstructured) types.LogEnt
 		}
 	}
 
-	
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(obj)
 
 	// Create data structure
