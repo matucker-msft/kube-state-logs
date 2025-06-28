@@ -99,21 +99,37 @@ func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.
 		createdByName = deployment.OwnerReferences[0].Name
 	}
 
+	// Get desired replicas with nil check
+	// Default to 1 when spec.replicas is nil (Kubernetes API default)
+	// See: https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#creating-a-deployment
+	desiredReplicas := int32(1)
+	if deployment.Spec.Replicas != nil {
+		desiredReplicas = *deployment.Spec.Replicas
+	}
+
+	// Get status fields with nil checks
+	currentReplicas := deployment.Status.Replicas
+	readyReplicas := deployment.Status.ReadyReplicas
+	availableReplicas := deployment.Status.AvailableReplicas
+	unavailableReplicas := deployment.Status.UnavailableReplicas
+	updatedReplicas := deployment.Status.UpdatedReplicas
+	observedGeneration := deployment.Status.ObservedGeneration
+
 	data := types.DeploymentData{
 		CreatedTimestamp:                    deployment.CreationTimestamp.Unix(),
 		Labels:                              deployment.Labels,
 		Annotations:                         deployment.Annotations,
-		DesiredReplicas:                     *deployment.Spec.Replicas,
-		CurrentReplicas:                     deployment.Status.Replicas,
-		ReadyReplicas:                       deployment.Status.ReadyReplicas,
-		AvailableReplicas:                   deployment.Status.AvailableReplicas,
-		UnavailableReplicas:                 deployment.Status.UnavailableReplicas,
-		UpdatedReplicas:                     deployment.Status.UpdatedReplicas,
-		ObservedGeneration:                  deployment.Status.ObservedGeneration,
-		ReplicasDesired:                     *deployment.Spec.Replicas,
-		ReplicasAvailable:                   deployment.Status.AvailableReplicas,
-		ReplicasUnavailable:                 deployment.Status.UnavailableReplicas,
-		ReplicasUpdated:                     deployment.Status.UpdatedReplicas,
+		DesiredReplicas:                     desiredReplicas,
+		CurrentReplicas:                     currentReplicas,
+		ReadyReplicas:                       readyReplicas,
+		AvailableReplicas:                   availableReplicas,
+		UnavailableReplicas:                 unavailableReplicas,
+		UpdatedReplicas:                     updatedReplicas,
+		ObservedGeneration:                  observedGeneration,
+		ReplicasDesired:                     desiredReplicas,
+		ReplicasAvailable:                   availableReplicas,
+		ReplicasUnavailable:                 unavailableReplicas,
+		ReplicasUpdated:                     updatedReplicas,
 		StrategyType:                        strategyType,
 		StrategyRollingUpdateMaxSurge:       strategyRollingUpdateMaxSurge,
 		StrategyRollingUpdateMaxUnavailable: strategyRollingUpdateMaxUnavailable,

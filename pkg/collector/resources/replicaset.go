@@ -120,11 +120,19 @@ func (h *ReplicaSetHandler) createLogEntry(rs *appsv1.ReplicaSet) types.LogEntry
 		createdByName = rs.OwnerReferences[0].Name
 	}
 
+	// Get desired replicas with nil check
+	// Default to 1 when spec.replicas is nil (Kubernetes API default)
+	// See: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/#replicaset-basics
+	desiredReplicas := int32(1)
+	if rs.Spec.Replicas != nil {
+		desiredReplicas = *rs.Spec.Replicas
+	}
+
 	data := types.ReplicaSetData{
 		CreatedTimestamp:        rs.CreationTimestamp.Unix(),
 		Labels:                  rs.Labels,
 		Annotations:             rs.Annotations,
-		DesiredReplicas:         *rs.Spec.Replicas,
+		DesiredReplicas:         desiredReplicas,
 		CurrentReplicas:         rs.Status.Replicas,
 		ReadyReplicas:           rs.Status.ReadyReplicas,
 		AvailableReplicas:       rs.Status.AvailableReplicas,

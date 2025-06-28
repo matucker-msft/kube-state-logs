@@ -6,6 +6,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -97,11 +98,21 @@ func (h *ServiceHandler) createLogEntry(service *corev1.Service) types.LogEntry 
 	// Convert ports
 	var ports []types.ServicePortData
 	for _, port := range service.Spec.Ports {
+		targetPort := int32(0)
+		if port.TargetPort.Type == intstr.Int {
+			targetPort = port.TargetPort.IntVal
+		} else if port.TargetPort.Type == intstr.String {
+			// For string target ports, we'll use 0 as default
+			// In a real implementation, you might want to resolve the port name
+			// See: https://kubernetes.io/docs/concepts/services-networking/service/#defining-a-service
+			targetPort = 0
+		}
+
 		ports = append(ports, types.ServicePortData{
 			Name:       port.Name,
 			Protocol:   string(port.Protocol),
 			Port:       port.Port,
-			TargetPort: port.TargetPort.IntVal,
+			TargetPort: targetPort,
 			NodePort:   port.NodePort,
 		})
 	}
@@ -114,7 +125,7 @@ func (h *ServiceHandler) createLogEntry(service *corev1.Service) types.LogEntry 
 
 	// Get load balancer info
 	var loadBalancerIngress []types.LoadBalancerIngressData
-	if service.Spec.Type == corev1.ServiceTypeLoadBalancer {
+	if service.Spec.Type == corev1.ServiceTypeLoadBalancer && service.Status.LoadBalancer.Ingress != nil {
 		for _, ingress := range service.Status.LoadBalancer.Ingress {
 			loadBalancerIngress = append(loadBalancerIngress, types.LoadBalancerIngressData{
 				IP:       ingress.IP,
@@ -143,8 +154,21 @@ func (h *ServiceHandler) createLogEntry(service *corev1.Service) types.LogEntry 
 
 	// Get session affinity timeout
 	sessionAffinityTimeout := int32(0)
-	if service.Spec.SessionAffinityConfig != nil && service.Spec.SessionAffinityConfig.ClientIP != nil && service.Spec.SessionAffinityConfig.ClientIP.TimeoutSeconds != nil {
+	if service.Spec.SessionAffinityConfig != nil &&
+		service.Spec.SessionAffinityConfig.ClientIP != nil &&
+		service.Spec.SessionAffinityConfig.ClientIP.TimeoutSeconds != nil {
 		sessionAffinityTimeout = *service.Spec.SessionAffinityConfig.ClientIP.TimeoutSeconds
+	}
+
+	// Get additional service spec fields
+	var allocateLoadBalancerNodePorts *bool
+	if service.Spec.AllocateLoadBalancerNodePorts != nil {
+		allocateLoadBalancerNodePorts = service.Spec.AllocateLoadBalancerNodePorts
+	}
+
+	var loadBalancerClass *string
+	if service.Spec.LoadBalancerClass != nil {
+		loadBalancerClass = service.Spec.LoadBalancerClass
 	}
 
 	data := types.ServiceData{
@@ -166,6 +190,9 @@ func (h *ServiceHandler) createLogEntry(service *corev1.Service) types.LogEntry 
 		InternalTrafficPolicy:                 internalTrafficPolicy,
 		ExternalTrafficPolicy:                 externalTrafficPolicy,
 		SessionAffinityClientIPTimeoutSeconds: sessionAffinityTimeout,
+		AllocateLoadBalancerNodePorts:         allocateLoadBalancerNodePorts,
+		LoadBalancerClass:                     loadBalancerClass,
+		LoadBalancerSourceRanges:              service.Spec.LoadBalancerSourceRanges,
 	}
 
 	return types.LogEntry{
@@ -179,7 +206,7 @@ func (h *ServiceHandler) createLogEntry(service *corev1.Service) types.LogEntry 
 
 // countEndpointsForService counts the number of endpoints for a given service
 func (h *ServiceHandler) countEndpointsForService(namespace, serviceName string) int {
-	endpoints := h.endpointsInformer.GetStore().List()
+	endpoints := safeGetStoreList(h.endpointsInformer)
 
 	for _, obj := range endpoints {
 		endpoint, ok := obj.(*corev1.Endpoints)
@@ -192,7 +219,9 @@ func (h *ServiceHandler) countEndpointsForService(namespace, serviceName string)
 			// Count all addresses across all subsets
 			totalAddresses := 0
 			for _, subset := range endpoint.Subsets {
-				totalAddresses += len(subset.Addresses)
+				if subset.Addresses != nil {
+					totalAddresses += len(subset.Addresses)
+				}
 			}
 			return totalAddresses
 		}

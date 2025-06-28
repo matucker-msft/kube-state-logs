@@ -3,6 +3,7 @@ package resources
 import (
 	"context"
 	"slices"
+	"strconv"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -85,7 +86,8 @@ func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
 	// Determine QoS class
 	qosClass := string(pod.Status.QOSClass)
 	if qosClass == "" {
-		qosClass = "BestEffort" // Default QoS class
+		qosClass = "BestEffort" // Default QoS class when not set
+		// See: https://kubernetes.io/docs/concepts/workloads/pods/pod-qos/#qos-classes
 	}
 
 	// Get priority class
@@ -134,7 +136,7 @@ func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
 	if pod.DeletionTimestamp != nil {
 		deletionTimestamp = &pod.DeletionTimestamp.Time
 	}
-	if !pod.Status.StartTime.IsZero() {
+	if pod.Status.StartTime != nil && !pod.Status.StartTime.IsZero() {
 		startTime = &pod.Status.StartTime.Time
 	}
 
@@ -156,12 +158,27 @@ func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
 		}
 	}
 
-	// Get status reason
+	// Get status reason - match kube-state-metrics logic
+	// See: https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/#pod-phase
 	statusReason := ""
-	for _, condition := range pod.Status.Conditions {
-		if condition.Status == corev1.ConditionFalse && condition.Reason != "" {
-			statusReason = condition.Reason
-			break
+	if pod.Status.Reason != "" {
+		statusReason = pod.Status.Reason
+	} else {
+		// Check conditions for reason
+		for _, condition := range pod.Status.Conditions {
+			if condition.Status == corev1.ConditionFalse && condition.Reason != "" {
+				statusReason = condition.Reason
+				break
+			}
+		}
+		// Check container statuses for terminated reasons
+		if statusReason == "" {
+			for _, cs := range pod.Status.ContainerStatuses {
+				if cs.State.Terminated != nil && cs.State.Terminated.Reason != "" {
+					statusReason = string(cs.State.Terminated.Reason)
+					break
+				}
+			}
 		}
 	}
 
@@ -180,18 +197,27 @@ func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
 		podIPs = append(podIPs, pod.Status.PodIP)
 	}
 	for _, ip := range pod.Status.PodIPs {
-		podIPs = append(podIPs, ip.IP)
+		if ip.IP != "" {
+			podIPs = append(podIPs, ip.IP)
+		}
 	}
 
 	// Get tolerations
 	var tolerations []types.TolerationData
 	for _, toleration := range pod.Spec.Tolerations {
-		tolerations = append(tolerations, types.TolerationData{
+		tolerationData := types.TolerationData{
 			Key:      toleration.Key,
 			Value:    toleration.Value,
 			Effect:   string(toleration.Effect),
 			Operator: string(toleration.Operator),
-		})
+		}
+
+		// Add toleration seconds if present
+		if toleration.TolerationSeconds != nil {
+			tolerationData.TolerationSeconds = strconv.FormatInt(*toleration.TolerationSeconds, 10)
+		}
+
+		tolerations = append(tolerations, tolerationData)
 	}
 
 	// Get PVC info
@@ -234,7 +260,7 @@ func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
 
 	// Get completion time (when pod phase is Succeeded)
 	var completionTime *time.Time
-	if pod.Status.Phase == corev1.PodSucceeded && !pod.Status.StartTime.IsZero() {
+	if pod.Status.Phase == corev1.PodSucceeded && pod.Status.StartTime != nil && !pod.Status.StartTime.IsZero() {
 		completionTime = &pod.Status.StartTime.Time
 	}
 

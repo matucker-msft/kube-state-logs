@@ -109,10 +109,11 @@ type PodData struct {
 
 // TolerationData represents pod toleration information
 type TolerationData struct {
-	Key      string `json:"key"`
-	Value    string `json:"value"`
-	Effect   string `json:"effect"`
-	Operator string `json:"operator"`
+	Key               string `json:"key"`
+	Value             string `json:"value"`
+	Effect            string `json:"effect"`
+	Operator          string `json:"operator"`
+	TolerationSeconds string `json:"tolerationSeconds"`
 }
 
 // PVCData represents persistent volume claim information
@@ -197,6 +198,11 @@ type ServiceData struct {
 	InternalTrafficPolicy                 string `json:"internalTrafficPolicy"`
 	ExternalTrafficPolicy                 string `json:"externalTrafficPolicy"`
 	SessionAffinityClientIPTimeoutSeconds int32  `json:"sessionAffinityClientIPTimeoutSeconds"`
+
+	// Additional KSM fields we should track
+	AllocateLoadBalancerNodePorts *bool    `json:"allocateLoadBalancerNodePorts"`
+	LoadBalancerClass             *string  `json:"loadBalancerClass"`
+	LoadBalancerSourceRanges      []string `json:"loadBalancerSourceRanges"`
 }
 
 // ServicePortData represents service port information
@@ -228,6 +234,7 @@ type NodeData struct {
 	Capacity    map[string]string `json:"capacity"`
 	Allocatable map[string]string `json:"allocatable"`
 	Conditions  map[string]bool   `json:"conditions"`
+	Phase       string            `json:"phase"`
 
 	// Node info
 	Labels      map[string]string `json:"labels"`

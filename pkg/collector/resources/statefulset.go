@@ -98,11 +98,19 @@ func (h *StatefulSetHandler) createLogEntry(sts *appsv1.StatefulSet) types.LogEn
 	// Get update strategy
 	updateStrategy := string(sts.Spec.UpdateStrategy.Type)
 
+	// Get desired replicas with nil check
+	// Default to 1 when spec.replicas is nil (Kubernetes API default)
+	// See: https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/#creating-a-statefulset
+	desiredReplicas := int32(1)
+	if sts.Spec.Replicas != nil {
+		desiredReplicas = *sts.Spec.Replicas
+	}
+
 	data := types.StatefulSetData{
 		CreatedTimestamp:        sts.CreationTimestamp.Unix(),
 		Labels:                  sts.Labels,
 		Annotations:             sts.Annotations,
-		DesiredReplicas:         *sts.Spec.Replicas,
+		DesiredReplicas:         desiredReplicas,
 		CurrentReplicas:         sts.Status.Replicas,
 		ReadyReplicas:           sts.Status.ReadyReplicas,
 		UpdatedReplicas:         sts.Status.UpdatedReplicas,

@@ -73,14 +73,16 @@ func (h *NodeHandler) Collect(ctx context.Context, namespaces []string) ([]types
 func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 	// Get node addresses
 	var internalIP, externalIP, hostname string
-	for _, addr := range node.Status.Addresses {
-		switch addr.Type {
-		case corev1.NodeInternalIP:
-			internalIP = addr.Address
-		case corev1.NodeExternalIP:
-			externalIP = addr.Address
-		case corev1.NodeHostName:
-			hostname = addr.Address
+	if node.Status.Addresses != nil {
+		for _, addr := range node.Status.Addresses {
+			switch addr.Type {
+			case corev1.NodeInternalIP:
+				internalIP = addr.Address
+			case corev1.NodeExternalIP:
+				externalIP = addr.Address
+			case corev1.NodeHostName:
+				hostname = addr.Address
+			}
 		}
 	}
 
@@ -88,21 +90,34 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 	capacity := make(map[string]string)
 	allocatable := make(map[string]string)
 
-	for key, value := range node.Status.Capacity {
-		capacity[string(key)] = value.String()
+	if node.Status.Capacity != nil {
+		for key, value := range node.Status.Capacity {
+			capacity[string(key)] = value.String()
+		}
 	}
-	for key, value := range node.Status.Allocatable {
-		allocatable[string(key)] = value.String()
+	if node.Status.Allocatable != nil {
+		for key, value := range node.Status.Allocatable {
+			allocatable[string(key)] = value.String()
+		}
 	}
 
 	// Check node conditions
 	conditions := make(map[string]bool)
 	ready := false
-	for _, condition := range node.Status.Conditions {
-		conditions[string(condition.Type)] = condition.Status == corev1.ConditionTrue
-		if condition.Type == corev1.NodeReady {
-			ready = condition.Status == corev1.ConditionTrue
+	if node.Status.Conditions != nil {
+		for _, condition := range node.Status.Conditions {
+			conditions[string(condition.Type)] = condition.Status == corev1.ConditionTrue
+			if condition.Type == corev1.NodeReady {
+				ready = condition.Status == corev1.ConditionTrue
+			}
 		}
+	}
+
+	// Determine node phase
+	// See: https://kubernetes.io/docs/concepts/architecture/nodes/#node-status
+	phase := "Unknown"
+	if node.Status.Phase != "" {
+		phase = string(node.Status.Phase)
 	}
 
 	// Get created by info
@@ -115,20 +130,24 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 
 	// Get node role
 	role := ""
-	if node.Labels["node-role.kubernetes.io/control-plane"] == "true" || node.Labels["node-role.kubernetes.io/master"] == "true" {
-		role = "master"
-	} else {
-		role = "worker"
+	if node.Labels != nil {
+		if node.Labels["node-role.kubernetes.io/control-plane"] == "true" || node.Labels["node-role.kubernetes.io/master"] == "true" {
+			role = "master"
+		} else {
+			role = "worker"
+		}
 	}
 
 	// Get taints
 	var taints []types.TaintData
-	for _, taint := range node.Spec.Taints {
-		taints = append(taints, types.TaintData{
-			Key:    taint.Key,
-			Value:  taint.Value,
-			Effect: string(taint.Effect),
-		})
+	if node.Spec.Taints != nil {
+		for _, taint := range node.Spec.Taints {
+			taints = append(taints, types.TaintData{
+				Key:    taint.Key,
+				Value:  taint.Value,
+				Effect: string(taint.Effect),
+			})
+		}
 	}
 
 	// Get deletion timestamp
@@ -137,13 +156,29 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 		deletionTimestamp = &node.DeletionTimestamp.Time
 	}
 
+	// Get node info with nil checks
+	architecture := ""
+	operatingSystem := ""
+	kernelVersion := ""
+	kubeletVersion := ""
+	kubeProxyVersion := ""
+	containerRuntimeVersion := ""
+
+	// NodeSystemInfo is a struct, not a pointer, so we can access it directly
+	architecture = node.Status.NodeInfo.Architecture
+	operatingSystem = node.Status.NodeInfo.OperatingSystem
+	kernelVersion = node.Status.NodeInfo.KernelVersion
+	kubeletVersion = node.Status.NodeInfo.KubeletVersion
+	kubeProxyVersion = node.Status.NodeInfo.KubeProxyVersion
+	containerRuntimeVersion = node.Status.NodeInfo.ContainerRuntimeVersion
+
 	data := types.NodeData{
-		Architecture:            node.Status.NodeInfo.Architecture,
-		OperatingSystem:         node.Status.NodeInfo.OperatingSystem,
-		KernelVersion:           node.Status.NodeInfo.KernelVersion,
-		KubeletVersion:          node.Status.NodeInfo.KubeletVersion,
-		KubeProxyVersion:        node.Status.NodeInfo.KubeProxyVersion,
-		ContainerRuntimeVersion: node.Status.NodeInfo.ContainerRuntimeVersion,
+		Architecture:            architecture,
+		OperatingSystem:         operatingSystem,
+		KernelVersion:           kernelVersion,
+		KubeletVersion:          kubeletVersion,
+		KubeProxyVersion:        kubeProxyVersion,
+		ContainerRuntimeVersion: containerRuntimeVersion,
 		Capacity:                capacity,
 		Allocatable:             allocatable,
 		Conditions:              conditions,
@@ -160,6 +195,7 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 		Role:                    role,
 		Taints:                  taints,
 		DeletionTimestamp:       deletionTimestamp,
+		Phase:                   phase,
 	}
 
 	return types.LogEntry{
