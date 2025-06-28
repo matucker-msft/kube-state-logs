@@ -19,7 +19,7 @@ type EndpointsHandler struct {
 }
 
 // NewEndpointsHandler creates a new EndpointsHandler
-func NewEndpointsHandler(client *kubernetes.Clientset) *EndpointsHandler {
+func NewEndpointsHandler(client kubernetes.Interface) *EndpointsHandler {
 	return &EndpointsHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

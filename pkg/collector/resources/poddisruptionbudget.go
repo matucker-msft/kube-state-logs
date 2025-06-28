@@ -19,7 +19,7 @@ type PodDisruptionBudgetHandler struct {
 }
 
 // NewPodDisruptionBudgetHandler creates a new PodDisruptionBudgetHandler
-func NewPodDisruptionBudgetHandler(client *kubernetes.Clientset) *PodDisruptionBudgetHandler {
+func NewPodDisruptionBudgetHandler(client kubernetes.Interface) *PodDisruptionBudgetHandler {
 	return &PodDisruptionBudgetHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

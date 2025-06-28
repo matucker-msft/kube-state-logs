@@ -19,7 +19,7 @@ type DaemonSetHandler struct {
 }
 
 // NewDaemonSetHandler creates a new DaemonSetHandler
-func NewDaemonSetHandler(client *kubernetes.Clientset) *DaemonSetHandler {
+func NewDaemonSetHandler(client kubernetes.Interface) *DaemonSetHandler {
 	return &DaemonSetHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

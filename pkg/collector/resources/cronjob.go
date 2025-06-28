@@ -19,7 +19,7 @@ type CronJobHandler struct {
 }
 
 // NewCronJobHandler creates a new CronJobHandler
-func NewCronJobHandler(client *kubernetes.Clientset) *CronJobHandler {
+func NewCronJobHandler(client kubernetes.Interface) *CronJobHandler {
 	return &CronJobHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

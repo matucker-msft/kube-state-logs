@@ -20,7 +20,7 @@ type ReplicaSetHandler struct {
 }
 
 // NewReplicaSetHandler creates a new ReplicaSetHandler
-func NewReplicaSetHandler(client *kubernetes.Clientset) *ReplicaSetHandler {
+func NewReplicaSetHandler(client kubernetes.Interface) *ReplicaSetHandler {
 	return &ReplicaSetHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

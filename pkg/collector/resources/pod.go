@@ -12,6 +12,7 @@ import (
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
 	"github.com/matucker-msft/kube-state-logs/pkg/utils"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 // PodHandler handles collection of pod metrics
@@ -20,7 +21,7 @@ type PodHandler struct {
 }
 
 // NewPodHandler creates a new PodHandler
-func NewPodHandler(client *kubernetes.Clientset) *PodHandler {
+func NewPodHandler(client kubernetes.Interface) *PodHandler {
 	return &PodHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}
@@ -244,8 +245,16 @@ func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
 		for key, value := range container.Resources.Requests {
 			resourceKey := string(key)
 			if existing, exists := resourceRequests[resourceKey]; exists {
-				// Add to existing value (simplified - in reality would need proper resource arithmetic)
-				resourceRequests[resourceKey] = existing + " + " + value.String()
+				// Parse existing value and add to it
+				existingResource, err := resource.ParseQuantity(existing)
+				if err == nil {
+					// Add the resources properly
+					existingResource.Add(value)
+					resourceRequests[resourceKey] = existingResource.String()
+				} else {
+					// Fallback to string concatenation if parsing fails
+					resourceRequests[resourceKey] = existing + " + " + value.String()
+				}
 			} else {
 				resourceRequests[resourceKey] = value.String()
 			}
@@ -253,8 +262,16 @@ func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
 		for key, value := range container.Resources.Limits {
 			resourceKey := string(key)
 			if existing, exists := resourceLimits[resourceKey]; exists {
-				// Add to existing value (simplified - in reality would need proper resource arithmetic)
-				resourceLimits[resourceKey] = existing + " + " + value.String()
+				// Parse existing value and add to it
+				existingResource, err := resource.ParseQuantity(existing)
+				if err == nil {
+					// Add the resources properly
+					existingResource.Add(value)
+					resourceLimits[resourceKey] = existingResource.String()
+				} else {
+					// Fallback to string concatenation if parsing fails
+					resourceLimits[resourceKey] = existing + " + " + value.String()
+				}
 			} else {
 				resourceLimits[resourceKey] = value.String()
 			}

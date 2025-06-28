@@ -19,7 +19,7 @@ type CertificateSigningRequestHandler struct {
 }
 
 // NewCertificateSigningRequestHandler creates a new CertificateSigningRequestHandler
-func NewCertificateSigningRequestHandler(client *kubernetes.Clientset) *CertificateSigningRequestHandler {
+func NewCertificateSigningRequestHandler(client kubernetes.Interface) *CertificateSigningRequestHandler {
 	return &CertificateSigningRequestHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

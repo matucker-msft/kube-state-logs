@@ -19,7 +19,7 @@ type ServiceAccountHandler struct {
 }
 
 // NewServiceAccountHandler creates a new ServiceAccountHandler
-func NewServiceAccountHandler(client *kubernetes.Clientset) *ServiceAccountHandler {
+func NewServiceAccountHandler(client kubernetes.Interface) *ServiceAccountHandler {
 	return &ServiceAccountHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

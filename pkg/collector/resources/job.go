@@ -19,7 +19,7 @@ type JobHandler struct {
 }
 
 // NewJobHandler creates a new JobHandler
-func NewJobHandler(client *kubernetes.Clientset) *JobHandler {
+func NewJobHandler(client kubernetes.Interface) *JobHandler {
 	return &JobHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

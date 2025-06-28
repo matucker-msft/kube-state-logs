@@ -19,7 +19,7 @@ type ClusterRoleBindingHandler struct {
 }
 
 // NewClusterRoleBindingHandler creates a new ClusterRoleBindingHandler
-func NewClusterRoleBindingHandler(client *kubernetes.Clientset) *ClusterRoleBindingHandler {
+func NewClusterRoleBindingHandler(client kubernetes.Interface) *ClusterRoleBindingHandler {
 	return &ClusterRoleBindingHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

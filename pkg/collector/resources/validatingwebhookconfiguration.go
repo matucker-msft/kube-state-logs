@@ -19,7 +19,7 @@ type ValidatingWebhookConfigurationHandler struct {
 }
 
 // NewValidatingWebhookConfigurationHandler creates a new ValidatingWebhookConfigurationHandler
-func NewValidatingWebhookConfigurationHandler(client *kubernetes.Clientset) *ValidatingWebhookConfigurationHandler {
+func NewValidatingWebhookConfigurationHandler(client kubernetes.Interface) *ValidatingWebhookConfigurationHandler {
 	return &ValidatingWebhookConfigurationHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

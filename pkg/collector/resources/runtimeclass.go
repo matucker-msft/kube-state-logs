@@ -19,7 +19,7 @@ type RuntimeClassHandler struct {
 }
 
 // NewRuntimeClassHandler creates a new RuntimeClassHandler
-func NewRuntimeClassHandler(client *kubernetes.Clientset) *RuntimeClassHandler {
+func NewRuntimeClassHandler(client kubernetes.Interface) *RuntimeClassHandler {
 	return &RuntimeClassHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

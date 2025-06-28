@@ -19,7 +19,7 @@ type ValidatingAdmissionPolicyBindingHandler struct {
 }
 
 // NewValidatingAdmissionPolicyBindingHandler creates a new ValidatingAdmissionPolicyBindingHandler
-func NewValidatingAdmissionPolicyBindingHandler(client *kubernetes.Clientset) *ValidatingAdmissionPolicyBindingHandler {
+func NewValidatingAdmissionPolicyBindingHandler(client kubernetes.Interface) *ValidatingAdmissionPolicyBindingHandler {
 	return &ValidatingAdmissionPolicyBindingHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

@@ -20,7 +20,7 @@ type IngressHandler struct {
 }
 
 // NewIngressHandler creates a new IngressHandler
-func NewIngressHandler(client *kubernetes.Clientset) *IngressHandler {
+func NewIngressHandler(client kubernetes.Interface) *IngressHandler {
 	return &IngressHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

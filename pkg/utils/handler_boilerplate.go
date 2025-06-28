@@ -12,13 +12,13 @@ import (
 
 // BaseHandler provides common fields and methods for resource handlers
 type BaseHandler struct {
-	client   *kubernetes.Clientset
+	client   kubernetes.Interface
 	informer cache.SharedIndexInformer
 	logger   interfaces.Logger
 }
 
 // NewBaseHandler creates a new BaseHandler
-func NewBaseHandler(client *kubernetes.Clientset) BaseHandler {
+func NewBaseHandler(client kubernetes.Interface) BaseHandler {
 	return BaseHandler{
 		client: client,
 	}
@@ -31,7 +31,7 @@ func (h *BaseHandler) SetupBaseInformer(informer cache.SharedIndexInformer, logg
 }
 
 // GetClient returns the Kubernetes client
-func (h *BaseHandler) GetClient() *kubernetes.Clientset {
+func (h *BaseHandler) GetClient() kubernetes.Interface {
 	return h.client
 }
 

@@ -19,7 +19,7 @@ type ReplicationControllerHandler struct {
 }
 
 // NewReplicationControllerHandler creates a new ReplicationControllerHandler
-func NewReplicationControllerHandler(client *kubernetes.Clientset) *ReplicationControllerHandler {
+func NewReplicationControllerHandler(client kubernetes.Interface) *ReplicationControllerHandler {
 	return &ReplicationControllerHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

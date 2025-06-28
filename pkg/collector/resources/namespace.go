@@ -20,7 +20,7 @@ type NamespaceHandler struct {
 }
 
 // NewNamespaceHandler creates a new NamespaceHandler
-func NewNamespaceHandler(client *kubernetes.Clientset) *NamespaceHandler {
+func NewNamespaceHandler(client kubernetes.Interface) *NamespaceHandler {
 	return &NamespaceHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

@@ -19,7 +19,7 @@ type StatefulSetHandler struct {
 }
 
 // NewStatefulSetHandler creates a new StatefulSetHandler
-func NewStatefulSetHandler(client *kubernetes.Clientset) *StatefulSetHandler {
+func NewStatefulSetHandler(client kubernetes.Interface) *StatefulSetHandler {
 	return &StatefulSetHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

@@ -1,6 +1,7 @@
 package utils
 
 import (
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -35,6 +36,13 @@ func GetConditionStatusGeneric(conditions any, conditionType string) bool {
 	switch typedConditions := conditions.(type) {
 	case []metav1.Condition:
 		return GetConditionStatus(typedConditions, conditionType)
+	case []corev1.NodeCondition:
+		for _, condition := range typedConditions {
+			if string(condition.Type) == conditionType {
+				return condition.Status == corev1.ConditionTrue
+			}
+		}
+		return false
 	default:
 		// For other condition types, we'll need to handle them specifically
 		// This is a fallback for now

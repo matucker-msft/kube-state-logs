@@ -19,7 +19,7 @@ type RoleBindingHandler struct {
 }
 
 // NewRoleBindingHandler creates a new RoleBindingHandler
-func NewRoleBindingHandler(client *kubernetes.Clientset) *RoleBindingHandler {
+func NewRoleBindingHandler(client kubernetes.Interface) *RoleBindingHandler {
 	return &RoleBindingHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

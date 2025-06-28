@@ -19,7 +19,7 @@ type ContainerHandler struct {
 }
 
 // NewContainerHandler creates a new ContainerHandler
-func NewContainerHandler(client *kubernetes.Clientset) *ContainerHandler {
+func NewContainerHandler(client kubernetes.Interface) *ContainerHandler {
 	return &ContainerHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

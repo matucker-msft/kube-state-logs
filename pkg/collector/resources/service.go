@@ -22,7 +22,7 @@ type ServiceHandler struct {
 }
 
 // NewServiceHandler creates a new ServiceHandler
-func NewServiceHandler(client *kubernetes.Clientset) *ServiceHandler {
+func NewServiceHandler(client kubernetes.Interface) *ServiceHandler {
 	return &ServiceHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

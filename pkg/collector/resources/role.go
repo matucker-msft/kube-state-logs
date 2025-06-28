@@ -19,7 +19,7 @@ type RoleHandler struct {
 }
 
 // NewRoleHandler creates a new RoleHandler
-func NewRoleHandler(client *kubernetes.Clientset) *RoleHandler {
+func NewRoleHandler(client kubernetes.Interface) *RoleHandler {
 	return &RoleHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

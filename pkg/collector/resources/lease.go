@@ -19,7 +19,7 @@ type LeaseHandler struct {
 }
 
 // NewLeaseHandler creates a new LeaseHandler
-func NewLeaseHandler(client *kubernetes.Clientset) *LeaseHandler {
+func NewLeaseHandler(client kubernetes.Interface) *LeaseHandler {
 	return &LeaseHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

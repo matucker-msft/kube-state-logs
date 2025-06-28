@@ -20,7 +20,7 @@ type NodeHandler struct {
 }
 
 // NewNodeHandler creates a new NodeHandler
-func NewNodeHandler(client *kubernetes.Clientset) *NodeHandler {
+func NewNodeHandler(client kubernetes.Interface) *NodeHandler {
 	return &NodeHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}
@@ -144,9 +144,4 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 	}
 
 	return utils.CreateLogEntry("node", utils.ExtractName(node), utils.ExtractNamespace(node), data)
-}
-
-// convertToMap converts a struct to map[string]any for JSON serialization
-func (h *NodeHandler) convertToMap(data any) map[string]any {
-	return utils.ConvertStructToMap(data)
 }

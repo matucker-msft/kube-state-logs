@@ -19,7 +19,7 @@ type ConfigMapHandler struct {
 }
 
 // NewConfigMapHandler creates a new ConfigMapHandler
-func NewConfigMapHandler(client *kubernetes.Clientset) *ConfigMapHandler {
+func NewConfigMapHandler(client kubernetes.Interface) *ConfigMapHandler {
 	return &ConfigMapHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

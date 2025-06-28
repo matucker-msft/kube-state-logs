@@ -19,7 +19,7 @@ type NetworkPolicyHandler struct {
 }
 
 // NewNetworkPolicyHandler creates a new NetworkPolicyHandler
-func NewNetworkPolicyHandler(client *kubernetes.Clientset) *NetworkPolicyHandler {
+func NewNetworkPolicyHandler(client kubernetes.Interface) *NetworkPolicyHandler {
 	return &NetworkPolicyHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

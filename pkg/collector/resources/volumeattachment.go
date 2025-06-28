@@ -19,7 +19,7 @@ type VolumeAttachmentHandler struct {
 }
 
 // NewVolumeAttachmentHandler creates a new VolumeAttachmentHandler
-func NewVolumeAttachmentHandler(client *kubernetes.Clientset) *VolumeAttachmentHandler {
+func NewVolumeAttachmentHandler(client kubernetes.Interface) *VolumeAttachmentHandler {
 	return &VolumeAttachmentHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

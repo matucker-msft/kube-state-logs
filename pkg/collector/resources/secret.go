@@ -19,7 +19,7 @@ type SecretHandler struct {
 }
 
 // NewSecretHandler creates a new SecretHandler
-func NewSecretHandler(client *kubernetes.Clientset) *SecretHandler {
+func NewSecretHandler(client kubernetes.Interface) *SecretHandler {
 	return &SecretHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

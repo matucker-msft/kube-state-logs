@@ -19,7 +19,7 @@ type PriorityClassHandler struct {
 }
 
 // NewPriorityClassHandler creates a new PriorityClassHandler
-func NewPriorityClassHandler(client *kubernetes.Clientset) *PriorityClassHandler {
+func NewPriorityClassHandler(client kubernetes.Interface) *PriorityClassHandler {
 	return &PriorityClassHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

@@ -19,7 +19,7 @@ type LimitRangeHandler struct {
 }
 
 // NewLimitRangeHandler creates a new LimitRangeHandler
-func NewLimitRangeHandler(client *kubernetes.Clientset) *LimitRangeHandler {
+func NewLimitRangeHandler(client kubernetes.Interface) *LimitRangeHandler {
 	return &LimitRangeHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

@@ -19,7 +19,7 @@ type MutatingWebhookConfigurationHandler struct {
 }
 
 // NewMutatingWebhookConfigurationHandler creates a new MutatingWebhookConfigurationHandler
-func NewMutatingWebhookConfigurationHandler(client *kubernetes.Clientset) *MutatingWebhookConfigurationHandler {
+func NewMutatingWebhookConfigurationHandler(client kubernetes.Interface) *MutatingWebhookConfigurationHandler {
 	return &MutatingWebhookConfigurationHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

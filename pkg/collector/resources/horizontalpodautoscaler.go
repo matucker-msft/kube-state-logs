@@ -19,7 +19,7 @@ type HorizontalPodAutoscalerHandler struct {
 }
 
 // NewHorizontalPodAutoscalerHandler creates a new HorizontalPodAutoscalerHandler
-func NewHorizontalPodAutoscalerHandler(client *kubernetes.Clientset) *HorizontalPodAutoscalerHandler {
+func NewHorizontalPodAutoscalerHandler(client kubernetes.Interface) *HorizontalPodAutoscalerHandler {
 	return &HorizontalPodAutoscalerHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

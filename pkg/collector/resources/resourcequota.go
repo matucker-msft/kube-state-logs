@@ -19,7 +19,7 @@ type ResourceQuotaHandler struct {
 }
 
 // NewResourceQuotaHandler creates a new ResourceQuotaHandler
-func NewResourceQuotaHandler(client *kubernetes.Clientset) *ResourceQuotaHandler {
+func NewResourceQuotaHandler(client kubernetes.Interface) *ResourceQuotaHandler {
 	return &ResourceQuotaHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

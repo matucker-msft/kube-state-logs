@@ -19,7 +19,7 @@ type StorageClassHandler struct {
 }
 
 // NewStorageClassHandler creates a new StorageClassHandler
-func NewStorageClassHandler(client *kubernetes.Clientset) *StorageClassHandler {
+func NewStorageClassHandler(client kubernetes.Interface) *StorageClassHandler {
 	return &StorageClassHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

@@ -19,7 +19,7 @@ type PersistentVolumeClaimHandler struct {
 }
 
 // NewPersistentVolumeClaimHandler creates a new PersistentVolumeClaimHandler
-func NewPersistentVolumeClaimHandler(client *kubernetes.Clientset) *PersistentVolumeClaimHandler {
+func NewPersistentVolumeClaimHandler(client kubernetes.Interface) *PersistentVolumeClaimHandler {
 	return &PersistentVolumeClaimHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}

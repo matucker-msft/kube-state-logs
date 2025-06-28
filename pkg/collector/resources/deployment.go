@@ -19,7 +19,7 @@ type DeploymentHandler struct {
 }
 
 // NewDeploymentHandler creates a new DeploymentHandler
-func NewDeploymentHandler(client *kubernetes.Clientset) *DeploymentHandler {
+func NewDeploymentHandler(client kubernetes.Interface) *DeploymentHandler {
 	return &DeploymentHandler{
 		BaseHandler: utils.NewBaseHandler(client),
 	}
@@ -107,9 +107,9 @@ func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.
 		StrategyType:                        strategyType,
 		StrategyRollingUpdateMaxSurge:       strategyRollingUpdateMaxSurge,
 		StrategyRollingUpdateMaxUnavailable: strategyRollingUpdateMaxUnavailable,
-		ConditionAvailable:                  utils.GetConditionStatusGeneric(deployment.Status.Conditions, "Available"),
-		ConditionProgressing:                utils.GetConditionStatusGeneric(deployment.Status.Conditions, "Progressing"),
-		ConditionReplicaFailure:             utils.GetConditionStatusGeneric(deployment.Status.Conditions, "ReplicaFailure"),
+		ConditionAvailable:                  h.getConditionStatus(deployment.Status.Conditions, "Available"),
+		ConditionProgressing:                h.getConditionStatus(deployment.Status.Conditions, "Progressing"),
+		ConditionReplicaFailure:             h.getConditionStatus(deployment.Status.Conditions, "ReplicaFailure"),
 		CreatedByKind:                       createdByKind,
 		CreatedByName:                       createdByName,
 		Paused:                              deployment.Spec.Paused,
