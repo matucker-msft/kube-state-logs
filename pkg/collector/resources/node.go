@@ -54,8 +54,7 @@ func (h *NodeHandler) SetupInformer(factory informers.SharedInformerFactory, log
 func (h *NodeHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
 	var entries []types.LogEntry
 
-	// Get all nodes from the cache
-	nodes := h.informer.GetStore().List()
+	nodes := safeGetStoreList(h.informer)
 
 	for _, obj := range nodes {
 		node, ok := obj.(*corev1.Node)

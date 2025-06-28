@@ -56,7 +56,7 @@ func (h *RoleBindingHandler) Collect(ctx context.Context, namespaces []string) (
 	var entries []types.LogEntry
 
 	// Get all rolebindings from the cache
-	rbList := h.informer.GetStore().List()
+	rbList := safeGetStoreList(h.informer)
 
 	for _, obj := range rbList {
 		rb, ok := obj.(*rbacv1.RoleBinding)

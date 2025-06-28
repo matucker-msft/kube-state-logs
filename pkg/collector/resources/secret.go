@@ -56,7 +56,7 @@ func (h *SecretHandler) Collect(ctx context.Context, namespaces []string) ([]typ
 	var entries []types.LogEntry
 
 	// Get all secrets from the cache
-	secrets := h.informer.GetStore().List()
+	secrets := safeGetStoreList(h.informer)
 
 	for _, obj := range secrets {
 		secret, ok := obj.(*corev1.Secret)

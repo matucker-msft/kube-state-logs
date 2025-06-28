@@ -1,6 +1,8 @@
 package types
 
 import (
+	"reflect"
+	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -710,11 +712,11 @@ type CRDData struct {
 	Annotations      map[string]string `json:"annotations"`
 
 	// CRD specific
-	APIVersion   string                 `json:"apiVersion"`
-	Kind         string                 `json:"kind"`
-	Spec         map[string]interface{} `json:"spec"`
-	Status       map[string]interface{} `json:"status"`
-	CustomFields map[string]interface{} `json:"customFields"`
+	APIVersion   string         `json:"apiVersion"`
+	Kind         string         `json:"kind"`
+	Spec         map[string]any `json:"spec"`
+	Status       map[string]any `json:"status"`
+	CustomFields map[string]any `json:"customFields"`
 
 	// Metadata
 	CreatedByKind string `json:"createdByKind"`
@@ -729,13 +731,13 @@ type StorageClassData struct {
 	Annotations      map[string]string `json:"annotations"`
 
 	// StorageClass specific
-	Provisioner          string                 `json:"provisioner"`
-	ReclaimPolicy        string                 `json:"reclaimPolicy"`
-	VolumeBindingMode    string                 `json:"volumeBindingMode"`
-	AllowVolumeExpansion bool                   `json:"allowVolumeExpansion"`
-	Parameters           map[string]string      `json:"parameters"`
-	MountOptions         []string               `json:"mountOptions"`
-	AllowedTopologies    map[string]interface{} `json:"allowedTopologies"`
+	Provisioner          string            `json:"provisioner"`
+	ReclaimPolicy        string            `json:"reclaimPolicy"`
+	VolumeBindingMode    string            `json:"volumeBindingMode"`
+	AllowVolumeExpansion bool              `json:"allowVolumeExpansion"`
+	Parameters           map[string]string `json:"parameters"`
+	MountOptions         []string          `json:"mountOptions"`
+	AllowedTopologies    map[string]any    `json:"allowedTopologies"`
 
 	// Metadata
 	CreatedByKind string `json:"createdByKind"`
@@ -783,9 +785,9 @@ type NetworkPolicyPort struct {
 
 // NetworkPolicyPeer represents a peer in a network policy rule
 type NetworkPolicyPeer struct {
-	PodSelector       map[string]string      `json:"podSelector"`
-	NamespaceSelector map[string]string      `json:"namespaceSelector"`
-	IPBlock           map[string]interface{} `json:"ipBlock"`
+	PodSelector       map[string]string `json:"podSelector"`
+	NamespaceSelector map[string]string `json:"namespaceSelector"`
+	IPBlock           map[string]any    `json:"ipBlock"`
 }
 
 // ReplicationControllerData represents replicationcontroller-specific metrics (matching kube-state-metrics)
@@ -976,4 +978,135 @@ type CertificateSigningRequestData struct {
 	// Metadata
 	CreatedByKind string `json:"createdByKind"`
 	CreatedByName string `json:"createdByName"`
+}
+
+// MutatingWebhookConfigurationData represents mutatingwebhookconfiguration-specific metrics (matching kube-state-metrics)
+type MutatingWebhookConfigurationData struct {
+	// Basic mutatingwebhookconfiguration info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// MutatingWebhookConfiguration specific
+	Webhooks []WebhookData `json:"webhooks"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// ValidatingWebhookConfigurationData represents validatingwebhookconfiguration-specific metrics (matching kube-state-metrics)
+type ValidatingWebhookConfigurationData struct {
+	// Basic validatingwebhookconfiguration info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// ValidatingWebhookConfiguration specific
+	Webhooks []WebhookData `json:"webhooks"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// WebhookData represents webhook information
+type WebhookData struct {
+	Name                    string                  `json:"name"`
+	ClientConfig            WebhookClientConfigData `json:"clientConfig"`
+	Rules                   []WebhookRuleData       `json:"rules"`
+	FailurePolicy           string                  `json:"failurePolicy"`
+	MatchPolicy             string                  `json:"matchPolicy"`
+	NamespaceSelector       map[string]string       `json:"namespaceSelector"`
+	ObjectSelector          map[string]string       `json:"objectSelector"`
+	SideEffects             string                  `json:"sideEffects"`
+	TimeoutSeconds          int32                   `json:"timeoutSeconds"`
+	AdmissionReviewVersions []string                `json:"admissionReviewVersions"`
+}
+
+// WebhookClientConfigData represents webhook client configuration
+type WebhookClientConfigData struct {
+	URL      string              `json:"url"`
+	Service  *WebhookServiceData `json:"service"`
+	CABundle []byte              `json:"caBundle"`
+}
+
+// WebhookServiceData represents webhook service configuration
+type WebhookServiceData struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+	Path      string `json:"path"`
+	Port      int32  `json:"port"`
+}
+
+// WebhookRuleData represents webhook rule information
+type WebhookRuleData struct {
+	APIGroups   []string `json:"apiGroups"`
+	APIVersions []string `json:"apiVersions"`
+	Resources   []string `json:"resources"`
+	Scope       string   `json:"scope"`
+}
+
+// IngressClassData represents ingressclass-specific metrics (matching kube-state-metrics)
+type IngressClassData struct {
+	// Basic ingressclass info
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+
+	// IngressClass specific
+	Controller string `json:"controller"`
+	IsDefault  bool   `json:"isDefault"`
+
+	// Metadata
+	CreatedByKind string `json:"createdByKind"`
+	CreatedByName string `json:"createdByName"`
+}
+
+// convertStructToMap converts a struct to a map[string]any for JSON serialization
+func convertStructToMap(obj any) map[string]any {
+	result := make(map[string]any)
+
+	v := reflect.ValueOf(obj)
+	if v.Kind() == reflect.Ptr {
+		v = v.Elem()
+	}
+
+	if v.Kind() != reflect.Struct {
+		return result
+	}
+
+	t := v.Type()
+	for i := 0; i < v.NumField(); i++ {
+		field := v.Field(i)
+		fieldType := t.Field(i)
+
+		// Get JSON tag name
+		jsonTag := fieldType.Tag.Get("json")
+		if jsonTag == "" || jsonTag == "-" {
+			continue
+		}
+
+		// Remove comma and options from JSON tag
+		if commaIndex := strings.Index(jsonTag, ","); commaIndex != -1 {
+			jsonTag = jsonTag[:commaIndex]
+		}
+
+		// Convert field value to any
+		var value any
+		switch field.Kind() {
+		case reflect.Ptr:
+			if field.IsNil() {
+				value = nil
+			} else {
+				value = field.Elem().Interface()
+			}
+		default:
+			value = field.Interface()
+		}
+
+		result[jsonTag] = value
+	}
+
+	return result
 }

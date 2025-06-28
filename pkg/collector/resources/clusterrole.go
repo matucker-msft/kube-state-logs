@@ -55,7 +55,7 @@ func (h *ClusterRoleHandler) Collect(ctx context.Context, namespaces []string) (
 	var entries []types.LogEntry
 
 	// Get all clusterroles from the cache
-	crList := h.informer.GetStore().List()
+	crList := safeGetStoreList(h.informer)
 
 	for _, obj := range crList {
 		cr, ok := obj.(*rbacv1.ClusterRole)

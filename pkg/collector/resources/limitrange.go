@@ -56,7 +56,7 @@ func (h *LimitRangeHandler) Collect(ctx context.Context, namespaces []string) ([
 	var entries []types.LogEntry
 
 	// Get all limitranges from the cache
-	lrList := h.informer.GetStore().List()
+	lrList := safeGetStoreList(h.informer)
 
 	for _, obj := range lrList {
 		lr, ok := obj.(*corev1.LimitRange)

@@ -25,6 +25,23 @@ Kube-state-logs supports the following Kubernetes resource types:
 - **HorizontalPodAutoscalers** - Autoscaling configuration and current metrics
 - **ServiceAccounts** - RBAC service accounts and their associated secrets
 - **PodDisruptionBudgets** - Pod disruption budget configuration and status
+- **Endpoints** - Service endpoint addresses, ports, and readiness status
+- **PersistentVolumes** - Storage volume capacity, access modes, and binding status
+- **ResourceQuotas** - Namespace resource limits and current usage
+- **StorageClasses** - Storage provisioner configuration and parameters
+- **NetworkPolicies** - Network security rules and policy types
+- **ReplicationControllers** - Legacy replication controller scaling and availability
+- **LimitRanges** - Namespace resource limit ranges and defaults
+- **Leases** - Leader election coordination and lease information
+- **Roles** - Namespace-scoped RBAC permissions and rules
+- **ClusterRoles** - Cluster-scoped RBAC permissions and rules
+- **RoleBindings** - Namespace-scoped RBAC role assignments
+- **ClusterRoleBindings** - Cluster-scoped RBAC role assignments
+- **VolumeAttachments** - Storage volume attachment status and metadata
+- **CertificateSigningRequests** - Certificate request status and signer information
+- **MutatingWebhookConfigurations** - Admission control webhook configuration and rules
+- **ValidatingWebhookConfigurations** - Admission control webhook configuration and rules
+- **IngressClasses** - Ingress controller configuration and default status
 
 ## Resource Examples
 
@@ -816,6 +833,124 @@ Kube-state-logs supports the following Kubernetes resource types:
 }
 ```
 
+### MutatingWebhookConfiguration Log Entry
+
+```json
+{
+    "timestamp": "2024-01-15T10:30:00Z",
+    "resourceType": "mutatingwebhookconfiguration",
+    "name": "sample-mutating-webhook",
+    "namespace": "",
+    "data": {
+        "createdTimestamp": 1718020800,
+        "labels": {
+            "app": "sample-webhook"
+        },
+        "annotations": {},
+        "webhooks": [
+            {
+                "name": "sample-webhook.example.com",
+                "clientConfig": {
+                    "url": "https://webhook.example.com/mutate",
+                    "service": {
+                        "namespace": "webhook-system",
+                        "name": "sample-webhook-service",
+                        "path": "/mutate",
+                        "port": 443
+                    },
+                    "caBundle": "LS0tLS1CRUdJTi..."
+                },
+                "rules": [
+                    {
+                        "apiGroups": ["apps"],
+                        "apiVersions": ["v1"],
+                        "resources": ["deployments"],
+                        "scope": "Namespaced"
+                    }
+                ],
+                "failurePolicy": "Ignore",
+                "matchPolicy": "Equivalent",
+                "namespaceSelector": {},
+                "objectSelector": {},
+                "sideEffects": "None",
+                "timeoutSeconds": 30,
+                "admissionReviewVersions": ["v1"]
+            }
+        ]
+    }
+}
+```
+
+### ValidatingWebhookConfiguration Log Entry
+
+```json
+{
+    "timestamp": "2024-01-15T10:30:00Z",
+    "resourceType": "validatingwebhookconfiguration",
+    "name": "sample-validating-webhook",
+    "namespace": "",
+    "data": {
+        "createdTimestamp": 1718020800,
+        "labels": {
+            "app": "sample-webhook"
+        },
+        "annotations": {},
+        "webhooks": [
+            {
+                "name": "sample-webhook.example.com",
+                "clientConfig": {
+                    "url": "https://webhook.example.com/validate",
+                    "service": {
+                        "namespace": "webhook-system",
+                        "name": "sample-webhook-service",
+                        "path": "/validate",
+                        "port": 443
+                    },
+                    "caBundle": "LS0tLS1CRUdJTi..."
+                },
+                "rules": [
+                    {
+                        "apiGroups": ["apps"],
+                        "apiVersions": ["v1"],
+                        "resources": ["deployments"],
+                        "scope": "Namespaced"
+                    }
+                ],
+                "failurePolicy": "Fail",
+                "matchPolicy": "Equivalent",
+                "namespaceSelector": {},
+                "objectSelector": {},
+                "sideEffects": "None",
+                "timeoutSeconds": 30,
+                "admissionReviewVersions": ["v1"]
+            }
+        ]
+    }
+}
+```
+
+### IngressClass Log Entry
+
+```json
+{
+    "timestamp": "2024-01-15T10:30:00Z",
+    "resourceType": "ingressclass",
+    "name": "nginx",
+    "namespace": "",
+    "data": {
+        "createdTimestamp": 1718020800,
+        "labels": {
+            "app": "nginx-ingress"
+        },
+        "annotations": {
+            "ingressclass.kubernetes.io/is-default-class": "true"
+        },
+        "controller": "k8s.io/ingress-nginx",
+        "isDefault": true
+    }
+}
+```
+
 ## Field Descriptions
 
 ### Common Fields
@@ -850,6 +985,23 @@ Each resource type includes fields that match the corresponding kube-state-metri
 - **HorizontalPodAutoscalers**: Target metrics, current utilization, scaling conditions, and replica ranges
 - **ServiceAccounts**: Associated secrets, image pull secrets, and token mounting configuration
 - **PodDisruptionBudgets**: Configuration and status of pod disruption budgets
+- **Endpoints**: Service endpoint addresses, ports, and readiness status
+- **PersistentVolumes**: Storage volume capacity, access modes, and binding status
+- **ResourceQuotas**: Namespace resource limits and current usage
+- **StorageClasses**: Storage provisioner configuration and parameters
+- **NetworkPolicies**: Network security rules and policy types
+- **ReplicationControllers**: Legacy replication controller scaling and availability
+- **LimitRanges**: Namespace resource limit ranges and defaults
+- **Leases**: Leader election coordination and lease information
+- **Roles**: Namespace-scoped RBAC permissions and rules
+- **ClusterRoles**: Cluster-scoped RBAC permissions and rules
+- **RoleBindings**: Namespace-scoped RBAC role assignments
+- **ClusterRoleBindings**: Cluster-scoped RBAC role assignments
+- **VolumeAttachments**: Storage volume attachment status and metadata
+- **CertificateSigningRequests**: Certificate request status and signer information
+- **MutatingWebhookConfigurations**: Admission control webhook configuration and rules
+- **ValidatingWebhookConfigurations**: Admission control webhook configuration and rules
+- **IngressClasses**: Ingress controller configuration and default status
 
 For detailed field descriptions and their meanings, refer to the [Kubernetes API documentation](https://kubernetes.io/docs/reference/kubernetes-api/). 
 

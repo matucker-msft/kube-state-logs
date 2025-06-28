@@ -56,7 +56,7 @@ func (h *ServiceAccountHandler) Collect(ctx context.Context, namespaces []string
 	var entries []types.LogEntry
 
 	// Get all serviceaccounts from the cache
-	serviceAccounts := h.informer.GetStore().List()
+	serviceAccounts := safeGetStoreList(h.informer)
 
 	for _, obj := range serviceAccounts {
 		sa, ok := obj.(*corev1.ServiceAccount)

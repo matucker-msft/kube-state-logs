@@ -56,7 +56,7 @@ func (h *CronJobHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 	var entries []types.LogEntry
 
 	// Get all cronjobs from the cache
-	cronjobs := h.informer.GetStore().List()
+	cronjobs := safeGetStoreList(h.informer)
 
 	for _, obj := range cronjobs {
 		cronjob, ok := obj.(*batchv1.CronJob)

@@ -36,6 +36,9 @@ config:
     - clusterrolebinding
     - volumeattachment
     - certificatesigningrequest
+    - mutatingwebhookconfiguration
+    - validatingwebhookconfiguration
+    - ingressclass
   namespaces: ""
   logLevel: "info"
 

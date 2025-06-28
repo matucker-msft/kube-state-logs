@@ -55,8 +55,8 @@ func (h *NamespaceHandler) SetupInformer(factory informers.SharedInformerFactory
 func (h *NamespaceHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
 	var entries []types.LogEntry
 
-	// Get all namespaces from the cache
-	namespaceList := h.informer.GetStore().List()
+	// Get all namespaces from the cache using safe utility
+	namespaceList := safeGetStoreList(h.informer)
 
 	for _, obj := range namespaceList {
 		ns, ok := obj.(*corev1.Namespace)

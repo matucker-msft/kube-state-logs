@@ -55,7 +55,7 @@ func (h *StorageClassHandler) Collect(ctx context.Context, namespaces []string) 
 	var entries []types.LogEntry
 
 	// Get all storageclasses from the cache
-	scList := h.informer.GetStore().List()
+	scList := safeGetStoreList(h.informer)
 
 	for _, obj := range scList {
 		sc, ok := obj.(*storagev1.StorageClass)
@@ -102,7 +102,7 @@ func (h *StorageClassHandler) createLogEntry(sc *storagev1.StorageClass) types.L
 	mountOptions := sc.MountOptions
 
 	// Get allowed topologies
-	allowedTopologies := make(map[string]interface{})
+	allowedTopologies := make(map[string]any)
 	if sc.AllowedTopologies != nil {
 		// Convert to map for JSON serialization
 		allowedTopologies["allowedTopologies"] = sc.AllowedTopologies

@@ -56,7 +56,7 @@ func (h *EndpointsHandler) Collect(ctx context.Context, namespaces []string) ([]
 	var entries []types.LogEntry
 
 	// Get all endpoints from the cache
-	endpointsList := h.informer.GetStore().List()
+	endpointsList := safeGetStoreList(h.informer)
 
 	for _, obj := range endpointsList {
 		endpoints, ok := obj.(*corev1.Endpoints)

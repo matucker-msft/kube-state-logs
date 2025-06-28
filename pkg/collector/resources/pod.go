@@ -55,8 +55,7 @@ func (h *PodHandler) SetupInformer(factory informers.SharedInformerFactory, logg
 func (h *PodHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
 	var entries []types.LogEntry
 
-	// Get all pods from the cache
-	pods := h.informer.GetStore().List()
+	pods := safeGetStoreList(h.informer)
 
 	for _, obj := range pods {
 		pod, ok := obj.(*corev1.Pod)

@@ -56,7 +56,7 @@ func (h *ConfigMapHandler) Collect(ctx context.Context, namespaces []string) ([]
 	var entries []types.LogEntry
 
 	// Get all configmaps from the cache
-	configmaps := h.informer.GetStore().List()
+	configmaps := safeGetStoreList(h.informer)
 
 	for _, obj := range configmaps {
 		configmap, ok := obj.(*corev1.ConfigMap)

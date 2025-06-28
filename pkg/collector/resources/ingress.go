@@ -57,7 +57,7 @@ func (h *IngressHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 	var entries []types.LogEntry
 
 	// Get all ingresses from the cache
-	ingresses := h.informer.GetStore().List()
+	ingresses := safeGetStoreList(h.informer)
 
 	for _, obj := range ingresses {
 		ingress, ok := obj.(*networkingv1.Ingress)

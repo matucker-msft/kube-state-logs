@@ -56,7 +56,7 @@ func (h *JobHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 	var entries []types.LogEntry
 
 	// Get all jobs from the cache
-	jobs := h.informer.GetStore().List()
+	jobs := safeGetStoreList(h.informer)
 
 	for _, obj := range jobs {
 		job, ok := obj.(*batchv1.Job)

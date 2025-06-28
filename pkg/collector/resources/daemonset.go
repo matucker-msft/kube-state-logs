@@ -56,7 +56,7 @@ func (h *DaemonSetHandler) Collect(ctx context.Context, namespaces []string) ([]
 	var entries []types.LogEntry
 
 	// Get all daemonsets from the cache
-	daemonsets := h.informer.GetStore().List()
+	daemonsets := safeGetStoreList(h.informer)
 
 	for _, obj := range daemonsets {
 		ds, ok := obj.(*appsv1.DaemonSet)

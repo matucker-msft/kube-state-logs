@@ -55,7 +55,7 @@ func (h *ClusterRoleBindingHandler) Collect(ctx context.Context, namespaces []st
 	var entries []types.LogEntry
 
 	// Get all clusterrolebindings from the cache
-	crbList := h.informer.GetStore().List()
+	crbList := safeGetStoreList(h.informer)
 
 	for _, obj := range crbList {
 		crb, ok := obj.(*rbacv1.ClusterRoleBinding)

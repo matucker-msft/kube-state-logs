@@ -56,7 +56,7 @@ func (h *ReplicationControllerHandler) Collect(ctx context.Context, namespaces [
 	var entries []types.LogEntry
 
 	// Get all replicationcontrollers from the cache
-	rcList := h.informer.GetStore().List()
+	rcList := safeGetStoreList(h.informer)
 
 	for _, obj := range rcList {
 		rc, ok := obj.(*corev1.ReplicationController)

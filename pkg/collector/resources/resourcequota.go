@@ -56,7 +56,7 @@ func (h *ResourceQuotaHandler) Collect(ctx context.Context, namespaces []string)
 	var entries []types.LogEntry
 
 	// Get all resourcequotas from the cache
-	rqList := h.informer.GetStore().List()
+	rqList := safeGetStoreList(h.informer)
 
 	for _, obj := range rqList {
 		rq, ok := obj.(*corev1.ResourceQuota)

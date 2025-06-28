@@ -56,7 +56,7 @@ func (h *StatefulSetHandler) Collect(ctx context.Context, namespaces []string) (
 	var entries []types.LogEntry
 
 	// Get all statefulsets from the cache
-	statefulsets := h.informer.GetStore().List()
+	statefulsets := safeGetStoreList(h.informer)
 
 	for _, obj := range statefulsets {
 		sts, ok := obj.(*appsv1.StatefulSet)

@@ -55,8 +55,7 @@ func (h *DeploymentHandler) SetupInformer(factory informers.SharedInformerFactor
 func (h *DeploymentHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
 	var entries []types.LogEntry
 
-	// Get all deployments from the cache
-	deployments := h.informer.GetStore().List()
+	deployments := safeGetStoreList(h.informer)
 
 	for _, obj := range deployments {
 		deployment, ok := obj.(*appsv1.Deployment)

@@ -55,7 +55,7 @@ func (h *CertificateSigningRequestHandler) Collect(ctx context.Context, namespac
 	var entries []types.LogEntry
 
 	// Get all certificatesigningrequests from the cache
-	csrList := h.informer.GetStore().List()
+	csrList := safeGetStoreList(h.informer)
 
 	for _, obj := range csrList {
 		csr, ok := obj.(*certificatesv1.CertificateSigningRequest)

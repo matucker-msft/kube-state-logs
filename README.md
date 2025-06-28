@@ -20,6 +20,12 @@ This approach is particularly useful for:
   - Jobs, CronJobs, ConfigMaps, Secrets
   - PersistentVolumeClaims, Ingresses, HorizontalPodAutoscalers, ServiceAccounts
   - Container-level metrics and states
+  - RBAC resources (Roles, ClusterRoles, RoleBindings, ClusterRoleBindings)
+  - Storage resources (PersistentVolumes, StorageClasses, VolumeAttachments)
+  - Network resources (Endpoints, NetworkPolicies, IngressClasses)
+  - Admission control resources (MutatingWebhookConfigurations, ValidatingWebhookConfigurations)
+  - Security resources (CertificateSigningRequests, PodDisruptionBudgets)
+  - Resource management (ResourceQuotas, LimitRanges, Leases)
 
 - **Rich State Information**: Each log entry includes:
   - Resource metadata (name, namespace, labels, annotations)

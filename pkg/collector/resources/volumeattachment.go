@@ -55,7 +55,7 @@ func (h *VolumeAttachmentHandler) Collect(ctx context.Context, namespaces []stri
 	var entries []types.LogEntry
 
 	// Get all volumeattachments from the cache
-	vaList := h.informer.GetStore().List()
+	vaList := safeGetStoreList(h.informer)
 
 	for _, obj := range vaList {
 		va, ok := obj.(*storagev1.VolumeAttachment)

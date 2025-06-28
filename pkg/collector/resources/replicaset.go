@@ -56,7 +56,7 @@ func (h *ReplicaSetHandler) Collect(ctx context.Context, namespaces []string) ([
 	var entries []types.LogEntry
 
 	// Get all replicasets from the cache
-	replicasets := h.informer.GetStore().List()
+	replicasets := safeGetStoreList(h.informer)
 
 	// Group replicasets by owner to identify current ones
 	ownerReplicaSets := make(map[string][]*appsv1.ReplicaSet)

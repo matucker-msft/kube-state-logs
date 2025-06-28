@@ -63,7 +63,7 @@ func (h *CRDHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 	var entries []types.LogEntry
 
 	// Get all CRD resources from the cache
-	crdList := h.informer.GetStore().List()
+	crdList := safeGetStoreList(h.informer)
 
 	for _, obj := range crdList {
 		unstructuredObj, ok := obj.(*unstructured.Unstructured)
@@ -95,18 +95,18 @@ func (h *CRDHandler) createLogEntry(obj *unstructured.Unstructured) types.LogEnt
 	}
 
 	// Extract spec and status
-	spec := make(map[string]interface{})
+	spec := make(map[string]any)
 	if specObj, exists, _ := unstructured.NestedMap(obj.Object, "spec"); exists {
 		spec = specObj
 	}
 
-	status := make(map[string]interface{})
+	status := make(map[string]any)
 	if statusObj, exists, _ := unstructured.NestedMap(obj.Object, "status"); exists {
 		status = statusObj
 	}
 
 	// Extract custom fields based on JSONPath-like paths
-	customFields := make(map[string]interface{})
+	customFields := make(map[string]any)
 	for _, fieldPath := range h.customFields {
 		if value := h.extractField(obj.Object, fieldPath); value != nil {
 			customFields[fieldPath] = value
@@ -145,7 +145,7 @@ func (h *CRDHandler) createLogEntry(obj *unstructured.Unstructured) types.LogEnt
 }
 
 // extractField extracts a field from an object using a dot-separated path
-func (h *CRDHandler) extractField(obj map[string]interface{}, path string) interface{} {
+func (h *CRDHandler) extractField(obj map[string]any, path string) any {
 	parts := strings.Split(path, ".")
 	current := obj
 
@@ -160,7 +160,7 @@ func (h *CRDHandler) extractField(obj map[string]interface{}, path string) inter
 		}
 
 		// Navigate deeper
-		if next, ok := current[part].(map[string]interface{}); ok {
+		if next, ok := current[part].(map[string]any); ok {
 			current = next
 		} else {
 			return nil

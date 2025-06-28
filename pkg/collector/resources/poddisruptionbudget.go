@@ -56,7 +56,7 @@ func (h *PodDisruptionBudgetHandler) Collect(ctx context.Context, namespaces []s
 	var entries []types.LogEntry
 
 	// Get all poddisruptionbudgets from the cache
-	pdbList := h.informer.GetStore().List()
+	pdbList := safeGetStoreList(h.informer)
 
 	for _, obj := range pdbList {
 		pdb, ok := obj.(*policyv1.PodDisruptionBudget)

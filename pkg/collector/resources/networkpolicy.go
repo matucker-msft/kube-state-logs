@@ -56,7 +56,7 @@ func (h *NetworkPolicyHandler) Collect(ctx context.Context, namespaces []string)
 	var entries []types.LogEntry
 
 	// Get all networkpolicies from the cache
-	npList := h.informer.GetStore().List()
+	npList := safeGetStoreList(h.informer)
 
 	for _, obj := range npList {
 		np, ok := obj.(*networkingv1.NetworkPolicy)
@@ -165,7 +165,7 @@ func (h *NetworkPolicyHandler) convertPeers(peers []networkingv1.NetworkPolicyPe
 			npPeer.NamespaceSelector = peer.NamespaceSelector.MatchLabels
 		}
 		if peer.IPBlock != nil {
-			npPeer.IPBlock = map[string]interface{}{
+			npPeer.IPBlock = map[string]any{
 				"cidr":   peer.IPBlock.CIDR,
 				"except": peer.IPBlock.Except,
 			}

@@ -3,6 +3,8 @@ package resources
 import (
 	"reflect"
 	"strings"
+
+	"k8s.io/client-go/tools/cache"
 )
 
 // convertStructToMap is a generic function that converts any struct to map[string]any using reflection
@@ -34,7 +36,7 @@ func convertStructToMap(data any) map[string]any {
 			jsonTag = jsonTag[:commaIndex]
 		}
 
-		// Convert field value to interface{}
+		// Convert field value to any
 		var value any
 		switch field.Kind() {
 		case reflect.Ptr:
@@ -51,4 +53,18 @@ func convertStructToMap(data any) map[string]any {
 	}
 
 	return result
+}
+
+// safeGetStoreList safely gets the list from an informer store with nil checks
+func safeGetStoreList(informer cache.SharedIndexInformer) []any {
+	if informer == nil {
+		return []any{}
+	}
+
+	store := informer.GetStore()
+	if store == nil {
+		return []any{}
+	}
+
+	return store.List()
 }

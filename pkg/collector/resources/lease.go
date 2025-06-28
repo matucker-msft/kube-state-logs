@@ -56,7 +56,7 @@ func (h *LeaseHandler) Collect(ctx context.Context, namespaces []string) ([]type
 	var entries []types.LogEntry
 
 	// Get all leases from the cache
-	leaseList := h.informer.GetStore().List()
+	leaseList := safeGetStoreList(h.informer)
 
 	for _, obj := range leaseList {
 		lease, ok := obj.(*coordinationv1.Lease)

@@ -55,7 +55,7 @@ func (h *PersistentVolumeHandler) Collect(ctx context.Context, namespaces []stri
 	var entries []types.LogEntry
 
 	// Get all persistentvolumes from the cache
-	pvList := h.informer.GetStore().List()
+	pvList := safeGetStoreList(h.informer)
 
 	for _, obj := range pvList {
 		pv, ok := obj.(*corev1.PersistentVolume)

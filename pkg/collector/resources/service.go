@@ -72,8 +72,7 @@ func (h *ServiceHandler) SetupInformer(factory informers.SharedInformerFactory, 
 func (h *ServiceHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
 	var entries []types.LogEntry
 
-	// Get all services from the cache
-	services := h.serviceInformer.GetStore().List()
+	services := safeGetStoreList(h.serviceInformer)
 
 	for _, obj := range services {
 		service, ok := obj.(*corev1.Service)
