@@ -34,13 +34,13 @@ func (h *PriorityClassHandler) SetupInformer(factory informers.SharedInformerFac
 }
 
 // Collect gathers priorityclass metrics from the cluster (uses cache)
-func (h *PriorityClassHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *PriorityClassHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all priorityclasses from the cache
-	pcList := utils.SafeGetStoreList(h.GetInformer())
+	priorityClasses := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range pcList {
+	for _, obj := range priorityClasses {
 		pc, ok := obj.(*schedulingv1.PriorityClass)
 		if !ok {
 			continue
@@ -53,8 +53,8 @@ func (h *PriorityClassHandler) Collect(ctx context.Context, namespaces []string)
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a PriorityClass
-func (h *PriorityClassHandler) createLogEntry(pc *schedulingv1.PriorityClass) types.LogEntry {
+// createLogEntry creates a PriorityClassData from a priorityclass
+func (h *PriorityClassHandler) createLogEntry(pc *schedulingv1.PriorityClass) types.PriorityClassData {
 	createdTimestamp := utils.ExtractCreationTimestamp(pc)
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(pc)
 
@@ -64,16 +64,22 @@ func (h *PriorityClassHandler) createLogEntry(pc *schedulingv1.PriorityClass) ty
 	}
 
 	data := types.PriorityClassData{
-		CreatedTimestamp: createdTimestamp,
-		Labels:           utils.ExtractLabels(pc),
-		Annotations:      utils.ExtractAnnotations(pc),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "priorityclass",
+			Name:             utils.ExtractName(pc),
+			Namespace:        utils.ExtractNamespace(pc),
+			CreatedTimestamp: createdTimestamp,
+			Labels:           utils.ExtractLabels(pc),
+			Annotations:      utils.ExtractAnnotations(pc),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		Value:            pc.Value,
 		GlobalDefault:    pc.GlobalDefault,
 		Description:      pc.Description,
 		PreemptionPolicy: preemptionPolicy,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
 	}
 
-	return utils.CreateLogEntry("priorityclass", utils.ExtractName(pc), utils.ExtractNamespace(pc), data)
+	return data
 }

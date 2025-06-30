@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 func TestLimitRangeHandler(t *testing.T) {
@@ -184,7 +185,11 @@ func TestLimitRangeHandler(t *testing.T) {
 			}
 			entryNames := make([]string, len(entries))
 			for i, entry := range entries {
-				entryNames[i] = entry.Name
+				limitRangeData, ok := entry.(types.LimitRangeData)
+				if !ok {
+					t.Fatalf("Expected LimitRangeData type, got %T", entry)
+				}
+				entryNames[i] = limitRangeData.Name
 			}
 			for _, expectedName := range tt.expectedNames {
 				found := false
@@ -199,34 +204,41 @@ func TestLimitRangeHandler(t *testing.T) {
 				}
 			}
 			if tt.expectedFields != nil && len(entries) > 0 {
-				entry := entries[0]
+				limitRangeData, ok := entries[0].(types.LimitRangeData)
+				if !ok {
+					t.Fatalf("Expected LimitRangeData type, got %T", entries[0])
+				}
 				for field, expectedValue := range tt.expectedFields {
 					switch field {
 					case "created_by_kind":
-						if entry.Data["createdByKind"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, entry.Data["createdByKind"])
+						if limitRangeData.CreatedByKind != expectedValue.(string) {
+							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, limitRangeData.CreatedByKind)
 						}
 					case "created_by_name":
-						if entry.Data["createdByName"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_name %s, got %v", expectedValue, entry.Data["createdByName"])
+						if limitRangeData.CreatedByName != expectedValue.(string) {
+							t.Errorf("Expected created_by_name %s, got %v", expectedValue, limitRangeData.CreatedByName)
 						}
 					}
 				}
 			}
 			for _, entry := range entries {
-				if entry.ResourceType != "limitrange" {
-					t.Errorf("Expected resource type 'limitrange', got %s", entry.ResourceType)
+				limitRangeData, ok := entry.(types.LimitRangeData)
+				if !ok {
+					t.Fatalf("Expected LimitRangeData type, got %T", entry)
 				}
-				if entry.Name == "" {
+				if limitRangeData.ResourceType != "limitrange" {
+					t.Errorf("Expected resource type 'limitrange', got %s", limitRangeData.ResourceType)
+				}
+				if limitRangeData.Name == "" {
 					t.Error("Entry name should not be empty")
 				}
-				if entry.Namespace == "" {
+				if limitRangeData.Namespace == "" {
 					t.Error("Entry namespace should not be empty")
 				}
-				if entry.Data["createdTimestamp"] == nil {
-					t.Error("Created timestamp should not be nil")
+				if limitRangeData.CreatedTimestamp == 0 {
+					t.Error("Created timestamp should not be zero")
 				}
-				if entry.Data["limits"] == nil {
+				if limitRangeData.Limits == nil {
 					t.Error("limits should not be nil")
 				}
 			}
@@ -271,5 +283,82 @@ func TestLimitRangeHandler_InvalidObject(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Errorf("Expected 0 entries with invalid object, got %d", len(entries))
+	}
+}
+
+// createTestLimitRange creates a test LimitRange with various configurations
+func createTestLimitRange(name, namespace string) *corev1.LimitRange {
+	limitRange := &corev1.LimitRange{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app":     name,
+				"version": "v1",
+			},
+			Annotations: map[string]string{
+				"description": "test limit range",
+			},
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: corev1.LimitRangeSpec{
+			Limits: []corev1.LimitRangeItem{
+				{
+					Type: corev1.LimitTypeContainer,
+					Min: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("100m"),
+						corev1.ResourceMemory: resource.MustParse("128Mi"),
+					},
+					Max: corev1.ResourceList{
+						corev1.ResourceCPU:    resource.MustParse("1"),
+						corev1.ResourceMemory: resource.MustParse("1Gi"),
+					},
+				},
+			},
+		},
+	}
+
+	return limitRange
+}
+
+func TestLimitRangeHandler_Collect(t *testing.T) {
+	limitRange1 := createTestLimitRange("test-limitrange-1", "default")
+	limitRange2 := createTestLimitRange("test-limitrange-2", "kube-system")
+
+	client := fake.NewSimpleClientset(limitRange1, limitRange2)
+	handler := NewLimitRangeHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	logger := &testutils.MockLogger{}
+
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+
+	factory.Start(nil)
+	factory.WaitForCacheSync(nil)
+
+	ctx := context.Background()
+	entries, err := handler.Collect(ctx, []string{})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
+	}
+
+	// Type assert to LimitRangeData for assertions
+	entry, ok := entries[0].(types.LimitRangeData)
+	if !ok {
+		t.Fatalf("Expected LimitRangeData type, got %T", entries[0])
+	}
+
+	if entry.Name == "" {
+		t.Error("Expected name to not be empty")
+	}
+
+	if entry.Namespace == "" {
+		t.Error("Expected namespace to not be empty")
 	}
 }

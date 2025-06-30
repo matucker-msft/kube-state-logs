@@ -34,13 +34,13 @@ func (h *RoleHandler) SetupInformer(factory informers.SharedInformerFactory, log
 }
 
 // Collect gathers role metrics from the cluster (uses cache)
-func (h *RoleHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *RoleHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all roles from the cache
-	roleList := utils.SafeGetStoreList(h.GetInformer())
+	roles := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range roleList {
+	for _, obj := range roles {
 		role, ok := obj.(*rbacv1.Role)
 		if !ok {
 			continue
@@ -57,8 +57,8 @@ func (h *RoleHandler) Collect(ctx context.Context, namespaces []string) ([]types
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a role
-func (h *RoleHandler) createLogEntry(role *rbacv1.Role) types.LogEntry {
+// createLogEntry creates a RoleData from a role
+func (h *RoleHandler) createLogEntry(role *rbacv1.Role) types.RoleData {
 	// Convert rules
 	// See: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-and-clusterrole
 	var rules []types.PolicyRule
@@ -77,13 +77,19 @@ func (h *RoleHandler) createLogEntry(role *rbacv1.Role) types.LogEntry {
 
 	// Create data structure
 	data := types.RoleData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(role),
-		Labels:           utils.ExtractLabels(role),
-		Annotations:      utils.ExtractAnnotations(role),
-		Rules:            rules,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "role",
+			Name:             utils.ExtractName(role),
+			Namespace:        utils.ExtractNamespace(role),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(role),
+			Labels:           utils.ExtractLabels(role),
+			Annotations:      utils.ExtractAnnotations(role),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		Rules: rules,
 	}
 
-	return utils.CreateLogEntry("role", utils.ExtractName(role), utils.ExtractNamespace(role), data)
+	return data
 }

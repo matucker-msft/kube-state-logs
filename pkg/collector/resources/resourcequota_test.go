@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 func TestResourceQuotaHandler(t *testing.T) {
@@ -182,7 +183,11 @@ func TestResourceQuotaHandler(t *testing.T) {
 			}
 			entryNames := make([]string, len(entries))
 			for i, entry := range entries {
-				entryNames[i] = entry.Name
+				resourceQuotaData, ok := entry.(types.ResourceQuotaData)
+				if !ok {
+					t.Fatalf("Expected ResourceQuotaData type, got %T", entry)
+				}
+				entryNames[i] = resourceQuotaData.Name
 			}
 			for _, expectedName := range tt.expectedNames {
 				found := false
@@ -197,49 +202,55 @@ func TestResourceQuotaHandler(t *testing.T) {
 				}
 			}
 			if tt.expectedFields != nil && len(entries) > 0 {
-				entry := entries[0]
+				resourceQuotaData, ok := entries[0].(types.ResourceQuotaData)
+				if !ok {
+					t.Fatalf("Expected ResourceQuotaData type, got %T", entries[0])
+				}
 				for field, expectedValue := range tt.expectedFields {
 					switch field {
 					case "created_by_kind":
-						if entry.Data["createdByKind"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, entry.Data["createdByKind"])
+						if resourceQuotaData.CreatedByKind != expectedValue.(string) {
+							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, resourceQuotaData.CreatedByKind)
 						}
 					case "created_by_name":
-						if entry.Data["createdByName"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_name %s, got %v", expectedValue, entry.Data["createdByName"])
+						if resourceQuotaData.CreatedByName != expectedValue.(string) {
+							t.Errorf("Expected created_by_name %s, got %v", expectedValue, resourceQuotaData.CreatedByName)
 						}
 					case "scopes":
 						expectedScopes := expectedValue.([]string)
-						scopes, ok := entry.Data["scopes"].([]string)
-						if !ok {
-							t.Errorf("Expected scopes to be []string, got %T", entry.Data["scopes"])
-						} else if len(scopes) != len(expectedScopes) {
-							t.Errorf("Expected %d scopes, got %d", len(expectedScopes), len(scopes))
+						if len(resourceQuotaData.Scopes) != len(expectedScopes) {
+							t.Errorf("Expected %d scopes, got %d", len(expectedScopes), len(resourceQuotaData.Scopes))
+						}
+						for i, scope := range expectedScopes {
+							if resourceQuotaData.Scopes[i] != scope {
+								t.Errorf("Expected scope %s at index %d, got %s", scope, i, resourceQuotaData.Scopes[i])
+							}
 						}
 					}
 				}
 			}
 			for _, entry := range entries {
-				if entry.ResourceType != "resourcequota" {
-					t.Errorf("Expected resource type 'resourcequota', got %s", entry.ResourceType)
+				resourceQuotaData, ok := entry.(types.ResourceQuotaData)
+				if !ok {
+					t.Fatalf("Expected ResourceQuotaData type, got %T", entry)
 				}
-				if entry.Name == "" {
+				if resourceQuotaData.ResourceType != "resourcequota" {
+					t.Errorf("Expected resource type 'resourcequota', got %s", resourceQuotaData.ResourceType)
+				}
+				if resourceQuotaData.Name == "" {
 					t.Error("Entry name should not be empty")
 				}
-				if entry.Namespace == "" {
+				if resourceQuotaData.Namespace == "" {
 					t.Error("Entry namespace should not be empty")
 				}
-				if entry.Data["createdTimestamp"] == nil {
-					t.Error("Created timestamp should not be nil")
+				if resourceQuotaData.CreatedTimestamp == 0 {
+					t.Error("Created timestamp should not be zero")
 				}
-				if entry.Data["hard"] == nil {
-					t.Error("hard should not be nil")
+				if resourceQuotaData.Hard == nil {
+					t.Error("Hard limits should not be nil")
 				}
-				if entry.Data["used"] == nil {
-					t.Error("used should not be nil")
-				}
-				if entry.Data["scopes"] == nil {
-					t.Error("scopes should not be nil")
+				if resourceQuotaData.Used == nil {
+					t.Error("Used resources should not be nil")
 				}
 			}
 		})
@@ -283,5 +294,84 @@ func TestResourceQuotaHandler_InvalidObject(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Errorf("Expected 0 entries with invalid object, got %d", len(entries))
+	}
+}
+
+// createTestResourceQuota creates a test ResourceQuota with various configurations
+func createTestResourceQuota(name, namespace string) *corev1.ResourceQuota {
+	rq := &corev1.ResourceQuota{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app":     name,
+				"version": "v1",
+			},
+			Annotations: map[string]string{
+				"description": "test resource quota",
+			},
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: corev1.ResourceQuotaSpec{
+			Hard: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("2"),
+				corev1.ResourceMemory: resource.MustParse("4Gi"),
+				corev1.ResourcePods:   resource.MustParse("5"),
+			},
+			Scopes: []corev1.ResourceQuotaScope{
+				corev1.ResourceQuotaScopeBestEffort,
+			},
+		},
+		Status: corev1.ResourceQuotaStatus{
+			Used: corev1.ResourceList{
+				corev1.ResourceCPU:    resource.MustParse("1"),
+				corev1.ResourceMemory: resource.MustParse("2Gi"),
+				corev1.ResourcePods:   resource.MustParse("2"),
+			},
+		},
+	}
+
+	return rq
+}
+
+func TestResourceQuotaHandler_Collect(t *testing.T) {
+	rq1 := createTestResourceQuota("test-rq-1", "default")
+	rq2 := createTestResourceQuota("test-rq-2", "kube-system")
+
+	client := fake.NewSimpleClientset(rq1, rq2)
+	handler := NewResourceQuotaHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	logger := &testutils.MockLogger{}
+
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+
+	factory.Start(nil)
+	factory.WaitForCacheSync(nil)
+
+	ctx := context.Background()
+	entries, err := handler.Collect(ctx, []string{})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
+	}
+
+	// Type assert to ResourceQuotaData for assertions
+	entry, ok := entries[0].(types.ResourceQuotaData)
+	if !ok {
+		t.Fatalf("Expected ResourceQuotaData type, got %T", entries[0])
+	}
+
+	if entry.Name == "" {
+		t.Error("Expected name to not be empty")
+	}
+
+	if len(entry.Scopes) == 0 {
+		t.Error("Expected scopes to not be empty")
 	}
 }

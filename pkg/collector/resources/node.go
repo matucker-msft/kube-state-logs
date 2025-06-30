@@ -35,8 +35,8 @@ func (h *NodeHandler) SetupInformer(factory informers.SharedInformerFactory, log
 }
 
 // Collect gathers node metrics from the cluster (uses cache)
-func (h *NodeHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *NodeHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all nodes from the cache
 	nodes := utils.SafeGetStoreList(h.GetInformer())
@@ -54,8 +54,8 @@ func (h *NodeHandler) Collect(ctx context.Context, namespaces []string) ([]types
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a node
-func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
+// createLogEntry creates a NodeData from a node
+func (h *NodeHandler) createLogEntry(node *corev1.Node) types.NodeData {
 	// Get node addresses
 	var internalIP, externalIP, hostname string
 	if node.Status.Addresses != nil {
@@ -118,6 +118,17 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 	}
 
 	data := types.NodeData{
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "node",
+			Name:             utils.ExtractName(node),
+			Namespace:        utils.ExtractNamespace(node),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(node),
+			Labels:           utils.ExtractLabels(node),
+			Annotations:      utils.ExtractAnnotations(node),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		Architecture:            node.Status.NodeInfo.Architecture,
 		OperatingSystem:         node.Status.NodeInfo.OperatingSystem,
 		KernelVersion:           node.Status.NodeInfo.KernelVersion,
@@ -127,21 +138,16 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.LogEntry {
 		Capacity:                capacity,
 		Allocatable:             allocatable,
 		Conditions:              conditions,
-		Labels:                  utils.ExtractLabels(node),
-		Annotations:             utils.ExtractAnnotations(node),
 		InternalIP:              internalIP,
 		ExternalIP:              externalIP,
 		Hostname:                hostname,
 		Unschedulable:           node.Spec.Unschedulable,
 		Ready:                   ready,
-		CreatedByKind:           createdByKind,
-		CreatedByName:           createdByName,
-		CreatedTimestamp:        utils.ExtractCreationTimestamp(node),
 		Role:                    nodeRole,
 		Taints:                  taints,
 		DeletionTimestamp:       utils.ExtractDeletionTimestamp(node),
 		Phase:                   phase,
 	}
 
-	return utils.CreateLogEntry("node", utils.ExtractName(node), utils.ExtractNamespace(node), data)
+	return data
 }

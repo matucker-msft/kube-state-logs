@@ -6,20 +6,18 @@ import (
 	"time"
 
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 
 	testutils "github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
-// createTestJob creates a test Job with various configurations
-func createTestJob(name, namespace string, active, succeeded, failed int32) *batchv1.Job {
-	now := metav1.Now()
-	completions := int32(1)
-	parallelism := int32(1)
-	backoffLimit := int32(6)
+// createTestJob creates a test job with various configurations
+func createTestJob(name, namespace string, completions int32, parallelism int32) *batchv1.Job {
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -31,29 +29,64 @@ func createTestJob(name, namespace string, active, succeeded, failed int32) *bat
 			Annotations: map[string]string{
 				"description": "test job",
 			},
-			CreationTimestamp: now,
+			CreationTimestamp: metav1.Now(),
 			Generation:        1,
 		},
 		Spec: batchv1.JobSpec{
-			Completions:  &completions,
-			Parallelism:  &parallelism,
-			BackoffLimit: &backoffLimit,
+			Completions: &completions,
+			Parallelism: &parallelism,
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": name,
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "busybox:latest",
+							Command: []string{
+								"echo",
+								"Hello World",
+							},
+						},
+					},
+					RestartPolicy: corev1.RestartPolicyNever,
+				},
+			},
+			BackoffLimit: &[]int32{4}[0],
 		},
 		Status: batchv1.JobStatus{
-			Active:    active,
-			Succeeded: succeeded,
-			Failed:    failed,
+			Active:         2,
+			Succeeded:      3,
+			Failed:         1,
+			StartTime:      &metav1.Time{Time: time.Now().Add(-time.Hour)},
+			CompletionTime: &metav1.Time{Time: time.Now()},
+			Conditions: []batchv1.JobCondition{
+				{
+					Type:               batchv1.JobComplete,
+					Status:             corev1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+					Reason:             "JobCompleted",
+					Message:            "Job completed successfully",
+				},
+			},
 		},
 	}
+
 	return job
 }
 
 func TestNewJobHandler(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewJobHandler(client)
+
 	if handler == nil {
 		t.Fatal("Expected handler to be created, got nil")
 	}
+
+	// Verify BaseHandler is embedded
 	if handler.BaseHandler == (utils.BaseHandler{}) {
 		t.Error("Expected BaseHandler to be embedded")
 	}
@@ -64,104 +97,137 @@ func TestJobHandler_SetupInformer(t *testing.T) {
 	handler := NewJobHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
+
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
+	// Verify informer is set up
 	if handler.GetInformer() == nil {
 		t.Error("Expected informer to be set up")
 	}
 }
 
 func TestJobHandler_Collect(t *testing.T) {
-	job1 := createTestJob("test-job-1", "default", 1, 0, 0)
-	job2 := createTestJob("test-job-2", "kube-system", 0, 1, 0)
+	// Create test jobs
+	job1 := createTestJob("test-job-1", "default", 5, 2)
+	job2 := createTestJob("test-job-2", "kube-system", 3, 1)
+
+	// Create fake client with test jobs
 	client := fake.NewSimpleClientset(job1, job2)
 	handler := NewJobHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
+
+	// Setup informer
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
+
+	// Start the factory to populate the cache
 	factory.Start(nil)
 	factory.WaitForCacheSync(nil)
+
+	// Test collecting all jobs
 	ctx := context.Background()
 	entries, err := handler.Collect(ctx, []string{})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 2 {
 		t.Fatalf("Expected 2 entries, got %d", len(entries))
 	}
+
+	// Test collecting from specific namespace
 	entries, err = handler.Collect(ctx, []string{"default"})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 1 {
 		t.Fatalf("Expected 1 entry for default namespace, got %d", len(entries))
 	}
-	if entries[0].Namespace != "default" {
-		t.Errorf("Expected namespace 'default', got '%s'", entries[0].Namespace)
+
+	// Type assert to JobData for assertions
+	entry, ok := entries[0].(types.JobData)
+	if !ok {
+		t.Fatalf("Expected JobData type, got %T", entries[0])
+	}
+
+	if entry.Namespace != "default" {
+		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
 	}
 }
 
 func TestJobHandler_createLogEntry(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewJobHandler(client)
-	job := createTestJob("test-job", "default", 1, 0, 0)
+	job := createTestJob("test-job", "default", 5, 2)
 	entry := handler.createLogEntry(job)
+
 	if entry.ResourceType != "job" {
 		t.Errorf("Expected resource type 'job', got '%s'", entry.ResourceType)
 	}
+
 	if entry.Name != "test-job" {
 		t.Errorf("Expected name 'test-job', got '%s'", entry.Name)
 	}
+
 	if entry.Namespace != "default" {
 		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
 	}
-	data := entry.Data
-	val, ok := data["activePods"]
-	if !ok || val == nil {
-		t.Fatalf("activePods missing or nil")
+
+	// Verify job-specific fields
+	if *entry.Completions != 5 {
+		t.Errorf("Expected completions 5, got %d", *entry.Completions)
 	}
-	if val.(int32) != 1 {
-		t.Errorf("Expected active pods 1, got %d", val.(int32))
+
+	if *entry.Parallelism != 2 {
+		t.Errorf("Expected parallelism 2, got %d", *entry.Parallelism)
 	}
-	val, ok = data["succeededPods"]
-	if !ok || val == nil {
-		t.Fatalf("succeededPods missing or nil")
+
+	if entry.ActivePods != 2 {
+		t.Errorf("Expected active pods 2, got %d", entry.ActivePods)
 	}
-	if val.(int32) != 0 {
-		t.Errorf("Expected succeeded pods 0, got %d", val.(int32))
+
+	if entry.SucceededPods != 3 {
+		t.Errorf("Expected succeeded pods 3, got %d", entry.SucceededPods)
 	}
-	val, ok = data["failedPods"]
-	if !ok || val == nil {
-		t.Fatalf("failedPods missing or nil")
+
+	if entry.FailedPods != 1 {
+		t.Errorf("Expected failed pods 1, got %d", entry.FailedPods)
 	}
-	if val.(int32) != 0 {
-		t.Errorf("Expected failed pods 0, got %d", val.(int32))
+
+	if entry.BackoffLimit != 4 {
+		t.Errorf("Expected backoff limit 4, got %d", entry.BackoffLimit)
 	}
-	val, ok = data["backoffLimit"]
-	if !ok || val == nil {
-		t.Fatalf("backoffLimit missing or nil")
+
+	// Verify conditions
+	if !entry.ConditionComplete {
+		t.Error("Expected ConditionComplete to be true")
 	}
-	if val.(int32) != 6 {
-		t.Errorf("Expected backoff limit 6, got %d", val.(int32))
+
+	if entry.ConditionFailed {
+		t.Error("Expected ConditionFailed to be false")
 	}
-	val, ok = data["jobType"]
-	if !ok || val == nil {
-		t.Fatalf("jobType missing or nil")
+
+	// Verify metadata
+	if entry.Labels["app"] != "test-job" {
+		t.Errorf("Expected label 'app' to be 'test-job', got '%s'", entry.Labels["app"])
 	}
-	if val.(string) != "Job" {
-		t.Errorf("Expected job type 'Job', got '%s'", val.(string))
+
+	if entry.Annotations["description"] != "test job" {
+		t.Errorf("Expected annotation 'description' to be 'test job', got '%s'", entry.Annotations["description"])
 	}
 }
 
 func TestJobHandler_createLogEntry_WithOwnerReference(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewJobHandler(client)
-	job := createTestJob("test-job", "default", 1, 0, 0)
+	job := createTestJob("test-job", "default", 5, 2)
 	job.OwnerReferences = []metav1.OwnerReference{
 		{
 			APIVersion: "batch/v1",
@@ -171,79 +237,43 @@ func TestJobHandler_createLogEntry_WithOwnerReference(t *testing.T) {
 		},
 	}
 	entry := handler.createLogEntry(job)
-	data := entry.Data
-	val, ok := data["createdByKind"]
-	if !ok || val == nil {
-		t.Fatalf("createdByKind missing or nil")
+
+	if entry.CreatedByKind != "CronJob" {
+		t.Errorf("Expected created by kind 'CronJob', got '%s'", entry.CreatedByKind)
 	}
-	if val.(string) != "CronJob" {
-		t.Errorf("Expected created by kind 'CronJob', got '%s'", val.(string))
-	}
-	val, ok = data["createdByName"]
-	if !ok || val == nil {
-		t.Fatalf("createdByName missing or nil")
-	}
-	if val.(string) != "test-cronjob" {
-		t.Errorf("Expected created by name 'test-cronjob', got '%s'", val.(string))
-	}
-	val, ok = data["jobType"]
-	if !ok || val == nil {
-		t.Fatalf("jobType missing or nil")
-	}
-	if val.(string) != "CronJob" {
-		t.Errorf("Expected job type 'CronJob', got '%s'", val.(string))
+
+	if entry.CreatedByName != "test-cronjob" {
+		t.Errorf("Expected created by name 'test-cronjob', got '%s'", entry.CreatedByName)
 	}
 }
 
-func TestJobHandler_createLogEntry_WithNilPointers(t *testing.T) {
+func TestJobHandler_createLogEntry_NilValues(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewJobHandler(client)
 
 	// Create a job with Suspend and ActiveDeadlineSeconds explicitly set to nil
-	job := createTestJob("test-job", "default", 1, 0, 0)
+	job := createTestJob("test-job", "default", 5, 2)
 	job.Spec.Suspend = nil
 	job.Spec.ActiveDeadlineSeconds = nil
 
 	entry := handler.createLogEntry(job)
 
-	// Verify the entry is created successfully even with nil pointers
-	if entry.ResourceType != "job" {
-		t.Errorf("Expected resource type 'job', got '%s'", entry.ResourceType)
-	}
-	if entry.Name != "test-job" {
-		t.Errorf("Expected name 'test-job', got '%s'", entry.Name)
+	// Should handle nil values gracefully
+	if entry.Suspend != nil {
+		t.Errorf("Expected Suspend to be nil, got %v", entry.Suspend)
 	}
 
-	// Check that the data is still properly structured
-	data := entry.Data
-	if data == nil {
-		t.Fatal("Expected data to not be nil")
-	}
-
-	// Verify that suspend and activeDeadlineSeconds are present but nil in the data
-	suspendVal, ok := data["suspend"]
-	if !ok {
-		t.Error("Expected suspend to be present in data")
-	}
-	if suspendVal != nil {
-		t.Errorf("Expected suspend to be nil, got %v", suspendVal)
-	}
-
-	activeDeadlineVal, ok := data["activeDeadlineSeconds"]
-	if !ok {
-		t.Error("Expected activeDeadlineSeconds to be present in data")
-	}
-	if activeDeadlineVal != nil {
-		t.Errorf("Expected activeDeadlineSeconds to be nil, got %v", activeDeadlineVal)
+	if entry.ActiveDeadlineSeconds != nil {
+		t.Errorf("Expected ActiveDeadlineSeconds to be nil, got %v", entry.ActiveDeadlineSeconds)
 	}
 }
 
-func TestJobHandler_createLogEntry_WithNonNilPointers(t *testing.T) {
+func TestJobHandler_createLogEntry_WithValues(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewJobHandler(client)
 
 	// Create a job with Suspend and ActiveDeadlineSeconds set to non-nil values
-	job := createTestJob("test-job", "default", 1, 0, 0)
+	job := createTestJob("test-job", "default", 5, 2)
 	suspend := true
 	activeDeadlineSeconds := int64(3600)
 	job.Spec.Suspend = &suspend
@@ -251,27 +281,18 @@ func TestJobHandler_createLogEntry_WithNonNilPointers(t *testing.T) {
 
 	entry := handler.createLogEntry(job)
 
-	// Verify the entry is created successfully
-	if entry.ResourceType != "job" {
-		t.Errorf("Expected resource type 'job', got '%s'", entry.ResourceType)
+	if entry.Suspend == nil {
+		t.Fatal("Expected Suspend to be non-nil")
+	}
+	if !*entry.Suspend {
+		t.Errorf("Expected Suspend to be true, got %v", *entry.Suspend)
 	}
 
-	// Check that the data includes the non-nil values
-	data := entry.Data
-	suspendVal, ok := data["suspend"]
-	if !ok {
-		t.Fatal("Expected suspend to be present in data")
+	if entry.ActiveDeadlineSeconds == nil {
+		t.Fatal("Expected ActiveDeadlineSeconds to be non-nil")
 	}
-	if suspendVal.(bool) != true {
-		t.Errorf("Expected suspend to be true, got %v", suspendVal)
-	}
-
-	activeDeadlineVal, ok := data["activeDeadlineSeconds"]
-	if !ok {
-		t.Fatal("Expected activeDeadlineSeconds to be present in data")
-	}
-	if activeDeadlineVal.(int64) != 3600 {
-		t.Errorf("Expected activeDeadlineSeconds to be 3600, got %v", activeDeadlineVal)
+	if *entry.ActiveDeadlineSeconds != 3600 {
+		t.Errorf("Expected ActiveDeadlineSeconds to be 3600, got %d", *entry.ActiveDeadlineSeconds)
 	}
 }
 
@@ -297,37 +318,54 @@ func TestJobHandler_Collect_EmptyCache(t *testing.T) {
 }
 
 func TestJobHandler_Collect_NamespaceFiltering(t *testing.T) {
-	job1 := createTestJob("test-job-1", "default", 1, 0, 0)
-	job2 := createTestJob("test-job-2", "kube-system", 0, 1, 0)
-	job3 := createTestJob("test-job-3", "monitoring", 0, 0, 1)
+	// Create test jobs in different namespaces
+	job1 := createTestJob("test-job-1", "default", 5, 2)
+	job2 := createTestJob("test-job-2", "kube-system", 3, 1)
+	job3 := createTestJob("test-job-3", "monitoring", 1, 1)
+
 	client := fake.NewSimpleClientset(job1, job2, job3)
 	handler := NewJobHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
+
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
+
 	factory.Start(nil)
 	factory.WaitForCacheSync(nil)
+
 	ctx := context.Background()
+
+	// Test multiple namespace filtering
 	entries, err := handler.Collect(ctx, []string{"default", "monitoring"})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 2 {
 		t.Fatalf("Expected 2 entries for default and monitoring namespaces, got %d", len(entries))
 	}
+
+	// Verify correct namespaces
 	namespaces := make(map[string]bool)
 	for _, entry := range entries {
-		namespaces[entry.Namespace] = true
+		entryData, ok := entry.(types.JobData)
+		if !ok {
+			t.Fatalf("Expected JobData type, got %T", entry)
+		}
+		namespaces[entryData.Namespace] = true
 	}
+
 	if !namespaces["default"] {
 		t.Error("Expected entry from default namespace")
 	}
+
 	if !namespaces["monitoring"] {
 		t.Error("Expected entry from monitoring namespace")
 	}
+
 	if namespaces["kube-system"] {
 		t.Error("Did not expect entry from kube-system namespace")
 	}

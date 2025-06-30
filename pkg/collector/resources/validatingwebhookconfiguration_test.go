@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 func TestValidatingWebhookConfigurationHandler(t *testing.T) {
@@ -130,7 +131,11 @@ func TestValidatingWebhookConfigurationHandler(t *testing.T) {
 			}
 			entryNames := make([]string, len(entries))
 			for i, entry := range entries {
-				entryNames[i] = entry.Name
+				webhookConfigData, ok := entry.(types.ValidatingWebhookConfigurationData)
+				if !ok {
+					t.Fatalf("Expected ValidatingWebhookConfigurationData type, got %T", entry)
+				}
+				entryNames[i] = webhookConfigData.Name
 			}
 			for _, expectedName := range tt.expectedNames {
 				found := false
@@ -145,31 +150,35 @@ func TestValidatingWebhookConfigurationHandler(t *testing.T) {
 				}
 			}
 			if tt.expectedFields != nil && len(entries) > 0 {
-				entry := entries[0]
+				webhookConfigData, ok := entries[0].(types.ValidatingWebhookConfigurationData)
+				if !ok {
+					t.Fatalf("Expected ValidatingWebhookConfigurationData type, got %T", entries[0])
+				}
 				for field, expectedValue := range tt.expectedFields {
 					switch field {
 					case "created_by_kind":
-						if entry.Data["createdByKind"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, entry.Data["createdByKind"])
+						if webhookConfigData.CreatedByKind != expectedValue {
+							t.Errorf("Expected created_by_kind to be %v, got %v", expectedValue, webhookConfigData.CreatedByKind)
 						}
 					case "created_by_name":
-						if entry.Data["createdByName"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_name %s, got %v", expectedValue, entry.Data["createdByName"])
+						if webhookConfigData.CreatedByName != expectedValue {
+							t.Errorf("Expected created_by_name to be %v, got %v", expectedValue, webhookConfigData.CreatedByName)
 						}
 					}
 				}
 			}
 			for _, entry := range entries {
-				if entry.ResourceType != "validatingwebhookconfiguration" {
-					t.Errorf("Expected resource type 'validatingwebhookconfiguration', got %s", entry.ResourceType)
+				webhookConfigData, ok := entry.(types.ValidatingWebhookConfigurationData)
+				if !ok {
+					t.Fatalf("Expected ValidatingWebhookConfigurationData type, got %T", entry)
 				}
-				if entry.Name == "" {
+				if webhookConfigData.Name == "" {
 					t.Error("Entry name should not be empty")
 				}
-				if entry.Data["createdTimestamp"] == nil {
-					t.Error("Created timestamp should not be nil")
+				if webhookConfigData.CreatedTimestamp == 0 {
+					t.Error("Created timestamp should not be zero")
 				}
-				if entry.Data["webhooks"] == nil {
+				if webhookConfigData.Webhooks == nil {
 					t.Error("webhooks should not be nil")
 				}
 			}
@@ -210,13 +219,65 @@ func TestValidatingWebhookConfigurationHandler_InvalidObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
-	invalidObj := &metav1.Status{}
-	handler.GetInformer().GetStore().Add(invalidObj)
+	factory.Start(context.Background().Done())
+	if !cache.WaitForCacheSync(context.Background().Done(), handler.GetInformer().HasSynced) {
+		t.Fatal("Failed to sync cache")
+	}
 	entries, err := handler.Collect(context.Background(), []string{})
 	if err != nil {
 		t.Fatalf("Failed to collect metrics: %v", err)
 	}
 	if len(entries) != 0 {
-		t.Errorf("Expected 0 entries with invalid object, got %d", len(entries))
+		t.Errorf("Expected 0 entries, got %d", len(entries))
+	}
+}
+
+func createTestValidatingWebhookConfiguration(name string) *admissionregistrationv1.ValidatingWebhookConfiguration {
+	return &admissionregistrationv1.ValidatingWebhookConfiguration{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              name,
+			CreationTimestamp: metav1.Now(),
+		},
+	}
+}
+
+func TestValidatingWebhookConfigurationHandler_Collect(t *testing.T) {
+	// Create test validating webhook configurations
+	vwc1 := createTestValidatingWebhookConfiguration("test-vwc-1")
+	vwc2 := createTestValidatingWebhookConfiguration("test-vwc-2")
+
+	// Create fake client with test validating webhook configurations
+	client := fake.NewSimpleClientset(vwc1, vwc2)
+	handler := NewValidatingWebhookConfigurationHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	logger := &testutils.MockLogger{}
+
+	// Setup informer
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+
+	// Start the factory to populate the cache
+	factory.Start(nil)
+	factory.WaitForCacheSync(nil)
+
+	// Test collecting all validating webhook configurations
+	ctx := context.Background()
+	entries, err := handler.Collect(ctx, []string{})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
+	}
+
+	// Verify entries are of correct type
+	for _, entry := range entries {
+		_, ok := entry.(types.ValidatingWebhookConfigurationData)
+		if !ok {
+			t.Fatalf("Expected ValidatingWebhookConfigurationData type, got %T", entry)
+		}
 	}
 }

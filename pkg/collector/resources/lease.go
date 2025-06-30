@@ -34,13 +34,13 @@ func (h *LeaseHandler) SetupInformer(factory informers.SharedInformerFactory, lo
 }
 
 // Collect gathers lease metrics from the cluster (uses cache)
-func (h *LeaseHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *LeaseHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all leases from the cache
-	leaseList := utils.SafeGetStoreList(h.GetInformer())
+	leases := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range leaseList {
+	for _, obj := range leases {
 		lease, ok := obj.(*coordinationv1.Lease)
 		if !ok {
 			continue
@@ -57,8 +57,8 @@ func (h *LeaseHandler) Collect(ctx context.Context, namespaces []string) ([]type
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a lease
-func (h *LeaseHandler) createLogEntry(lease *coordinationv1.Lease) types.LogEntry {
+// createLogEntry creates a LeaseData from a lease
+func (h *LeaseHandler) createLogEntry(lease *coordinationv1.Lease) types.LeaseData {
 	// Extract timestamps
 	var renewTime *time.Time
 	var acquireTime *time.Time
@@ -91,17 +91,23 @@ func (h *LeaseHandler) createLogEntry(lease *coordinationv1.Lease) types.LogEntr
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(lease)
 
 	data := types.LeaseData{
-		CreatedTimestamp:     utils.ExtractCreationTimestamp(lease),
-		Labels:               utils.ExtractLabels(lease),
-		Annotations:          utils.ExtractAnnotations(lease),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "lease",
+			Name:             utils.ExtractName(lease),
+			Namespace:        utils.ExtractNamespace(lease),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(lease),
+			Labels:           utils.ExtractLabels(lease),
+			Annotations:      utils.ExtractAnnotations(lease),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		HolderIdentity:       holderIdentity,
 		LeaseDurationSeconds: leaseDurationSeconds,
 		RenewTime:            renewTime,
 		AcquireTime:          acquireTime,
 		LeaseTransitions:     leaseTransitions,
-		CreatedByKind:        createdByKind,
-		CreatedByName:        createdByName,
 	}
 
-	return utils.CreateLogEntry("lease", utils.ExtractName(lease), utils.ExtractNamespace(lease), data)
+	return data
 }

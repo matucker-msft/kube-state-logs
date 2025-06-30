@@ -46,8 +46,8 @@ func (h *CRDHandler) SetupInformer(factory dynamicinformer.DynamicSharedInformer
 }
 
 // Collect gathers CRD metrics from the cluster (uses cache)
-func (h *CRDHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *CRDHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all CRD resources from the cache
 	crdList := utils.SafeGetStoreList(h.informer)
@@ -69,8 +69,8 @@ func (h *CRDHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a CRD resource
-func (h *CRDHandler) createLogEntry(obj *unstructured.Unstructured) types.LogEntry {
+// createLogEntry creates a CRDData from a CRD resource
+func (h *CRDHandler) createLogEntry(obj *unstructured.Unstructured) types.CRDData {
 	// Extract spec and status
 	spec := make(map[string]any)
 	if specObj, exists, _ := unstructured.NestedMap(obj.Object, "spec"); exists {
@@ -94,19 +94,25 @@ func (h *CRDHandler) createLogEntry(obj *unstructured.Unstructured) types.LogEnt
 
 	// Create data structure
 	data := types.CRDData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(obj),
-		Labels:           utils.ExtractLabels(obj),
-		Annotations:      utils.ExtractAnnotations(obj),
-		APIVersion:       obj.GetAPIVersion(),
-		Kind:             obj.GetKind(),
-		Spec:             spec,
-		Status:           status,
-		CustomFields:     customFields,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "crd",
+			Name:             utils.ExtractName(obj),
+			Namespace:        utils.ExtractNamespace(obj),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(obj),
+			Labels:           utils.ExtractLabels(obj),
+			Annotations:      utils.ExtractAnnotations(obj),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		APIVersion:   obj.GetAPIVersion(),
+		Kind:         obj.GetKind(),
+		Spec:         spec,
+		Status:       status,
+		CustomFields: customFields,
 	}
 
-	return utils.CreateLogEntry("crd", utils.ExtractName(obj), utils.ExtractNamespace(obj), data)
+	return data
 }
 
 // extractField extracts a field from an object using a dot-separated path

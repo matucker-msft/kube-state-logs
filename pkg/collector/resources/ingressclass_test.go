@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 func TestIngressClassHandler(t *testing.T) {
@@ -140,7 +141,11 @@ func TestIngressClassHandler(t *testing.T) {
 			}
 			entryNames := make([]string, len(entries))
 			for i, entry := range entries {
-				entryNames[i] = entry.Name
+				ingressClassData, ok := entry.(types.IngressClassData)
+				if !ok {
+					t.Fatalf("Expected IngressClassData type, got %T", entry)
+				}
+				entryNames[i] = ingressClassData.Name
 			}
 			for _, expectedName := range tt.expectedNames {
 				found := false
@@ -155,43 +160,44 @@ func TestIngressClassHandler(t *testing.T) {
 				}
 			}
 			if tt.expectedFields != nil && len(entries) > 0 {
-				entry := entries[0]
+				ingressClassData, ok := entries[0].(types.IngressClassData)
+				if !ok {
+					t.Fatalf("Expected IngressClassData type, got %T", entries[0])
+				}
 				for field, expectedValue := range tt.expectedFields {
 					switch field {
 					case "created_by_kind":
-						if entry.Data["createdByKind"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, entry.Data["createdByKind"])
+						if ingressClassData.CreatedByKind != expectedValue.(string) {
+							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, ingressClassData.CreatedByKind)
 						}
 					case "created_by_name":
-						if entry.Data["createdByName"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_name %s, got %v", expectedValue, entry.Data["createdByName"])
+						if ingressClassData.CreatedByName != expectedValue.(string) {
+							t.Errorf("Expected created_by_name %s, got %v", expectedValue, ingressClassData.CreatedByName)
 						}
 					case "controller":
-						if entry.Data["controller"] != expectedValue.(string) {
-							t.Errorf("Expected controller %s, got %v", expectedValue, entry.Data["controller"])
+						if ingressClassData.Controller != expectedValue.(string) {
+							t.Errorf("Expected controller %s, got %v", expectedValue, ingressClassData.Controller)
 						}
 					case "is_default":
-						if entry.Data["isDefault"] != expectedValue.(bool) {
-							t.Errorf("Expected is_default %v, got %v", expectedValue, entry.Data["isDefault"])
+						if ingressClassData.IsDefault != expectedValue.(bool) {
+							t.Errorf("Expected is_default %v, got %v", expectedValue, ingressClassData.IsDefault)
 						}
 					}
 				}
 			}
 			for _, entry := range entries {
-				if entry.ResourceType != "ingressclass" {
-					t.Errorf("Expected resource type 'ingressclass', got %s", entry.ResourceType)
+				ingressClassData, ok := entry.(types.IngressClassData)
+				if !ok {
+					t.Fatalf("Expected IngressClassData type, got %T", entry)
 				}
-				if entry.Name == "" {
+				if ingressClassData.ResourceType != "ingressclass" {
+					t.Errorf("Expected resource type 'ingressclass', got %s", ingressClassData.ResourceType)
+				}
+				if ingressClassData.Name == "" {
 					t.Error("Entry name should not be empty")
 				}
-				if entry.Data["createdTimestamp"] == nil {
-					t.Error("Created timestamp should not be nil")
-				}
-				if entry.Data["controller"] == nil {
-					t.Error("controller should not be nil")
-				}
-				if entry.Data["isDefault"] == nil {
-					t.Error("isDefault should not be nil")
+				if ingressClassData.CreatedTimestamp == 0 {
+					t.Error("Created timestamp should not be zero")
 				}
 			}
 		})
@@ -227,7 +233,7 @@ func TestIngressClassHandler_InvalidObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
-	invalidObj := &networkingv1.Ingress{}
+	invalidObj := &networkingv1.NetworkPolicy{}
 	handler.GetInformer().GetStore().Add(invalidObj)
 	entries, err := handler.Collect(context.Background(), []string{})
 	if err != nil {

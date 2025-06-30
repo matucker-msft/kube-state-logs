@@ -34,8 +34,8 @@ func (h *CronJobHandler) SetupInformer(factory informers.SharedInformerFactory, 
 }
 
 // Collect gathers cronjob metrics from the cluster (uses cache)
-func (h *CronJobHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *CronJobHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all cronjobs from the cache
 	cronjobs := utils.SafeGetStoreList(h.GetInformer())
@@ -57,8 +57,8 @@ func (h *CronJobHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a cronjob
-func (h *CronJobHandler) createLogEntry(cronjob *batchv1.CronJob) types.LogEntry {
+// createLogEntry creates a CronJobData from a cronjob
+func (h *CronJobHandler) createLogEntry(cronjob *batchv1.CronJob) types.CronJobData {
 	concurrencyPolicy := string(cronjob.Spec.ConcurrencyPolicy)
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(cronjob)
 
@@ -84,9 +84,17 @@ func (h *CronJobHandler) createLogEntry(cronjob *batchv1.CronJob) types.LogEntry
 	conditionActive := len(cronjob.Status.Active) > 0
 
 	data := types.CronJobData{
-		CreatedTimestamp:           utils.ExtractCreationTimestamp(cronjob),
-		Labels:                     utils.ExtractLabels(cronjob),
-		Annotations:                utils.ExtractAnnotations(cronjob),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "cronjob",
+			Name:             utils.ExtractName(cronjob),
+			Namespace:        utils.ExtractNamespace(cronjob),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(cronjob),
+			Labels:           utils.ExtractLabels(cronjob),
+			Annotations:      utils.ExtractAnnotations(cronjob),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		Schedule:                   cronjob.Spec.Schedule,
 		ConcurrencyPolicy:          concurrencyPolicy,
 		Suspend:                    suspend,
@@ -96,9 +104,7 @@ func (h *CronJobHandler) createLogEntry(cronjob *batchv1.CronJob) types.LogEntry
 		LastScheduleTime:           lastScheduleTime,
 		NextScheduleTime:           nil,
 		ConditionActive:            conditionActive,
-		CreatedByKind:              createdByKind,
-		CreatedByName:              createdByName,
 	}
 
-	return utils.CreateLogEntry("cronjob", utils.ExtractName(cronjob), utils.ExtractNamespace(cronjob), data)
+	return data
 }

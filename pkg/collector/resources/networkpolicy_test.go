@@ -15,6 +15,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 func TestNetworkPolicyHandler(t *testing.T) {
@@ -150,6 +151,7 @@ func TestNetworkPolicyHandler(t *testing.T) {
 				MatchLabels: map[string]string{"app": "default"},
 			},
 			// No PolicyTypes specified, should default to Ingress
+			Ingress: []networkingv1.NetworkPolicyIngressRule{}, // Empty ingress rules
 		},
 	}
 
@@ -197,7 +199,7 @@ func TestNetworkPolicyHandler(t *testing.T) {
 			},
 		},
 		{
-			name:            "collect network policy with default policy types",
+			name:            "collect default network policy",
 			networkPolicies: []*networkingv1.NetworkPolicy{npDefault},
 			namespaces:      []string{},
 			expectedCount:   1,
@@ -231,7 +233,11 @@ func TestNetworkPolicyHandler(t *testing.T) {
 			}
 			entryNames := make([]string, len(entries))
 			for i, entry := range entries {
-				entryNames[i] = entry.Name
+				networkPolicyData, ok := entry.(types.NetworkPolicyData)
+				if !ok {
+					t.Fatalf("Expected NetworkPolicyData type, got %T", entry)
+				}
+				entryNames[i] = networkPolicyData.Name
 			}
 			for _, expectedName := range tt.expectedNames {
 				found := false
@@ -246,49 +252,58 @@ func TestNetworkPolicyHandler(t *testing.T) {
 				}
 			}
 			if tt.expectedFields != nil && len(entries) > 0 {
-				entry := entries[0]
+				networkPolicyData, ok := entries[0].(types.NetworkPolicyData)
+				if !ok {
+					t.Fatalf("Expected NetworkPolicyData type, got %T", entries[0])
+				}
 				for field, expectedValue := range tt.expectedFields {
 					switch field {
 					case "created_by_kind":
-						if entry.Data["createdByKind"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, entry.Data["createdByKind"])
+						if networkPolicyData.CreatedByKind != expectedValue.(string) {
+							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, networkPolicyData.CreatedByKind)
 						}
 					case "created_by_name":
-						if entry.Data["createdByName"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_name %s, got %v", expectedValue, entry.Data["createdByName"])
+						if networkPolicyData.CreatedByName != expectedValue.(string) {
+							t.Errorf("Expected created_by_name %s, got %v", expectedValue, networkPolicyData.CreatedByName)
 						}
 					case "policy_types":
 						expectedTypes := expectedValue.([]string)
-						types, ok := entry.Data["policyTypes"].([]string)
-						if !ok {
-							t.Errorf("Expected policyTypes to be []string, got %T", entry.Data["policyTypes"])
-						} else if len(types) != len(expectedTypes) {
-							t.Errorf("Expected %d policy types, got %d", len(expectedTypes), len(types))
+						if len(networkPolicyData.PolicyTypes) != len(expectedTypes) {
+							t.Errorf("Expected %d policy types, got %d", len(expectedTypes), len(networkPolicyData.PolicyTypes))
+						}
+						for i, expectedType := range expectedTypes {
+							if networkPolicyData.PolicyTypes[i] != expectedType {
+								t.Errorf("Expected policy type %s at index %d, got %s", expectedType, i, networkPolicyData.PolicyTypes[i])
+							}
 						}
 					}
 				}
 			}
 			for _, entry := range entries {
-				if entry.ResourceType != "networkpolicy" {
-					t.Errorf("Expected resource type 'networkpolicy', got %s", entry.ResourceType)
+				networkPolicyData, ok := entry.(types.NetworkPolicyData)
+				if !ok {
+					t.Fatalf("Expected NetworkPolicyData type, got %T", entry)
 				}
-				if entry.Name == "" {
+				if networkPolicyData.ResourceType != "networkpolicy" {
+					t.Errorf("Expected resource type 'networkpolicy', got %s", networkPolicyData.ResourceType)
+				}
+				if networkPolicyData.Name == "" {
 					t.Error("Entry name should not be empty")
 				}
-				if entry.Namespace == "" {
+				if networkPolicyData.Namespace == "" {
 					t.Error("Entry namespace should not be empty")
 				}
-				if entry.Data["createdTimestamp"] == nil {
-					t.Error("Created timestamp should not be nil")
+				if networkPolicyData.CreatedTimestamp == 0 {
+					t.Error("Created timestamp should not be zero")
 				}
-				if entry.Data["policyTypes"] == nil {
-					t.Error("policyTypes should not be nil")
+				if networkPolicyData.PolicyTypes == nil {
+					t.Error("policy types should not be nil")
 				}
-				if entry.Data["ingressRules"] == nil {
-					t.Error("ingressRules should not be nil")
+				if networkPolicyData.IngressRules == nil {
+					t.Error("ingress rules should not be nil")
 				}
-				if entry.Data["egressRules"] == nil {
-					t.Error("egressRules should not be nil")
+				if networkPolicyData.EgressRules == nil {
+					t.Error("egress rules should not be nil")
 				}
 			}
 		})
@@ -324,7 +339,7 @@ func TestNetworkPolicyHandler_InvalidObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
-	invalidObj := &networkingv1.Ingress{}
+	invalidObj := &corev1.Pod{}
 	handler.GetInformer().GetStore().Add(invalidObj)
 	entries, err := handler.Collect(context.Background(), []string{})
 	if err != nil {
@@ -335,63 +350,83 @@ func TestNetworkPolicyHandler_InvalidObject(t *testing.T) {
 	}
 }
 
+// createTestNetworkPolicy creates a test NetworkPolicy with various configurations
 func createTestNetworkPolicy(name, namespace string) *networkingv1.NetworkPolicy {
-	port := int32(80)
-	protocol := corev1.ProtocolTCP
-	return &networkingv1.NetworkPolicy{
+	protocolTCP := corev1.ProtocolTCP
+	networkPolicy := &networkingv1.NetworkPolicy{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
 			Labels: map[string]string{
-				"app": "test-app",
+				"app":     name,
+				"version": "v1",
 			},
 			Annotations: map[string]string{
-				"test-annotation": "test-value",
+				"description": "test network policy",
 			},
 			CreationTimestamp: metav1.Now(),
 		},
 		Spec: networkingv1.NetworkPolicySpec{
 			PodSelector: metav1.LabelSelector{
-				MatchLabels: map[string]string{
-					"app": "test-app",
-				},
+				MatchLabels: map[string]string{"app": name},
 			},
 			PolicyTypes: []networkingv1.PolicyType{
 				networkingv1.PolicyTypeIngress,
-				networkingv1.PolicyTypeEgress,
 			},
 			Ingress: []networkingv1.NetworkPolicyIngressRule{
 				{
 					Ports: []networkingv1.NetworkPolicyPort{
 						{
-							Protocol: &protocol,
-							Port:     &intstr.IntOrString{IntVal: port},
-						},
-					},
-					From: []networkingv1.NetworkPolicyPeer{
-						{
-							PodSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{
-									"app": "test-client",
-								},
-							},
-						},
-					},
-				},
-			},
-			Egress: []networkingv1.NetworkPolicyEgressRule{
-				{
-					To: []networkingv1.NetworkPolicyPeer{
-						{
-							NamespaceSelector: &metav1.LabelSelector{
-								MatchLabels: map[string]string{
-									"name": "kube-system",
-								},
-							},
+							Protocol: &protocolTCP,
+							Port:     &intstr.IntOrString{Type: intstr.Int, IntVal: 80},
 						},
 					},
 				},
 			},
 		},
+	}
+
+	return networkPolicy
+}
+
+func TestNetworkPolicyHandler_Collect(t *testing.T) {
+	networkPolicy1 := createTestNetworkPolicy("test-np-1", "default")
+	networkPolicy2 := createTestNetworkPolicy("test-np-2", "kube-system")
+
+	client := fake.NewSimpleClientset(networkPolicy1, networkPolicy2)
+	handler := NewNetworkPolicyHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	logger := &testutils.MockLogger{}
+
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+
+	factory.Start(nil)
+	factory.WaitForCacheSync(nil)
+
+	ctx := context.Background()
+	entries, err := handler.Collect(ctx, []string{})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
+	}
+
+	// Type assert to NetworkPolicyData for assertions
+	entry, ok := entries[0].(types.NetworkPolicyData)
+	if !ok {
+		t.Fatalf("Expected NetworkPolicyData type, got %T", entries[0])
+	}
+
+	if entry.Name == "" {
+		t.Error("Expected name to not be empty")
+	}
+
+	if entry.Namespace == "" {
+		t.Error("Expected namespace to not be empty")
 	}
 }

@@ -34,8 +34,8 @@ func (h *ConfigMapHandler) SetupInformer(factory informers.SharedInformerFactory
 }
 
 // Collect gathers configmap metrics from the cluster (uses cache)
-func (h *ConfigMapHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *ConfigMapHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all configmaps from the cache
 	configmaps := utils.SafeGetStoreList(h.GetInformer())
@@ -57,23 +57,32 @@ func (h *ConfigMapHandler) Collect(ctx context.Context, namespaces []string) ([]
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a configmap
-func (h *ConfigMapHandler) createLogEntry(configmap *corev1.ConfigMap) types.LogEntry {
+// createLogEntry creates a ConfigMapData from a configmap
+func (h *ConfigMapHandler) createLogEntry(configmap *corev1.ConfigMap) types.ConfigMapData {
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(configmap)
 
 	var dataKeys []string
 	for key := range configmap.Data {
 		dataKeys = append(dataKeys, key)
 	}
-
-	data := types.ConfigMapData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(configmap),
-		Labels:           utils.ExtractLabels(configmap),
-		Annotations:      utils.ExtractAnnotations(configmap),
-		DataKeys:         dataKeys,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
+	for key := range configmap.BinaryData {
+		dataKeys = append(dataKeys, key)
 	}
 
-	return utils.CreateLogEntry("configmap", utils.ExtractName(configmap), utils.ExtractNamespace(configmap), data)
+	data := types.ConfigMapData{
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "configmap",
+			Name:             utils.ExtractName(configmap),
+			Namespace:        utils.ExtractNamespace(configmap),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(configmap),
+			Labels:           utils.ExtractLabels(configmap),
+			Annotations:      utils.ExtractAnnotations(configmap),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		DataKeys: dataKeys,
+	}
+
+	return data
 }

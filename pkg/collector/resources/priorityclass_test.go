@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 func TestPriorityClassHandler(t *testing.T) {
@@ -141,7 +142,11 @@ func TestPriorityClassHandler(t *testing.T) {
 			}
 			entryNames := make([]string, len(entries))
 			for i, entry := range entries {
-				entryNames[i] = entry.Name
+				priorityClassData, ok := entry.(types.PriorityClassData)
+				if !ok {
+					t.Fatalf("Expected PriorityClassData type, got %T", entry)
+				}
+				entryNames[i] = priorityClassData.Name
 			}
 			for _, expectedName := range tt.expectedNames {
 				found := false
@@ -156,49 +161,50 @@ func TestPriorityClassHandler(t *testing.T) {
 				}
 			}
 			if tt.expectedFields != nil && len(entries) > 0 {
-				entry := entries[0]
+				priorityClassData, ok := entries[0].(types.PriorityClassData)
+				if !ok {
+					t.Fatalf("Expected PriorityClassData type, got %T", entries[0])
+				}
 				for field, expectedValue := range tt.expectedFields {
 					switch field {
 					case "created_by_kind":
-						if entry.Data["createdByKind"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, entry.Data["createdByKind"])
+						if priorityClassData.CreatedByKind != expectedValue.(string) {
+							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, priorityClassData.CreatedByKind)
 						}
 					case "created_by_name":
-						if entry.Data["createdByName"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_name %s, got %v", expectedValue, entry.Data["createdByName"])
+						if priorityClassData.CreatedByName != expectedValue.(string) {
+							t.Errorf("Expected created_by_name %s, got %v", expectedValue, priorityClassData.CreatedByName)
 						}
 					case "preemption_policy":
-						if entry.Data["preemptionPolicy"] != expectedValue.(string) {
-							t.Errorf("Expected preemption_policy %s, got %v", expectedValue, entry.Data["preemptionPolicy"])
+						if priorityClassData.PreemptionPolicy != expectedValue.(string) {
+							t.Errorf("Expected preemption_policy %s, got %v", expectedValue, priorityClassData.PreemptionPolicy)
 						}
 					case "global_default":
-						if entry.Data["globalDefault"] != expectedValue.(bool) {
-							t.Errorf("Expected global_default %v, got %v", expectedValue, entry.Data["globalDefault"])
+						if priorityClassData.GlobalDefault != expectedValue.(bool) {
+							t.Errorf("Expected global_default %v, got %v", expectedValue, priorityClassData.GlobalDefault)
 						}
 					}
 				}
 			}
 			for _, entry := range entries {
-				if entry.ResourceType != "priorityclass" {
-					t.Errorf("Expected resource type 'priorityclass', got %s", entry.ResourceType)
+				priorityClassData, ok := entry.(types.PriorityClassData)
+				if !ok {
+					t.Fatalf("Expected PriorityClassData type, got %T", entry)
 				}
-				if entry.Name == "" {
+				if priorityClassData.ResourceType != "priorityclass" {
+					t.Errorf("Expected resource type 'priorityclass', got %s", priorityClassData.ResourceType)
+				}
+				if priorityClassData.Name == "" {
 					t.Error("Entry name should not be empty")
 				}
-				if entry.Data["createdTimestamp"] == nil {
-					t.Error("Created timestamp should not be nil")
+				if priorityClassData.CreatedTimestamp == 0 {
+					t.Error("Created timestamp should not be zero")
 				}
-				if entry.Data["value"] == nil {
-					t.Error("value should not be nil")
+				if priorityClassData.Value == 0 {
+					t.Error("value should not be zero")
 				}
-				if entry.Data["globalDefault"] == nil {
-					t.Error("globalDefault should not be nil")
-				}
-				if entry.Data["description"] == nil {
-					t.Error("description should not be nil")
-				}
-				if entry.Data["preemptionPolicy"] == nil {
-					t.Error("preemptionPolicy should not be nil")
+				if priorityClassData.Description == "" {
+					t.Error("description should not be empty")
 				}
 			}
 		})
@@ -242,5 +248,69 @@ func TestPriorityClassHandler_InvalidObject(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Errorf("Expected 0 entries with invalid object, got %d", len(entries))
+	}
+}
+
+// createTestPriorityClass creates a test PriorityClass with various configurations
+func createTestPriorityClass(name string) *schedulingv1.PriorityClass {
+	pc := &schedulingv1.PriorityClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+			Labels: map[string]string{
+				"app":     name,
+				"version": "v1",
+			},
+			Annotations: map[string]string{
+				"description": "test priority class",
+			},
+			CreationTimestamp: metav1.Now(),
+		},
+		Value:         100000,
+		GlobalDefault: false,
+		Description:   "Test priority class",
+	}
+
+	return pc
+}
+
+func TestPriorityClassHandler_Collect(t *testing.T) {
+	pc1 := createTestPriorityClass("test-pc-1")
+	pc2 := createTestPriorityClass("test-pc-2")
+
+	client := fake.NewSimpleClientset(pc1, pc2)
+	handler := NewPriorityClassHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	logger := &testutils.MockLogger{}
+
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+
+	factory.Start(nil)
+	factory.WaitForCacheSync(nil)
+
+	ctx := context.Background()
+	entries, err := handler.Collect(ctx, []string{})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
+	}
+
+	// Type assert to PriorityClassData for assertions
+	entry, ok := entries[0].(types.PriorityClassData)
+	if !ok {
+		t.Fatalf("Expected PriorityClassData type, got %T", entries[0])
+	}
+
+	if entry.Name == "" {
+		t.Error("Expected name to not be empty")
+	}
+
+	if entry.Value == 0 {
+		t.Error("Expected value to not be zero")
 	}
 }

@@ -34,13 +34,13 @@ func (h *RoleBindingHandler) SetupInformer(factory informers.SharedInformerFacto
 }
 
 // Collect gathers rolebinding metrics from the cluster (uses cache)
-func (h *RoleBindingHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *RoleBindingHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all rolebindings from the cache
-	rbList := utils.SafeGetStoreList(h.GetInformer())
+	rbs := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range rbList {
+	for _, obj := range rbs {
 		rb, ok := obj.(*rbacv1.RoleBinding)
 		if !ok {
 			continue
@@ -57,8 +57,8 @@ func (h *RoleBindingHandler) Collect(ctx context.Context, namespaces []string) (
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a rolebinding
-func (h *RoleBindingHandler) createLogEntry(rb *rbacv1.RoleBinding) types.LogEntry {
+// createLogEntry creates a RoleBindingData from a rolebinding
+func (h *RoleBindingHandler) createLogEntry(rb *rbacv1.RoleBinding) types.RoleBindingData {
 	// Convert role ref
 	roleRef := types.RoleRef{
 		APIGroup: rb.RoleRef.APIGroup,
@@ -82,14 +82,20 @@ func (h *RoleBindingHandler) createLogEntry(rb *rbacv1.RoleBinding) types.LogEnt
 
 	// Create data structure
 	data := types.RoleBindingData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(rb),
-		Labels:           utils.ExtractLabels(rb),
-		Annotations:      utils.ExtractAnnotations(rb),
-		RoleRef:          roleRef,
-		Subjects:         subjects,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "rolebinding",
+			Name:             utils.ExtractName(rb),
+			Namespace:        utils.ExtractNamespace(rb),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(rb),
+			Labels:           utils.ExtractLabels(rb),
+			Annotations:      utils.ExtractAnnotations(rb),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		RoleRef:  roleRef,
+		Subjects: subjects,
 	}
 
-	return utils.CreateLogEntry("rolebinding", utils.ExtractName(rb), utils.ExtractNamespace(rb), data)
+	return data
 }

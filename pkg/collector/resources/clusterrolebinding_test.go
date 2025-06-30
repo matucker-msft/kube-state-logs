@@ -3,165 +3,182 @@ package resources
 import (
 	"context"
 	"testing"
+	"time"
 
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/cache"
 
-	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	testutils "github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
+// createTestClusterRoleBinding creates a test cluster role binding with various configurations
 func createTestClusterRoleBinding(name string) *rbacv1.ClusterRoleBinding {
-	return &rbacv1.ClusterRoleBinding{
+	clusterRoleBinding := &rbacv1.ClusterRoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:              name,
-			Labels:            map[string]string{"app": "test-app"},
-			Annotations:       map[string]string{"test-annotation": "test-value"},
-			CreationTimestamp: metav1.Now(),
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "User",
-				Name:      "test-user",
-				Namespace: "",
+			Name: name,
+			Labels: map[string]string{
+				"app":     name,
+				"version": "v1",
 			},
+			Annotations: map[string]string{
+				"description": "test cluster role binding",
+			},
+			CreationTimestamp: metav1.Now(),
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
-			Name:     "test-clusterrole",
+			Name:     "test-cluster-role",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "test-service-account",
+				Namespace: "default",
+			},
+			{
+				Kind: "User",
+				Name: "test-user",
+			},
+			{
+				Kind: "Group",
+				Name: "test-group",
+			},
 		},
 	}
+
+	return clusterRoleBinding
 }
 
 func TestNewClusterRoleBindingHandler(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewClusterRoleBindingHandler(client)
+
 	if handler == nil {
-		t.Fatal("Expected handler to be created")
+		t.Fatal("Expected handler to be created, got nil")
+	}
+
+	// Verify BaseHandler is embedded
+	if handler.BaseHandler == (utils.BaseHandler{}) {
+		t.Error("Expected BaseHandler to be embedded")
 	}
 }
 
 func TestClusterRoleBindingHandler_SetupInformer(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewClusterRoleBindingHandler(client)
-	logger := &testutils.MockLogger{}
-	factory := cache.NewSharedIndexInformer(
-		&cache.ListWatch{},
-		&rbacv1.ClusterRoleBinding{},
-		0,
-		cache.Indexers{},
-	)
-	handler.SetupBaseInformer(factory, logger)
-	if handler.GetInformer() == nil {
-		t.Fatal("Expected informer to be set up")
-	}
-}
-
-func TestClusterRoleBindingHandler_SetupInformer_Proper(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewClusterRoleBindingHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
 
-	// Create a proper informer factory
-	factory := informers.NewSharedInformerFactory(client, 0)
-
-	err := handler.SetupInformer(factory, logger, 0)
+	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
+	// Verify informer is set up
 	if handler.GetInformer() == nil {
-		t.Fatal("Expected informer to be set up")
+		t.Error("Expected informer to be set up")
 	}
 }
 
 func TestClusterRoleBindingHandler_Collect(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	// Create test cluster role bindings
+	clusterRoleBinding1 := createTestClusterRoleBinding("test-cluster-role-binding-1")
+	clusterRoleBinding2 := createTestClusterRoleBinding("test-cluster-role-binding-2")
+
+	// Create fake client with test cluster role bindings
+	client := fake.NewSimpleClientset(clusterRoleBinding1, clusterRoleBinding2)
 	handler := NewClusterRoleBindingHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
-	crb := createTestClusterRoleBinding("test-crb")
-	informer := cache.NewSharedIndexInformer(
-		&cache.ListWatch{},
-		&rbacv1.ClusterRoleBinding{},
-		0,
-		cache.Indexers{},
-	)
-	handler.SetupBaseInformer(informer, logger)
-	store := informer.GetStore()
-	store.Add(crb)
-	entries, err := handler.Collect(context.Background(), []string{})
+
+	// Setup informer
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+
+	// Start the factory to populate the cache
+	factory.Start(nil)
+	factory.WaitForCacheSync(nil)
+
+	// Test collecting all cluster role bindings
+	ctx := context.Background()
+	entries, err := handler.Collect(ctx, []string{})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	if len(entries) != 1 {
-		t.Fatalf("Expected 1 entry, got %d", len(entries))
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
 	}
-	entry := entries[0]
+
+	// Type assert to ClusterRoleBindingData for assertions
+	entry, ok := entries[0].(types.ClusterRoleBindingData)
+	if !ok {
+		t.Fatalf("Expected ClusterRoleBindingData type, got %T", entries[0])
+	}
+
+	if entry.Name == "" {
+		t.Error("Expected name to not be empty")
+	}
+}
+
+func TestClusterRoleBindingHandler_createLogEntry(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	handler := NewClusterRoleBindingHandler(client)
+	clusterRoleBinding := createTestClusterRoleBinding("test-cluster-role-binding")
+	entry := handler.createLogEntry(clusterRoleBinding)
+
 	if entry.ResourceType != "clusterrolebinding" {
-		t.Errorf("Expected resource type 'clusterrolebinding', got %s", entry.ResourceType)
+		t.Errorf("Expected resource type 'clusterrolebinding', got '%s'", entry.ResourceType)
 	}
-	if entry.Name != "test-crb" {
-		t.Errorf("Expected name 'test-crb', got %s", entry.Name)
-	}
-	data := entry.Data
-	if data["labels"].(map[string]string)["app"] != "test-app" {
-		t.Errorf("Expected label 'app' to be 'test-app', got %s", data["labels"].(map[string]string)["app"])
-	}
-	if data["annotations"].(map[string]string)["test-annotation"] != "test-value" {
-		t.Errorf("Expected annotation 'test-annotation' to be 'test-value', got %s", data["annotations"].(map[string]string)["test-annotation"])
-	}
-	subjects, ok := data["subjects"].([]types.Subject)
-	if !ok || len(subjects) != 1 {
-		t.Errorf("Expected subjects to be []Subject of length 1, got %v", data["subjects"])
-	}
-	roleRef, ok := data["roleRef"].(types.RoleRef)
-	if !ok || roleRef.Name != "test-clusterrole" {
-		t.Errorf("Expected roleRef name 'test-clusterrole', got %v", roleRef.Name)
-	}
-}
 
-func TestClusterRoleBindingHandler_Collect_Empty(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewClusterRoleBindingHandler(client)
-	logger := &testutils.MockLogger{}
-	informer := cache.NewSharedIndexInformer(
-		&cache.ListWatch{},
-		&rbacv1.ClusterRoleBinding{},
-		0,
-		cache.Indexers{},
-	)
-	handler.SetupBaseInformer(informer, logger)
-	entries, err := handler.Collect(context.Background(), []string{})
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
+	if entry.Name != "test-cluster-role-binding" {
+		t.Errorf("Expected name 'test-cluster-role-binding', got '%s'", entry.Name)
 	}
-	if len(entries) != 0 {
-		t.Fatalf("Expected 0 entries, got %d", len(entries))
-	}
-}
 
-func TestClusterRoleBindingHandler_Collect_InvalidObject(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewClusterRoleBindingHandler(client)
-	logger := &testutils.MockLogger{}
-	informer := cache.NewSharedIndexInformer(
-		&cache.ListWatch{},
-		&rbacv1.ClusterRoleBinding{},
-		0,
-		cache.Indexers{},
-	)
-	handler.SetupBaseInformer(informer, logger)
-	store := informer.GetStore()
-	store.Add(&rbacv1.RoleBinding{})
-	entries, err := handler.Collect(context.Background(), []string{})
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
+	// Verify cluster role binding-specific fields
+	if entry.RoleRef.Kind != "ClusterRole" {
+		t.Errorf("Expected role ref kind 'ClusterRole', got '%s'", entry.RoleRef.Kind)
 	}
-	if len(entries) != 0 {
-		t.Fatalf("Expected 0 entries, got %d", len(entries))
+
+	if entry.RoleRef.Name != "test-cluster-role" {
+		t.Errorf("Expected role ref name 'test-cluster-role', got '%s'", entry.RoleRef.Name)
+	}
+
+	if entry.RoleRef.APIGroup != "rbac.authorization.k8s.io" {
+		t.Errorf("Expected role ref API group 'rbac.authorization.k8s.io', got '%s'", entry.RoleRef.APIGroup)
+	}
+
+	if len(entry.Subjects) != 3 {
+		t.Errorf("Expected 3 subjects, got %d", len(entry.Subjects))
+	}
+
+	// Verify subjects
+	subject1 := entry.Subjects[0]
+	if subject1.Kind != "ServiceAccount" {
+		t.Errorf("Expected first subject kind 'ServiceAccount', got '%s'", subject1.Kind)
+	}
+
+	if subject1.Name != "test-service-account" {
+		t.Errorf("Expected first subject name 'test-service-account', got '%s'", subject1.Name)
+	}
+
+	if subject1.Namespace != "default" {
+		t.Errorf("Expected first subject namespace 'default', got '%s'", subject1.Namespace)
+	}
+
+	// Verify metadata
+	if entry.Labels["app"] != "test-cluster-role-binding" {
+		t.Errorf("Expected label 'app' to be 'test-cluster-role-binding', got '%s'", entry.Labels["app"])
+	}
+
+	if entry.Annotations["description"] != "test cluster role binding" {
+		t.Errorf("Expected annotation 'description' to be 'test cluster role binding', got '%s'", entry.Annotations["description"])
 	}
 }

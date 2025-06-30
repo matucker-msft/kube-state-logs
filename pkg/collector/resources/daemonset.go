@@ -34,13 +34,13 @@ func (h *DaemonSetHandler) SetupInformer(factory informers.SharedInformerFactory
 }
 
 // Collect gathers daemonset metrics from the cluster (uses cache)
-func (h *DaemonSetHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *DaemonSetHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all daemonsets from the cache
-	daemonsets := utils.SafeGetStoreList(h.GetInformer())
+	daemonSets := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range daemonsets {
+	for _, obj := range daemonSets {
 		ds, ok := obj.(*appsv1.DaemonSet)
 		if !ok {
 			continue
@@ -57,17 +57,25 @@ func (h *DaemonSetHandler) Collect(ctx context.Context, namespaces []string) ([]
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a daemonset
-func (h *DaemonSetHandler) createLogEntry(ds *appsv1.DaemonSet) types.LogEntry {
+// createLogEntry creates a DaemonSetData from a daemonset
+func (h *DaemonSetHandler) createLogEntry(ds *appsv1.DaemonSet) types.DaemonSetData {
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(ds)
 
 	// Get update strategy
 	updateStrategy := string(ds.Spec.UpdateStrategy.Type)
 
 	data := types.DaemonSetData{
-		CreatedTimestamp:        utils.ExtractCreationTimestamp(ds),
-		Labels:                  utils.ExtractLabels(ds),
-		Annotations:             utils.ExtractAnnotations(ds),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "daemonset",
+			Name:             utils.ExtractName(ds),
+			Namespace:        utils.ExtractNamespace(ds),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(ds),
+			Labels:           utils.ExtractLabels(ds),
+			Annotations:      utils.ExtractAnnotations(ds),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		DesiredNumberScheduled:  ds.Status.DesiredNumberScheduled,
 		CurrentNumberScheduled:  ds.Status.CurrentNumberScheduled,
 		NumberReady:             ds.Status.NumberReady,
@@ -76,13 +84,11 @@ func (h *DaemonSetHandler) createLogEntry(ds *appsv1.DaemonSet) types.LogEntry {
 		NumberMisscheduled:      ds.Status.NumberMisscheduled,
 		UpdatedNumberScheduled:  ds.Status.UpdatedNumberScheduled,
 		ObservedGeneration:      ds.Status.ObservedGeneration,
-		ConditionAvailable:      utils.GetConditionStatusGeneric(ds.Status.Conditions, "DaemonSetAvailable"),
-		ConditionProgressing:    utils.GetConditionStatusGeneric(ds.Status.Conditions, "DaemonSetProgressing"),
-		ConditionReplicaFailure: utils.GetConditionStatusGeneric(ds.Status.Conditions, "DaemonSetReplicaFailure"),
-		CreatedByKind:           createdByKind,
-		CreatedByName:           createdByName,
+		ConditionAvailable:      utils.GetConditionStatusGeneric(ds.Status.Conditions, "Available"),
+		ConditionProgressing:    utils.GetConditionStatusGeneric(ds.Status.Conditions, "Progressing"),
+		ConditionReplicaFailure: utils.GetConditionStatusGeneric(ds.Status.Conditions, "ReplicaFailure"),
 		UpdateStrategy:          updateStrategy,
 	}
 
-	return utils.CreateLogEntry("daemonset", utils.ExtractName(ds), utils.ExtractNamespace(ds), data)
+	return data
 }

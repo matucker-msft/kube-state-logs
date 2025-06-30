@@ -34,13 +34,13 @@ func (h *LimitRangeHandler) SetupInformer(factory informers.SharedInformerFactor
 }
 
 // Collect gathers limitrange metrics from the cluster (uses cache)
-func (h *LimitRangeHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *LimitRangeHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all limitranges from the cache
-	lrList := utils.SafeGetStoreList(h.GetInformer())
+	limitRanges := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range lrList {
+	for _, obj := range limitRanges {
 		lr, ok := obj.(*corev1.LimitRange)
 		if !ok {
 			continue
@@ -57,13 +57,13 @@ func (h *LimitRangeHandler) Collect(ctx context.Context, namespaces []string) ([
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a limitrange
-func (h *LimitRangeHandler) createLogEntry(lr *corev1.LimitRange) types.LogEntry {
+// createLogEntry creates a LimitRangeData from a limitrange
+func (h *LimitRangeHandler) createLogEntry(lr *corev1.LimitRange) types.LimitRangeData {
 	// Convert limits
 	var limits []types.LimitRangeItem
-	for _, limit := range lr.Spec.Limits {
-		limitItem := types.LimitRangeItem{
-			Type:                 string(limit.Type),
+	for _, limitItem := range lr.Spec.Limits {
+		item := types.LimitRangeItem{
+			Type:                 string(limitItem.Type),
 			ResourceType:         "",
 			ResourceName:         "",
 			Min:                  make(map[string]string),
@@ -74,42 +74,53 @@ func (h *LimitRangeHandler) createLogEntry(lr *corev1.LimitRange) types.LogEntry
 		}
 
 		// Extract resource type and name
-		for resourceName := range limit.Min {
-			limitItem.ResourceType = string(resourceName)
-			limitItem.ResourceName = string(resourceName)
+		for resourceName := range limitItem.Min {
+			item.ResourceType = string(resourceName)
+			item.ResourceName = string(resourceName)
 			break
 		}
 
 		// Convert resource maps
-		for key, value := range limit.Min {
-			limitItem.Min[string(key)] = value.String()
+		for key, value := range limitItem.Min {
+			item.Min[string(key)] = value.String()
 		}
-		for key, value := range limit.Max {
-			limitItem.Max[string(key)] = value.String()
+		for key, value := range limitItem.Max {
+			item.Max[string(key)] = value.String()
 		}
-		for key, value := range limit.Default {
-			limitItem.Default[string(key)] = value.String()
+		for key, value := range limitItem.Default {
+			item.Default[string(key)] = value.String()
 		}
-		for key, value := range limit.DefaultRequest {
-			limitItem.DefaultRequest[string(key)] = value.String()
+		for key, value := range limitItem.DefaultRequest {
+			item.DefaultRequest[string(key)] = value.String()
 		}
-		for key, value := range limit.MaxLimitRequestRatio {
-			limitItem.MaxLimitRequestRatio[string(key)] = value.String()
+		for key, value := range limitItem.MaxLimitRequestRatio {
+			item.MaxLimitRequestRatio[string(key)] = value.String()
 		}
 
-		limits = append(limits, limitItem)
+		limits = append(limits, item)
 	}
 
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(lr)
 
 	data := types.LimitRangeData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(lr),
-		Labels:           utils.ExtractLabels(lr),
-		Annotations:      utils.ExtractAnnotations(lr),
-		Limits:           limits,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "limitrange",
+			Name:             utils.ExtractName(lr),
+			Namespace:        utils.ExtractNamespace(lr),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(lr),
+			Labels:           utils.ExtractLabels(lr),
+			Annotations:      utils.ExtractAnnotations(lr),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		Limits: func() []types.LimitRangeItem {
+			if limits == nil {
+				return []types.LimitRangeItem{}
+			}
+			return limits
+		}(),
 	}
 
-	return utils.CreateLogEntry("limitrange", utils.ExtractName(lr), utils.ExtractNamespace(lr), data)
+	return data
 }

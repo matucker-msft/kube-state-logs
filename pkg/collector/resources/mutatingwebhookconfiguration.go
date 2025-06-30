@@ -34,30 +34,30 @@ func (h *MutatingWebhookConfigurationHandler) SetupInformer(factory informers.Sh
 }
 
 // Collect gathers mutatingwebhookconfiguration metrics from the cluster (uses cache)
-func (h *MutatingWebhookConfigurationHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *MutatingWebhookConfigurationHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all mutatingwebhookconfigurations from the cache
-	mwcList := utils.SafeGetStoreList(h.GetInformer())
+	webhooks := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range mwcList {
-		mwc, ok := obj.(*admissionregistrationv1.MutatingWebhookConfiguration)
+	for _, obj := range webhooks {
+		webhook, ok := obj.(*admissionregistrationv1.MutatingWebhookConfiguration)
 		if !ok {
 			continue
 		}
 
-		entry := h.createLogEntry(mwc)
+		entry := h.createLogEntry(webhook)
 		entries = append(entries, entry)
 	}
 
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a mutatingwebhookconfiguration
-func (h *MutatingWebhookConfigurationHandler) createLogEntry(mwc *admissionregistrationv1.MutatingWebhookConfiguration) types.LogEntry {
+// createLogEntry creates a MutatingWebhookConfigurationData from a mutatingwebhookconfiguration
+func (h *MutatingWebhookConfigurationHandler) createLogEntry(webhook *admissionregistrationv1.MutatingWebhookConfiguration) types.MutatingWebhookConfigurationData {
 	// Extract webhooks
 	var webhooks []types.WebhookData
-	for _, webhook := range mwc.Webhooks {
+	for _, webhook := range webhook.Webhooks {
 		// Extract client config
 		var clientConfig types.WebhookClientConfigData
 		if webhook.ClientConfig.URL != nil {
@@ -112,22 +112,28 @@ func (h *MutatingWebhookConfigurationHandler) createLogEntry(mwc *admissionregis
 			NamespaceSelector:       namespaceSelector,
 			ObjectSelector:          objectSelector,
 			SideEffects:             string(*webhook.SideEffects),
-			TimeoutSeconds:          *webhook.TimeoutSeconds,
+			TimeoutSeconds:          webhook.TimeoutSeconds,
 			AdmissionReviewVersions: webhook.AdmissionReviewVersions,
 		})
 	}
 
-	createdByKind, createdByName := utils.GetOwnerReferenceInfo(mwc)
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(webhook)
 
 	// Create data structure
 	data := types.MutatingWebhookConfigurationData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(mwc),
-		Labels:           utils.ExtractLabels(mwc),
-		Annotations:      utils.ExtractAnnotations(mwc),
-		Webhooks:         webhooks,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "mutatingwebhookconfiguration",
+			Name:             utils.ExtractName(webhook),
+			Namespace:        utils.ExtractNamespace(webhook),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(webhook),
+			Labels:           utils.ExtractLabels(webhook),
+			Annotations:      utils.ExtractAnnotations(webhook),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		Webhooks: webhooks,
 	}
 
-	return utils.CreateLogEntry("mutatingwebhookconfiguration", utils.ExtractName(mwc), utils.ExtractNamespace(mwc), data)
+	return data
 }

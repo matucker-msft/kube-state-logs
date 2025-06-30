@@ -34,13 +34,13 @@ func (h *PersistentVolumeClaimHandler) SetupInformer(factory informers.SharedInf
 }
 
 // Collect gathers persistentvolumeclaim metrics from the cluster (uses cache)
-func (h *PersistentVolumeClaimHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *PersistentVolumeClaimHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all persistentvolumeclaims from the cache
-	pvcList := utils.SafeGetStoreList(h.GetInformer())
+	pvcs := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range pvcList {
+	for _, obj := range pvcs {
 		pvc, ok := obj.(*corev1.PersistentVolumeClaim)
 		if !ok {
 			continue
@@ -57,8 +57,8 @@ func (h *PersistentVolumeClaimHandler) Collect(ctx context.Context, namespaces [
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a persistentvolumeclaim
-func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolumeClaim) types.LogEntry {
+// createLogEntry creates a PersistentVolumeClaimData from a persistentvolumeclaim
+func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolumeClaim) types.PersistentVolumeClaimData {
 	var accessModes []string
 	for _, mode := range pvc.Spec.AccessModes {
 		accessModes = append(accessModes, string(mode))
@@ -102,9 +102,17 @@ func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolu
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(pvc)
 
 	data := types.PersistentVolumeClaimData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(pvc),
-		Labels:           utils.ExtractLabels(pvc),
-		Annotations:      utils.ExtractAnnotations(pvc),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "persistentvolumeclaim",
+			Name:             utils.ExtractName(pvc),
+			Namespace:        utils.ExtractNamespace(pvc),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(pvc),
+			Labels:           utils.ExtractLabels(pvc),
+			Annotations:      utils.ExtractAnnotations(pvc),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		AccessModes:      accessModes,
 		StorageClassName: storageClassName,
 		VolumeName:       pvc.Spec.VolumeName,
@@ -113,11 +121,9 @@ func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolu
 		ConditionPending: conditionPending,
 		ConditionBound:   conditionBound,
 		ConditionLost:    conditionLost,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
 		RequestStorage:   requestStorage,
 		UsedStorage:      usedStorage,
 	}
 
-	return utils.CreateLogEntry("persistentvolumeclaim", utils.ExtractName(pvc), utils.ExtractNamespace(pvc), data)
+	return data
 }

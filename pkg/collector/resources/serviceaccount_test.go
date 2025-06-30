@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 func TestServiceAccountHandler(t *testing.T) {
@@ -164,7 +165,11 @@ func TestServiceAccountHandler(t *testing.T) {
 			}
 			entryNames := make([]string, len(entries))
 			for i, entry := range entries {
-				entryNames[i] = entry.Name
+				serviceAccountData, ok := entry.(types.ServiceAccountData)
+				if !ok {
+					t.Fatalf("Expected ServiceAccountData type, got %T", entry)
+				}
+				entryNames[i] = serviceAccountData.Name
 			}
 			for _, expectedName := range tt.expectedNames {
 				found := false
@@ -179,61 +184,72 @@ func TestServiceAccountHandler(t *testing.T) {
 				}
 			}
 			if tt.expectedFields != nil && len(entries) > 0 {
-				entry := entries[0]
+				serviceAccountData, ok := entries[0].(types.ServiceAccountData)
+				if !ok {
+					t.Fatalf("Expected ServiceAccountData type, got %T", entries[0])
+				}
 				for field, expectedValue := range tt.expectedFields {
 					switch field {
 					case "created_by_kind":
-						if entry.Data["createdByKind"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, entry.Data["createdByKind"])
+						if serviceAccountData.CreatedByKind != expectedValue.(string) {
+							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, serviceAccountData.CreatedByKind)
 						}
 					case "created_by_name":
-						if entry.Data["createdByName"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_name %s, got %v", expectedValue, entry.Data["createdByName"])
+						if serviceAccountData.CreatedByName != expectedValue.(string) {
+							t.Errorf("Expected created_by_name %s, got %v", expectedValue, serviceAccountData.CreatedByName)
 						}
 					case "secrets":
 						expectedSecrets := expectedValue.([]string)
-						secrets, ok := entry.Data["secrets"].([]string)
-						if !ok {
-							t.Errorf("Expected secrets to be []string, got %T", entry.Data["secrets"])
-						} else if len(secrets) != len(expectedSecrets) {
-							t.Errorf("Expected %d secrets, got %d", len(expectedSecrets), len(secrets))
+						if len(serviceAccountData.Secrets) != len(expectedSecrets) {
+							t.Errorf("Expected %d secrets, got %d", len(expectedSecrets), len(serviceAccountData.Secrets))
+						}
+						for i, secret := range expectedSecrets {
+							if serviceAccountData.Secrets[i] != secret {
+								t.Errorf("Expected secret %s at index %d, got %s", secret, i, serviceAccountData.Secrets[i])
+							}
 						}
 					case "image_pull_secrets":
-						expectedSecrets := expectedValue.([]string)
-						secrets, ok := entry.Data["imagePullSecrets"].([]string)
-						if !ok {
-							t.Errorf("Expected imagePullSecrets to be []string, got %T", entry.Data["imagePullSecrets"])
-						} else if len(secrets) != len(expectedSecrets) {
-							t.Errorf("Expected %d image pull secrets, got %d", len(expectedSecrets), len(secrets))
+						expectedImagePullSecrets := expectedValue.([]string)
+						if len(serviceAccountData.ImagePullSecrets) != len(expectedImagePullSecrets) {
+							t.Errorf("Expected %d image pull secrets, got %d", len(expectedImagePullSecrets), len(serviceAccountData.ImagePullSecrets))
+						}
+						for i, secret := range expectedImagePullSecrets {
+							if serviceAccountData.ImagePullSecrets[i] != secret {
+								t.Errorf("Expected image pull secret %s at index %d, got %s", secret, i, serviceAccountData.ImagePullSecrets[i])
+							}
 						}
 					case "automount_service_account_token":
-						if entry.Data["automountServiceAccountToken"] != expectedValue.(bool) {
-							t.Errorf("Expected automount_service_account_token %v, got %v", expectedValue, entry.Data["automountServiceAccountToken"])
+						if *serviceAccountData.AutomountServiceAccountToken != expectedValue.(bool) {
+							t.Errorf("Expected automount_service_account_token %v, got %v", expectedValue, *serviceAccountData.AutomountServiceAccountToken)
 						}
 					}
 				}
 			}
 			for _, entry := range entries {
-				if entry.ResourceType != "serviceaccount" {
-					t.Errorf("Expected resource type 'serviceaccount', got %s", entry.ResourceType)
+				serviceAccountData, ok := entry.(types.ServiceAccountData)
+				if !ok {
+					t.Fatalf("Expected ServiceAccountData type, got %T", entry)
 				}
-				if entry.Name == "" {
+				if serviceAccountData.ResourceType != "serviceaccount" {
+					t.Errorf("Expected resource type 'serviceaccount', got %s", serviceAccountData.ResourceType)
+				}
+				if serviceAccountData.Name == "" {
 					t.Error("Entry name should not be empty")
 				}
-				if entry.Namespace == "" {
+				if serviceAccountData.Namespace == "" {
 					t.Error("Entry namespace should not be empty")
 				}
-				if entry.Data["createdTimestamp"] == nil {
-					t.Error("Created timestamp should not be nil")
+				if serviceAccountData.CreatedTimestamp == 0 {
+					t.Error("Created timestamp should not be zero")
 				}
-				if entry.Data["secrets"] == nil {
-					t.Error("secrets should not be nil")
+				if serviceAccountData.Secrets == nil {
+					t.Error("Secrets should not be nil")
 				}
-				if entry.Data["imagePullSecrets"] == nil {
-					t.Error("imagePullSecrets should not be nil")
+				if serviceAccountData.ImagePullSecrets == nil {
+					t.Error("ImagePullSecrets should not be nil")
 				}
-				if entry.Data["automountServiceAccountToken"] == nil {
-					t.Error("automountServiceAccountToken should not be nil")
+				if serviceAccountData.AutomountServiceAccountToken == nil {
+					t.Error("AutomountServiceAccountToken should not be nil")
 				}
 			}
 		})
@@ -277,5 +293,72 @@ func TestServiceAccountHandler_InvalidObject(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Errorf("Expected 0 entries with invalid object, got %d", len(entries))
+	}
+}
+
+// createTestServiceAccount creates a test ServiceAccount with various configurations
+func createTestServiceAccount(name, namespace string) *corev1.ServiceAccount {
+	automountTrue := true
+	sa := &corev1.ServiceAccount{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app":     name,
+				"version": "v1",
+			},
+			Annotations: map[string]string{
+				"description": "test service account",
+			},
+			CreationTimestamp: metav1.Now(),
+		},
+		Secrets: []corev1.ObjectReference{
+			{Name: name + "-token-123"},
+		},
+		AutomountServiceAccountToken: &automountTrue,
+	}
+
+	return sa
+}
+
+func TestServiceAccountHandler_Collect(t *testing.T) {
+	sa1 := createTestServiceAccount("test-sa-1", "default")
+	sa2 := createTestServiceAccount("test-sa-2", "kube-system")
+
+	client := fake.NewSimpleClientset(sa1, sa2)
+	handler := NewServiceAccountHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	logger := &testutils.MockLogger{}
+
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+
+	factory.Start(nil)
+	factory.WaitForCacheSync(nil)
+
+	ctx := context.Background()
+	entries, err := handler.Collect(ctx, []string{})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
+	}
+
+	// Type assert to ServiceAccountData for assertions
+	entry, ok := entries[0].(types.ServiceAccountData)
+	if !ok {
+		t.Fatalf("Expected ServiceAccountData type, got %T", entries[0])
+	}
+
+	if entry.Name == "" {
+		t.Error("Expected name to not be empty")
+	}
+
+	if len(entry.Secrets) == 0 {
+		t.Error("Expected secrets to not be empty")
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,6 +15,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 func TestPodDisruptionBudgetHandler(t *testing.T) {
@@ -79,6 +81,15 @@ func TestPodDisruptionBudgetHandler(t *testing.T) {
 			Name:              "empty-pdb",
 			Namespace:         "default",
 			CreationTimestamp: metav1.Now(),
+		},
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			MinAvailable: minAvailable,
+		},
+		Status: policyv1.PodDisruptionBudgetStatus{
+			CurrentHealthy:     1,
+			DesiredHealthy:     1,
+			ExpectedPods:       1,
+			DisruptionsAllowed: 0,
 		},
 	}
 
@@ -150,7 +161,11 @@ func TestPodDisruptionBudgetHandler(t *testing.T) {
 			}
 			entryNames := make([]string, len(entries))
 			for i, entry := range entries {
-				entryNames[i] = entry.Name
+				podDisruptionBudgetData, ok := entry.(types.PodDisruptionBudgetData)
+				if !ok {
+					t.Fatalf("Expected PodDisruptionBudgetData type, got %T", entry)
+				}
+				entryNames[i] = podDisruptionBudgetData.Name
 			}
 			for _, expectedName := range tt.expectedNames {
 				found := false
@@ -165,53 +180,42 @@ func TestPodDisruptionBudgetHandler(t *testing.T) {
 				}
 			}
 			if tt.expectedFields != nil && len(entries) > 0 {
-				entry := entries[0]
+				podDisruptionBudgetData, ok := entries[0].(types.PodDisruptionBudgetData)
+				if !ok {
+					t.Fatalf("Expected PodDisruptionBudgetData type, got %T", entries[0])
+				}
 				for field, expectedValue := range tt.expectedFields {
 					switch field {
 					case "created_by_kind":
-						if entry.Data["createdByKind"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, entry.Data["createdByKind"])
+						if podDisruptionBudgetData.CreatedByKind != expectedValue.(string) {
+							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, podDisruptionBudgetData.CreatedByKind)
 						}
 					case "created_by_name":
-						if entry.Data["createdByName"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_name %s, got %v", expectedValue, entry.Data["createdByName"])
+						if podDisruptionBudgetData.CreatedByName != expectedValue.(string) {
+							t.Errorf("Expected created_by_name %s, got %v", expectedValue, podDisruptionBudgetData.CreatedByName)
 						}
 					}
 				}
 			}
 			for _, entry := range entries {
-				if entry.ResourceType != "poddisruptionbudget" {
-					t.Errorf("Expected resource type 'poddisruptionbudget', got %s", entry.ResourceType)
+				podDisruptionBudgetData, ok := entry.(types.PodDisruptionBudgetData)
+				if !ok {
+					t.Fatalf("Expected PodDisruptionBudgetData type, got %T", entry)
 				}
-				if entry.Name == "" {
+				if podDisruptionBudgetData.ResourceType != "poddisruptionbudget" {
+					t.Errorf("Expected resource type 'poddisruptionbudget', got %s", podDisruptionBudgetData.ResourceType)
+				}
+				if podDisruptionBudgetData.Name == "" {
 					t.Error("Entry name should not be empty")
 				}
-				if entry.Namespace == "" {
+				if podDisruptionBudgetData.Namespace == "" {
 					t.Error("Entry namespace should not be empty")
 				}
-				if entry.Data["createdTimestamp"] == nil {
-					t.Error("Created timestamp should not be nil")
+				if podDisruptionBudgetData.CreatedTimestamp == 0 {
+					t.Error("Created timestamp should not be zero")
 				}
-				if entry.Data["minAvailable"] == nil {
-					t.Error("minAvailable should not be nil")
-				}
-				if entry.Data["maxUnavailable"] == nil {
-					t.Error("maxUnavailable should not be nil")
-				}
-				if entry.Data["currentHealthy"] == nil {
-					t.Error("currentHealthy should not be nil")
-				}
-				if entry.Data["desiredHealthy"] == nil {
-					t.Error("desiredHealthy should not be nil")
-				}
-				if entry.Data["expectedPods"] == nil {
-					t.Error("expectedPods should not be nil")
-				}
-				if entry.Data["disruptionsAllowed"] == nil {
-					t.Error("disruptionsAllowed should not be nil")
-				}
-				if entry.Data["disruptionAllowed"] == nil {
-					t.Error("disruptionAllowed should not be nil")
+				if podDisruptionBudgetData.MinAvailable == 0 && podDisruptionBudgetData.MaxUnavailable == 0 {
+					t.Error("Either minAvailable or maxUnavailable should be set")
 				}
 			}
 		})
@@ -219,8 +223,8 @@ func TestPodDisruptionBudgetHandler(t *testing.T) {
 }
 
 func intstrFromInt(i int32) *intstr.IntOrString {
-	v := intstr.IntOrString{Type: intstr.Int, IntVal: i}
-	return &v
+	val := intstr.FromInt32(i)
+	return &val
 }
 
 func TestPodDisruptionBudgetHandler_EmptyCache(t *testing.T) {
@@ -252,7 +256,7 @@ func TestPodDisruptionBudgetHandler_InvalidObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
-	invalidObj := &metav1.Status{} // Use a non-PDB object
+	invalidObj := &corev1.Pod{}
 	handler.GetInformer().GetStore().Add(invalidObj)
 	entries, err := handler.Collect(context.Background(), []string{})
 	if err != nil {
@@ -260,5 +264,77 @@ func TestPodDisruptionBudgetHandler_InvalidObject(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Errorf("Expected 0 entries with invalid object, got %d", len(entries))
+	}
+}
+
+// createTestPodDisruptionBudget creates a test PodDisruptionBudget with various configurations
+func createTestPodDisruptionBudget(name, namespace string) *policyv1.PodDisruptionBudget {
+	minAvailable := intstrFromInt(2)
+	pdb := &policyv1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app":     name,
+				"version": "v1",
+			},
+			Annotations: map[string]string{
+				"description": "test pod disruption budget",
+			},
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			MinAvailable: minAvailable,
+		},
+		Status: policyv1.PodDisruptionBudgetStatus{
+			CurrentHealthy:     3,
+			DesiredHealthy:     2,
+			ExpectedPods:       4,
+			DisruptionsAllowed: 1,
+		},
+	}
+
+	return pdb
+}
+
+func TestPodDisruptionBudgetHandler_Collect(t *testing.T) {
+	pdb1 := createTestPodDisruptionBudget("test-pdb-1", "default")
+	pdb2 := createTestPodDisruptionBudget("test-pdb-2", "kube-system")
+
+	client := fake.NewSimpleClientset(pdb1, pdb2)
+	handler := NewPodDisruptionBudgetHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	logger := &testutils.MockLogger{}
+
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+
+	factory.Start(nil)
+	factory.WaitForCacheSync(nil)
+
+	ctx := context.Background()
+	entries, err := handler.Collect(ctx, []string{})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
+	}
+
+	// Type assert to PodDisruptionBudgetData for assertions
+	entry, ok := entries[0].(types.PodDisruptionBudgetData)
+	if !ok {
+		t.Fatalf("Expected PodDisruptionBudgetData type, got %T", entries[0])
+	}
+
+	if entry.Name == "" {
+		t.Error("Expected name to not be empty")
+	}
+
+	if entry.CurrentHealthy == 0 {
+		t.Error("Expected current healthy to not be zero")
 	}
 }

@@ -36,8 +36,8 @@ func (h *PodHandler) SetupInformer(factory informers.SharedInformerFactory, logg
 }
 
 // Collect gathers pod metrics from the cluster (uses cache)
-func (h *PodHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *PodHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all pods from the cache
 	pods := utils.SafeGetStoreList(h.GetInformer())
@@ -52,16 +52,15 @@ func (h *PodHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 			continue
 		}
 
-		// Create pod log entry
-		podEntry := h.createPodLogEntry(pod)
-		entries = append(entries, podEntry)
+		entry := h.createLogEntry(pod)
+		entries = append(entries, entry)
 	}
 
 	return entries, nil
 }
 
-// createPodLogEntry creates a LogEntry from a pod
-func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
+// createLogEntry creates a PodData from a pod
+func (h *PodHandler) createLogEntry(pod *corev1.Pod) types.PodData {
 	// Determine QoS class
 	qosClass := string(pod.Status.QOSClass)
 	if qosClass == "" {
@@ -279,6 +278,17 @@ func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
 	}
 
 	data := types.PodData{
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "pod",
+			Name:             utils.ExtractName(pod),
+			Namespace:        utils.ExtractNamespace(pod),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(pod),
+			Labels:           utils.ExtractLabels(pod),
+			Annotations:      utils.ExtractAnnotations(pod),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		NodeName:               pod.Spec.NodeName,
 		HostIP:                 pod.Status.HostIP,
 		PodIP:                  pod.Status.PodIP,
@@ -291,10 +301,6 @@ func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
 		ContainersReady:        containersReady,
 		PodScheduled:           podScheduled,
 		RestartCount:           totalRestartCount,
-		CreatedByKind:          createdByKind,
-		CreatedByName:          createdByName,
-		Labels:                 utils.ExtractLabels(pod),
-		Annotations:            utils.ExtractAnnotations(pod),
 		DeletionTimestamp:      deletionTimestamp,
 		StartTime:              startTime,
 		InitializedTime:        initializedTime,
@@ -317,5 +323,5 @@ func (h *PodHandler) createPodLogEntry(pod *corev1.Pod) types.LogEntry {
 		ResourceRequests:       resourceRequests,
 	}
 
-	return utils.CreateLogEntry("pod", utils.ExtractName(pod), utils.ExtractNamespace(pod), data)
+	return data
 }

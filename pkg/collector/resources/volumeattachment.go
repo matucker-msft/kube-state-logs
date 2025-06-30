@@ -34,13 +34,13 @@ func (h *VolumeAttachmentHandler) SetupInformer(factory informers.SharedInformer
 }
 
 // Collect gathers volumeattachment metrics from the cluster (uses cache)
-func (h *VolumeAttachmentHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *VolumeAttachmentHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all volumeattachments from the cache
-	vaList := utils.SafeGetStoreList(h.GetInformer())
+	volumeAttachments := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range vaList {
+	for _, obj := range volumeAttachments {
 		va, ok := obj.(*storagev1.VolumeAttachment)
 		if !ok {
 			continue
@@ -53,8 +53,8 @@ func (h *VolumeAttachmentHandler) Collect(ctx context.Context, namespaces []stri
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a volumeattachment
-func (h *VolumeAttachmentHandler) createLogEntry(va *storagev1.VolumeAttachment) types.LogEntry {
+// createLogEntry creates a VolumeAttachmentData from a volumeattachment
+func (h *VolumeAttachmentHandler) createLogEntry(va *storagev1.VolumeAttachment) types.VolumeAttachmentData {
 	// Get attachment metadata
 	attachmentMetadata := make(map[string]string)
 	if va.Status.AttachmentMetadata != nil {
@@ -73,17 +73,22 @@ func (h *VolumeAttachmentHandler) createLogEntry(va *storagev1.VolumeAttachment)
 
 	// Create data structure
 	data := types.VolumeAttachmentData{
-		CreatedTimestamp:   utils.ExtractCreationTimestamp(va),
-		Labels:             utils.ExtractLabels(va),
-		Annotations:        utils.ExtractAnnotations(va),
-		Attacher:           va.Spec.Attacher,
-		VolumeName:         volumeName,
-		NodeName:           va.Spec.NodeName,
-		Attached:           va.Status.Attached,
-		AttachmentMetadata: attachmentMetadata,
-		CreatedByKind:      createdByKind,
-		CreatedByName:      createdByName,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "volumeattachment",
+			Name:             utils.ExtractName(va),
+			Namespace:        utils.ExtractNamespace(va),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(va),
+			Labels:           utils.ExtractLabels(va),
+			Annotations:      utils.ExtractAnnotations(va),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		Attacher:   va.Spec.Attacher,
+		VolumeName: volumeName,
+		NodeName:   va.Spec.NodeName,
+		Attached:   va.Status.Attached,
 	}
 
-	return utils.CreateLogEntry("volumeattachment", utils.ExtractName(va), utils.ExtractNamespace(va), data)
+	return data
 }

@@ -1,19 +1,15 @@
 package testutils
 
-import (
-	"github.com/matucker-msft/kube-state-logs/pkg/types"
-)
-
 type MockLogger struct {
-	logs []types.LogEntry
+	logs []any
 }
 
-func (m *MockLogger) Log(entry types.LogEntry) error {
+func (m *MockLogger) Log(entry any) error {
 	m.logs = append(m.logs, entry)
 	return nil
 }
 
-func (m *MockLogger) GetLogs() []types.LogEntry {
+func (m *MockLogger) GetLogs() []any {
 	return m.logs
 }
 

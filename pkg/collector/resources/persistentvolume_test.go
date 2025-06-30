@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 func TestPersistentVolumeHandler(t *testing.T) {
@@ -168,7 +169,11 @@ func TestPersistentVolumeHandler(t *testing.T) {
 			}
 			entryNames := make([]string, len(entries))
 			for i, entry := range entries {
-				entryNames[i] = entry.Name
+				persistentVolumeData, ok := entry.(types.PersistentVolumeData)
+				if !ok {
+					t.Fatalf("Expected PersistentVolumeData type, got %T", entry)
+				}
+				entryNames[i] = persistentVolumeData.Name
 			}
 			for _, expectedName := range tt.expectedNames {
 				found := false
@@ -183,58 +188,62 @@ func TestPersistentVolumeHandler(t *testing.T) {
 				}
 			}
 			if tt.expectedFields != nil && len(entries) > 0 {
-				entry := entries[0]
+				persistentVolumeData, ok := entries[0].(types.PersistentVolumeData)
+				if !ok {
+					t.Fatalf("Expected PersistentVolumeData type, got %T", entries[0])
+				}
 				for field, expectedValue := range tt.expectedFields {
 					switch field {
 					case "created_by_kind":
-						if entry.Data["createdByKind"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, entry.Data["createdByKind"])
+						if persistentVolumeData.CreatedByKind != expectedValue.(string) {
+							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, persistentVolumeData.CreatedByKind)
 						}
 					case "created_by_name":
-						if entry.Data["createdByName"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_name %s, got %v", expectedValue, entry.Data["createdByName"])
+						if persistentVolumeData.CreatedByName != expectedValue.(string) {
+							t.Errorf("Expected created_by_name %s, got %v", expectedValue, persistentVolumeData.CreatedByName)
 						}
 					case "access_modes":
-						if entry.Data["accessModes"] != expectedValue.(string) {
-							t.Errorf("Expected access_modes %s, got %v", expectedValue, entry.Data["accessModes"])
+						if persistentVolumeData.AccessModes != expectedValue.(string) {
+							t.Errorf("Expected access_modes %s, got %v", expectedValue, persistentVolumeData.AccessModes)
 						}
 					case "storage_class":
-						if entry.Data["storageClassName"] != expectedValue.(string) {
-							t.Errorf("Expected storage_class %s, got %v", expectedValue, entry.Data["storageClassName"])
+						if persistentVolumeData.StorageClassName != expectedValue.(string) {
+							t.Errorf("Expected storage_class %s, got %v", expectedValue, persistentVolumeData.StorageClassName)
 						}
 					case "status":
-						if entry.Data["status"] != expectedValue.(string) {
-							t.Errorf("Expected status %s, got %v", expectedValue, entry.Data["status"])
+						if persistentVolumeData.Status != expectedValue.(string) {
+							t.Errorf("Expected status %s, got %v", expectedValue, persistentVolumeData.Status)
 						}
 					case "volume_plugin_name":
-						if entry.Data["volumePluginName"] != expectedValue.(string) {
-							t.Errorf("Expected volume_plugin_name %s, got %v", expectedValue, entry.Data["volumePluginName"])
+						if persistentVolumeData.VolumePluginName != expectedValue.(string) {
+							t.Errorf("Expected volume_plugin_name %s, got %v", expectedValue, persistentVolumeData.VolumePluginName)
 						}
 					case "capacity_bytes":
-						if entry.Data["capacityBytes"] != expectedValue.(int64) {
-							t.Errorf("Expected capacity_bytes %d, got %v", expectedValue, entry.Data["capacityBytes"])
+						if persistentVolumeData.CapacityBytes != expectedValue.(int64) {
+							t.Errorf("Expected capacity_bytes %d, got %d", expectedValue, persistentVolumeData.CapacityBytes)
 						}
 					}
 				}
 			}
 			for _, entry := range entries {
-				if entry.ResourceType != "persistentvolume" {
-					t.Errorf("Expected resource type 'persistentvolume', got %s", entry.ResourceType)
+				persistentVolumeData, ok := entry.(types.PersistentVolumeData)
+				if !ok {
+					t.Fatalf("Expected PersistentVolumeData type, got %T", entry)
 				}
-				if entry.Name == "" {
+				if persistentVolumeData.ResourceType != "persistentvolume" {
+					t.Errorf("Expected resource type 'persistentvolume', got %s", persistentVolumeData.ResourceType)
+				}
+				if persistentVolumeData.Name == "" {
 					t.Error("Entry name should not be empty")
 				}
-				if entry.Data["createdTimestamp"] == nil {
-					t.Error("Created timestamp should not be nil")
+				if persistentVolumeData.CreatedTimestamp == 0 {
+					t.Error("Created timestamp should not be zero")
 				}
-				if entry.Data["accessModes"] == nil {
-					t.Error("accessModes should not be nil")
+				if persistentVolumeData.AccessModes == "" {
+					t.Error("access modes should not be empty")
 				}
-				if entry.Data["status"] == nil {
-					t.Error("status should not be nil")
-				}
-				if entry.Data["volumePluginName"] == nil {
-					t.Error("volumePluginName should not be nil")
+				if persistentVolumeData.Status == "" {
+					t.Error("status should not be empty")
 				}
 			}
 		})
@@ -278,5 +287,83 @@ func TestPersistentVolumeHandler_InvalidObject(t *testing.T) {
 	}
 	if len(entries) != 0 {
 		t.Errorf("Expected 0 entries with invalid object, got %d", len(entries))
+	}
+}
+
+// createTestPV creates a test PersistentVolume with various configurations
+func createTestPV(name string, phase corev1.PersistentVolumePhase) *corev1.PersistentVolume {
+	volumeMode := corev1.PersistentVolumeFilesystem
+	pv := &corev1.PersistentVolume{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: name,
+			Labels: map[string]string{
+				"app":     name,
+				"version": "v1",
+			},
+			Annotations: map[string]string{
+				"description": "test persistent volume",
+			},
+			CreationTimestamp: metav1.Now(),
+		},
+		Spec: corev1.PersistentVolumeSpec{
+			Capacity: corev1.ResourceList{
+				corev1.ResourceStorage: resource.MustParse("1Gi"),
+			},
+			AccessModes:                   []corev1.PersistentVolumeAccessMode{corev1.ReadWriteOnce},
+			PersistentVolumeReclaimPolicy: corev1.PersistentVolumeReclaimRetain,
+			VolumeMode:                    &volumeMode,
+			PersistentVolumeSource: corev1.PersistentVolumeSource{
+				HostPath: &corev1.HostPathVolumeSource{
+					Path: "/data",
+				},
+			},
+		},
+		Status: corev1.PersistentVolumeStatus{
+			Phase: phase,
+		},
+	}
+
+	return pv
+}
+
+func TestPersistentVolumeHandler_Collect(t *testing.T) {
+	pv1 := createTestPV("test-pv-1", corev1.VolumeAvailable)
+	pv2 := createTestPV("test-pv-2", corev1.VolumeBound)
+
+	client := fake.NewSimpleClientset(pv1, pv2)
+	handler := NewPersistentVolumeHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	logger := &testutils.MockLogger{}
+
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+
+	factory.Start(nil)
+	factory.WaitForCacheSync(nil)
+
+	ctx := context.Background()
+	entries, err := handler.Collect(ctx, []string{})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
+	}
+
+	// Type assert to PersistentVolumeData for assertions
+	entry, ok := entries[0].(types.PersistentVolumeData)
+	if !ok {
+		t.Fatalf("Expected PersistentVolumeData type, got %T", entries[0])
+	}
+
+	if entry.Name == "" {
+		t.Error("Expected name to not be empty")
+	}
+
+	if entry.Status == "" {
+		t.Error("Expected status to not be empty")
 	}
 }

@@ -34,49 +34,57 @@ func (h *ValidatingAdmissionPolicyHandler) SetupInformer(factory informers.Share
 }
 
 // Collect gathers validatingadmissionpolicy metrics from the cluster (uses cache)
-func (h *ValidatingAdmissionPolicyHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *ValidatingAdmissionPolicyHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all validatingadmissionpolicies from the cache
-	vapList := utils.SafeGetStoreList(h.GetInformer())
+	policies := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range vapList {
-		vap, ok := obj.(*admissionregistrationv1beta1.ValidatingAdmissionPolicy)
+	for _, obj := range policies {
+		policy, ok := obj.(*admissionregistrationv1beta1.ValidatingAdmissionPolicy)
 		if !ok {
 			continue
 		}
 
-		entry := h.createLogEntry(vap)
+		entry := h.createLogEntry(policy)
 		entries = append(entries, entry)
 	}
 
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a ValidatingAdmissionPolicy
-func (h *ValidatingAdmissionPolicyHandler) createLogEntry(vap *admissionregistrationv1beta1.ValidatingAdmissionPolicy) types.LogEntry {
-	createdTimestamp := utils.ExtractCreationTimestamp(vap)
-	createdByKind, createdByName := utils.GetOwnerReferenceInfo(vap)
+// createLogEntry creates a ValidatingAdmissionPolicyData from a validatingadmissionpolicy
+func (h *ValidatingAdmissionPolicyHandler) createLogEntry(policy *admissionregistrationv1beta1.ValidatingAdmissionPolicy) types.ValidatingAdmissionPolicyData {
+	createdTimestamp := utils.ExtractCreationTimestamp(policy)
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(policy)
 
 	failurePolicy := ""
-	if vap.Spec.FailurePolicy != nil {
-		failurePolicy = string(*vap.Spec.FailurePolicy)
+	if policy.Spec.FailurePolicy != nil {
+		failurePolicy = string(*policy.Spec.FailurePolicy)
 	}
 
 	paramKind := ""
-	if vap.Spec.ParamKind != nil {
-		paramKind = vap.Spec.ParamKind.Kind
+	if policy.Spec.ParamKind != nil {
+		paramKind = policy.Spec.ParamKind.Kind
 	}
 
 	observedGeneration := int64(0)
-	if vap.Status.ObservedGeneration != 0 {
-		observedGeneration = vap.Status.ObservedGeneration
+	if policy.Status.ObservedGeneration != 0 {
+		observedGeneration = policy.Status.ObservedGeneration
 	}
 
 	data := types.ValidatingAdmissionPolicyData{
-		CreatedTimestamp:   createdTimestamp,
-		Labels:             vap.GetLabels(),
-		Annotations:        vap.GetAnnotations(),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "validatingadmissionpolicy",
+			Name:             utils.ExtractName(policy),
+			Namespace:        utils.ExtractNamespace(policy),
+			CreatedTimestamp: createdTimestamp,
+			Labels:           policy.GetLabels(),
+			Annotations:      policy.GetAnnotations(),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		FailurePolicy:      failurePolicy,
 		MatchConstraints:   []string{},
 		Validations:        []string{},
@@ -87,9 +95,7 @@ func (h *ValidatingAdmissionPolicyHandler) createLogEntry(vap *admissionregistra
 		ObservedGeneration: observedGeneration,
 		TypeChecking:       "",
 		ExpressionWarnings: []string{},
-		CreatedByKind:      createdByKind,
-		CreatedByName:      createdByName,
 	}
 
-	return utils.CreateLogEntry("validatingadmissionpolicy", utils.ExtractName(vap), utils.ExtractNamespace(vap), data)
+	return data
 }

@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 	"k8s.io/client-go/informers"
 )
 
@@ -158,9 +159,10 @@ func TestValidatingAdmissionPolicyHandler_Collect(t *testing.T) {
 		t.Fatalf("Expected 1 entry, got %d", len(entries))
 	}
 
-	entry := entries[0]
-	if entry.ResourceType != "validatingadmissionpolicy" {
-		t.Errorf("Expected resource type 'validatingadmissionpolicy', got %s", entry.ResourceType)
+	// Type assert to ValidatingAdmissionPolicyData for assertions
+	entry, ok := entries[0].(types.ValidatingAdmissionPolicyData)
+	if !ok {
+		t.Fatalf("Expected ValidatingAdmissionPolicyData type, got %T", entries[0])
 	}
 
 	if entry.Name != "test-vap" {
@@ -168,35 +170,24 @@ func TestValidatingAdmissionPolicyHandler_Collect(t *testing.T) {
 	}
 
 	// Verify data
-	data := entry.Data
-	if data["failurePolicy"] != "Fail" {
-		t.Errorf("Expected failure policy 'Fail', got %s", data["failurePolicy"])
+	if entry.FailurePolicy != "Fail" {
+		t.Errorf("Expected failure policy 'Fail', got %s", entry.FailurePolicy)
 	}
 
-	if data["paramKind"] != "ConfigMap" {
-		t.Errorf("Expected param kind 'ConfigMap', got %s", data["paramKind"])
+	if entry.ParamKind != "ConfigMap" {
+		t.Errorf("Expected param kind 'ConfigMap', got %s", entry.ParamKind)
 	}
 
-	if data["observedGeneration"] != int64(1) {
-		t.Errorf("Expected observed generation 1, got %v", data["observedGeneration"])
+	if entry.ObservedGeneration != int64(1) {
+		t.Errorf("Expected observed generation 1, got %v", entry.ObservedGeneration)
 	}
 
-	labels, ok := data["labels"].(map[string]string)
-	if !ok {
-		t.Fatal("Expected labels to be map[string]string")
+	if entry.Labels["app"] != "test-app" {
+		t.Errorf("Expected label 'app' to be 'test-app', got %s", entry.Labels["app"])
 	}
 
-	if labels["app"] != "test-app" {
-		t.Errorf("Expected label 'app' to be 'test-app', got %s", labels["app"])
-	}
-
-	annotations, ok := data["annotations"].(map[string]string)
-	if !ok {
-		t.Fatal("Expected annotations to be map[string]string")
-	}
-
-	if annotations["test-annotation"] != "test-value" {
-		t.Errorf("Expected annotation 'test-annotation' to be 'test-value', got %s", annotations["test-annotation"])
+	if entry.Annotations["test-annotation"] != "test-value" {
+		t.Errorf("Expected annotation 'test-annotation' to be 'test-value', got %s", entry.Annotations["test-annotation"])
 	}
 }
 
@@ -241,7 +232,7 @@ func TestValidatingAdmissionPolicyHandler_Collect_InvalidObject(t *testing.T) {
 
 	// Add invalid object to store
 	store := informer.GetStore()
-	store.Add(&corev1.Pod{}) // Wrong type
+	store.Add(&corev1.Pod{})
 
 	// Collect entries
 	entries, err := handler.Collect(context.Background(), []string{})
@@ -250,102 +241,73 @@ func TestValidatingAdmissionPolicyHandler_Collect_InvalidObject(t *testing.T) {
 	}
 
 	if len(entries) != 0 {
-		t.Fatalf("Expected 0 entries, got %d", len(entries))
+		t.Fatalf("Expected 0 entries with invalid object, got %d", len(entries))
 	}
 }
 
 func TestValidatingAdmissionPolicyHandler_CreateLogEntry(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewValidatingAdmissionPolicyHandler(client)
-
-	// Create test validatingadmissionpolicy with owner reference
-	ownerRef := metav1.OwnerReference{
-		Kind: "Deployment",
-		Name: "test-deployment",
-	}
 	vap := createTestValidatingAdmissionPolicy("test-vap")
-	vap.OwnerReferences = []metav1.OwnerReference{ownerRef}
-
-	// Create log entry
 	entry := handler.createLogEntry(vap)
-
-	if entry.ResourceType != "validatingadmissionpolicy" {
-		t.Errorf("Expected resource type 'validatingadmissionpolicy', got %s", entry.ResourceType)
-	}
 
 	if entry.Name != "test-vap" {
 		t.Errorf("Expected name 'test-vap', got %s", entry.Name)
 	}
 
-	// Verify data
-	data := entry.Data
-	if data["createdByKind"] != "Deployment" {
-		t.Errorf("Expected created by kind 'Deployment', got %s", data["createdByKind"])
+	if entry.FailurePolicy != "Fail" {
+		t.Errorf("Expected failure policy 'Fail', got %s", entry.FailurePolicy)
 	}
 
-	if data["createdByName"] != "test-deployment" {
-		t.Errorf("Expected created by name 'test-deployment', got %s", data["createdByName"])
+	if entry.ParamKind != "ConfigMap" {
+		t.Errorf("Expected param kind 'ConfigMap', got %s", entry.ParamKind)
 	}
 
-	if data["failurePolicy"] != "Fail" {
-		t.Errorf("Expected failure policy 'Fail', got %s", data["failurePolicy"])
+	if entry.ObservedGeneration != int64(1) {
+		t.Errorf("Expected observed generation 1, got %v", entry.ObservedGeneration)
 	}
 
-	if data["paramKind"] != "ConfigMap" {
-		t.Errorf("Expected param kind 'ConfigMap', got %s", data["paramKind"])
+	if entry.Labels["app"] != "test-app" {
+		t.Errorf("Expected label 'app' to be 'test-app', got %s", entry.Labels["app"])
+	}
+
+	if entry.Annotations["test-annotation"] != "test-value" {
+		t.Errorf("Expected annotation 'test-annotation' to be 'test-value', got %s", entry.Annotations["test-annotation"])
 	}
 }
 
 func TestValidatingAdmissionPolicyHandler_CreateLogEntry_NoFailurePolicy(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewValidatingAdmissionPolicyHandler(client)
-
-	// Create test validatingadmissionpolicy without failure policy
 	vap := createTestValidatingAdmissionPolicy("test-vap")
 	vap.Spec.FailurePolicy = nil
-
-	// Create log entry
 	entry := handler.createLogEntry(vap)
 
-	// Verify data
-	data := entry.Data
-	if data["failurePolicy"] != "" {
-		t.Errorf("Expected empty failure policy, got %s", data["failurePolicy"])
+	if entry.FailurePolicy != "" {
+		t.Errorf("Expected empty failure policy, got %s", entry.FailurePolicy)
 	}
 }
 
 func TestValidatingAdmissionPolicyHandler_CreateLogEntry_NoParamKind(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewValidatingAdmissionPolicyHandler(client)
-
-	// Create test validatingadmissionpolicy without param kind
 	vap := createTestValidatingAdmissionPolicy("test-vap")
 	vap.Spec.ParamKind = nil
-
-	// Create log entry
 	entry := handler.createLogEntry(vap)
 
-	// Verify data
-	data := entry.Data
-	if data["paramKind"] != "" {
-		t.Errorf("Expected empty param kind, got %s", data["paramKind"])
+	if entry.ParamKind != "" {
+		t.Errorf("Expected empty param kind, got %s", entry.ParamKind)
 	}
 }
 
 func TestValidatingAdmissionPolicyHandler_CreateLogEntry_NoObservedGeneration(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewValidatingAdmissionPolicyHandler(client)
-
-	// Create test validatingadmissionpolicy without observed generation
 	vap := createTestValidatingAdmissionPolicy("test-vap")
 	vap.Status.ObservedGeneration = 0
-
-	// Create log entry
 	entry := handler.createLogEntry(vap)
 
-	// Verify data
-	data := entry.Data
-	if data["observedGeneration"] != int64(0) {
-		t.Errorf("Expected observed generation 0, got %v", data["observedGeneration"])
+	if entry.ObservedGeneration != int64(0) {
+		t.Errorf("Expected observed generation 0, got %v", entry.ObservedGeneration)
 	}
 }

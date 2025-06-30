@@ -34,13 +34,13 @@ func (h *PersistentVolumeHandler) SetupInformer(factory informers.SharedInformer
 }
 
 // Collect gathers persistentvolume metrics from the cluster (uses cache)
-func (h *PersistentVolumeHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *PersistentVolumeHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all persistentvolumes from the cache
-	pvList := utils.SafeGetStoreList(h.GetInformer())
+	pvs := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range pvList {
+	for _, obj := range pvs {
 		pv, ok := obj.(*corev1.PersistentVolume)
 		if !ok {
 			continue
@@ -53,8 +53,8 @@ func (h *PersistentVolumeHandler) Collect(ctx context.Context, namespaces []stri
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a persistentvolume
-func (h *PersistentVolumeHandler) createLogEntry(pv *corev1.PersistentVolume) types.LogEntry {
+// createLogEntry creates a PersistentVolumeData from a persistentvolume
+func (h *PersistentVolumeHandler) createLogEntry(pv *corev1.PersistentVolume) types.PersistentVolumeData {
 	// Extract access modes
 	var accessModes []string
 	for _, mode := range pv.Spec.AccessModes {
@@ -139,21 +139,27 @@ func (h *PersistentVolumeHandler) createLogEntry(pv *corev1.PersistentVolume) ty
 
 	// Create data structure
 	data := types.PersistentVolumeData{
-		CreatedTimestamp:       utils.ExtractCreationTimestamp(pv),
-		Labels:                 utils.ExtractLabels(pv),
-		Annotations:            utils.ExtractAnnotations(pv),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "persistentvolume",
+			Name:             utils.ExtractName(pv),
+			Namespace:        utils.ExtractNamespace(pv),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(pv),
+			Labels:           utils.ExtractLabels(pv),
+			Annotations:      utils.ExtractAnnotations(pv),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		CapacityBytes:          capacityBytes,
-		AccessModes:            accessModes[0], // Take first access mode
+		AccessModes:            accessModes[0],
 		ReclaimPolicy:          reclaimPolicy,
 		Status:                 status,
 		StorageClassName:       storageClassName,
 		VolumeMode:             volumeMode,
 		VolumePluginName:       volumePluginName,
 		PersistentVolumeSource: persistentVolumeSource,
-		CreatedByKind:          createdByKind,
-		CreatedByName:          createdByName,
-		IsDefaultClass:         false, // This would need to be determined from StorageClass
+		IsDefaultClass:         false,
 	}
 
-	return utils.CreateLogEntry("persistentvolume", utils.ExtractName(pv), utils.ExtractNamespace(pv), data)
+	return data
 }

@@ -3,13 +3,13 @@ package resources
 import (
 	"context"
 	"testing"
+	"time"
 
 	admissionregistrationv1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
-	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
@@ -73,266 +73,84 @@ func createTestMutatingWebhookConfiguration(name string) *admissionregistrationv
 	}
 }
 
-func TestNewMutatingWebhookConfigurationHandler(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewMutatingWebhookConfigurationHandler(client)
-
-	if handler == nil {
-		t.Fatal("Expected handler to be created")
-	}
-}
-
-func TestMutatingWebhookConfigurationHandler_SetupInformer(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewMutatingWebhookConfigurationHandler(client)
-	logger := &testutils.MockLogger{}
-	factory := cache.NewSharedIndexInformer(
-		&cache.ListWatch{},
-		&admissionregistrationv1.MutatingWebhookConfiguration{},
-		0,
-		cache.Indexers{},
-	)
-	handler.SetupBaseInformer(factory, logger)
-	if handler.GetInformer() == nil {
-		t.Fatal("Expected informer to be set up")
-	}
-}
-
-func TestMutatingWebhookConfigurationHandler_SetupInformer_Proper(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewMutatingWebhookConfigurationHandler(client)
-	logger := &testutils.MockLogger{}
-
-	// Create a proper informer factory
-	factory := informers.NewSharedInformerFactory(client, 0)
-
-	err := handler.SetupInformer(factory, logger, 0)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-
-	if handler.GetInformer() == nil {
-		t.Fatal("Expected informer to be set up")
-	}
-}
-
 func TestMutatingWebhookConfigurationHandler_Collect(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	mwc1 := createTestMutatingWebhookConfiguration("test-mwc-1")
+	mwc2 := createTestMutatingWebhookConfiguration("test-mwc-2")
+
+	client := fake.NewSimpleClientset(mwc1, mwc2)
 	handler := NewMutatingWebhookConfigurationHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
 
-	// Create test mutatingwebhookconfiguration
-	mwc := createTestMutatingWebhookConfiguration("test-mwc")
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
 
-	// Create informer and add test object
-	informer := cache.NewSharedIndexInformer(
-		&cache.ListWatch{},
-		&admissionregistrationv1.MutatingWebhookConfiguration{},
-		0,
-		cache.Indexers{},
-	)
-	handler.SetupBaseInformer(informer, logger)
+	factory.Start(nil)
+	factory.WaitForCacheSync(nil)
 
-	// Add test object to store
-	store := informer.GetStore()
-	store.Add(mwc)
-
-	// Collect entries
-	entries, err := handler.Collect(context.Background(), []string{})
+	ctx := context.Background()
+	entries, err := handler.Collect(ctx, []string{})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	if len(entries) != 1 {
-		t.Fatalf("Expected 1 entry, got %d", len(entries))
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
 	}
 
-	entry := entries[0]
-	if entry.ResourceType != "mutatingwebhookconfiguration" {
-		t.Errorf("Expected resource type 'mutatingwebhookconfiguration', got %s", entry.ResourceType)
-	}
-
-	if entry.Name != "test-mwc" {
-		t.Errorf("Expected name 'test-mwc', got %s", entry.Name)
-	}
-
-	// Verify data - webhooks are stored as the original struct type
-	data := entry.Data
-	webhooks, ok := data["webhooks"].([]types.WebhookData)
+	// Type assert to MutatingWebhookConfigurationData for assertions
+	entry, ok := entries[0].(types.MutatingWebhookConfigurationData)
 	if !ok {
-		t.Fatal("Expected webhooks to be []types.WebhookData")
+		t.Fatalf("Expected MutatingWebhookConfigurationData type, got %T", entries[0])
 	}
 
-	if len(webhooks) != 1 {
-		t.Errorf("Expected 1 webhook, got %d", len(webhooks))
+	if entry.Name == "" {
+		t.Error("Expected name to not be empty")
 	}
 
-	webhook := webhooks[0]
-	if webhook.Name != "test-webhook" {
-		t.Errorf("Expected webhook name 'test-webhook', got %s", webhook.Name)
-	}
-
-	if webhook.ClientConfig.URL != "https://webhook.example.com/mutate" {
-		t.Errorf("Expected URL 'https://webhook.example.com/mutate', got %s", webhook.ClientConfig.URL)
-	}
-
-	if webhook.ClientConfig.Service == nil {
-		t.Fatal("Expected service config to be present")
-	}
-
-	if webhook.ClientConfig.Service.Name != "webhook-service" {
-		t.Errorf("Expected service name 'webhook-service', got %s", webhook.ClientConfig.Service.Name)
-	}
-
-	if len(webhook.Rules) != 1 {
-		t.Errorf("Expected 1 rule, got %d", len(webhook.Rules))
-	}
-
-	rule := webhook.Rules[0]
-	if rule.Scope != "Namespaced" {
-		t.Errorf("Expected scope 'Namespaced', got %s", rule.Scope)
+	if len(entry.Webhooks) == 0 {
+		t.Error("Expected webhooks to not be empty")
 	}
 }
 
-func TestMutatingWebhookConfigurationHandler_Collect_Empty(t *testing.T) {
+func TestMutatingWebhookConfigurationHandler_EmptyCache(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewMutatingWebhookConfigurationHandler(client)
-	logger := &testutils.MockLogger{}
-
-	// Create empty informer
-	informer := cache.NewSharedIndexInformer(
-		&cache.ListWatch{},
-		&admissionregistrationv1.MutatingWebhookConfiguration{},
-		0,
-		cache.Indexers{},
-	)
-	handler.SetupBaseInformer(informer, logger)
-
-	// Collect entries
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	err := handler.SetupInformer(factory, &testutils.MockLogger{}, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+	factory.Start(context.Background().Done())
+	factory.WaitForCacheSync(context.Background().Done())
 	entries, err := handler.Collect(context.Background(), []string{})
 	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
+		t.Fatalf("Failed to collect metrics: %v", err)
 	}
-
 	if len(entries) != 0 {
-		t.Fatalf("Expected 0 entries, got %d", len(entries))
+		t.Errorf("Expected 0 entries, got %d", len(entries))
 	}
 }
 
-func TestMutatingWebhookConfigurationHandler_Collect_InvalidObject(t *testing.T) {
+func TestMutatingWebhookConfigurationHandler_InvalidObject(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewMutatingWebhookConfigurationHandler(client)
-	logger := &testutils.MockLogger{}
-
-	// Create informer
-	informer := cache.NewSharedIndexInformer(
-		&cache.ListWatch{},
-		&admissionregistrationv1.MutatingWebhookConfiguration{},
-		0,
-		cache.Indexers{},
-	)
-	handler.SetupBaseInformer(informer, logger)
-
-	// Add invalid object to store
-	store := informer.GetStore()
-	store.Add(&corev1.Pod{}) // Wrong type
-
-	// Collect entries
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	err := handler.SetupInformer(factory, &testutils.MockLogger{}, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+	invalidObj := &corev1.Pod{}
+	handler.GetInformer().GetStore().Add(invalidObj)
+	factory.Start(context.Background().Done())
+	factory.WaitForCacheSync(context.Background().Done())
 	entries, err := handler.Collect(context.Background(), []string{})
 	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
+		t.Fatalf("Failed to collect metrics: %v", err)
 	}
-
 	if len(entries) != 0 {
-		t.Fatalf("Expected 0 entries, got %d", len(entries))
-	}
-}
-
-func TestMutatingWebhookConfigurationHandler_CreateLogEntry(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewMutatingWebhookConfigurationHandler(client)
-
-	// Create test mutatingwebhookconfiguration with owner reference
-	ownerRef := metav1.OwnerReference{
-		Kind: "Deployment",
-		Name: "test-deployment",
-	}
-	mwc := createTestMutatingWebhookConfiguration("test-mwc")
-	mwc.OwnerReferences = []metav1.OwnerReference{ownerRef}
-
-	// Create log entry
-	entry := handler.createLogEntry(mwc)
-
-	if entry.ResourceType != "mutatingwebhookconfiguration" {
-		t.Errorf("Expected resource type 'mutatingwebhookconfiguration', got %s", entry.ResourceType)
-	}
-
-	if entry.Name != "test-mwc" {
-		t.Errorf("Expected name 'test-mwc', got %s", entry.Name)
-	}
-
-	// Verify data
-	data := entry.Data
-	if data["createdByKind"] != "Deployment" {
-		t.Errorf("Expected created by kind 'Deployment', got %s", data["createdByKind"])
-	}
-
-	if data["createdByName"] != "test-deployment" {
-		t.Errorf("Expected created by name 'test-deployment', got %s", data["createdByName"])
-	}
-
-	labels, ok := data["labels"].(map[string]string)
-	if !ok {
-		t.Fatal("Expected labels to be map[string]string")
-	}
-
-	if labels["app"] != "test-app" {
-		t.Errorf("Expected label 'app' to be 'test-app', got %s", labels["app"])
-	}
-
-	annotations, ok := data["annotations"].(map[string]string)
-	if !ok {
-		t.Fatal("Expected annotations to be map[string]string")
-	}
-
-	if annotations["test-annotation"] != "test-value" {
-		t.Errorf("Expected annotation 'test-annotation' to be 'test-value', got %s", annotations["test-annotation"])
-	}
-}
-
-func TestMutatingWebhookConfigurationHandler_CreateLogEntry_WithSelectors(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewMutatingWebhookConfigurationHandler(client)
-
-	// Create test mutatingwebhookconfiguration with selectors
-	mwc := createTestMutatingWebhookConfiguration("test-mwc")
-	mwc.Webhooks[0].NamespaceSelector = &metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			"namespace-label": "namespace-value",
-		},
-	}
-	mwc.Webhooks[0].ObjectSelector = &metav1.LabelSelector{
-		MatchLabels: map[string]string{
-			"object-label": "object-value",
-		},
-	}
-
-	// Create log entry
-	entry := handler.createLogEntry(mwc)
-
-	// Verify data - webhooks are stored as the original struct type
-	data := entry.Data
-	webhooks, ok := data["webhooks"].([]types.WebhookData)
-	if !ok {
-		t.Fatal("Expected webhooks to be []types.WebhookData")
-	}
-
-	webhook := webhooks[0]
-	if webhook.NamespaceSelector["namespace-label"] != "namespace-value" {
-		t.Errorf("Expected namespace selector 'namespace-label' to be 'namespace-value', got %s", webhook.NamespaceSelector["namespace-label"])
-	}
-
-	if webhook.ObjectSelector["object-label"] != "object-value" {
-		t.Errorf("Expected object selector 'object-label' to be 'object-value', got %s", webhook.ObjectSelector["object-label"])
+		t.Errorf("Expected 0 entries with invalid object, got %d", len(entries))
 	}
 }

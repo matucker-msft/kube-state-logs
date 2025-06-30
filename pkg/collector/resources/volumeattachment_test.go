@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 func createTestVolumeAttachment(name string) *storagev1.VolumeAttachment {
@@ -100,29 +101,39 @@ func TestVolumeAttachmentHandler_Collect(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("Expected 1 entry, got %d", len(entries))
 	}
-	entry := entries[0]
-	if entry.ResourceType != "volumeattachment" {
-		t.Errorf("Expected resource type 'volumeattachment', got %s", entry.ResourceType)
+
+	// Type assert to VolumeAttachmentData for assertions
+	entry, ok := entries[0].(types.VolumeAttachmentData)
+	if !ok {
+		t.Fatalf("Expected VolumeAttachmentData type, got %T", entries[0])
 	}
+
 	if entry.Name != "test-va" {
 		t.Errorf("Expected name 'test-va', got %s", entry.Name)
 	}
-	data := entry.Data
-	if data["attacher"] != "test-attacher" {
-		t.Errorf("Expected attacher 'test-attacher', got %s", data["attacher"])
+
+	if entry.Attacher != "test-attacher" {
+		t.Errorf("Expected attacher 'test-attacher', got %s", entry.Attacher)
 	}
-	if data["volumeName"] != "test-pv" {
-		t.Errorf("Expected volumeName 'test-pv', got %s", data["volumeName"])
+
+	if entry.VolumeName != "test-pv" {
+		t.Errorf("Expected volumeName 'test-pv', got %s", entry.VolumeName)
 	}
-	if data["nodeName"] != "test-node" {
-		t.Errorf("Expected nodeName 'test-node', got %s", data["nodeName"])
+
+	if entry.NodeName != "test-node" {
+		t.Errorf("Expected nodeName 'test-node', got %s", entry.NodeName)
 	}
-	if data["attached"] != true {
-		t.Errorf("Expected attached true, got %v", data["attached"])
+
+	if entry.Attached != true {
+		t.Errorf("Expected attached true, got %v", entry.Attached)
 	}
-	meta, ok := data["attachmentMetadata"].(map[string]string)
-	if !ok || meta["key"] != "value" {
-		t.Errorf("Expected attachmentMetadata to have key 'key' with value 'value', got %v", data["attachmentMetadata"])
+
+	if entry.Labels["app"] != "test-app" {
+		t.Errorf("Expected label 'app' to be 'test-app', got %s", entry.Labels["app"])
+	}
+
+	if entry.Annotations["test-annotation"] != "test-value" {
+		t.Errorf("Expected annotation 'test-annotation' to be 'test-value', got %s", entry.Annotations["test-annotation"])
 	}
 }
 

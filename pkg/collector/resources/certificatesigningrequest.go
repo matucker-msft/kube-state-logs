@@ -34,13 +34,13 @@ func (h *CertificateSigningRequestHandler) SetupInformer(factory informers.Share
 }
 
 // Collect gathers certificatesigningrequest metrics from the cluster (uses cache)
-func (h *CertificateSigningRequestHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *CertificateSigningRequestHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all certificatesigningrequests from the cache
-	csrList := utils.SafeGetStoreList(h.GetInformer())
+	csrs := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range csrList {
+	for _, obj := range csrs {
 		csr, ok := obj.(*certificatesv1.CertificateSigningRequest)
 		if !ok {
 			continue
@@ -53,8 +53,8 @@ func (h *CertificateSigningRequestHandler) Collect(ctx context.Context, namespac
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a certificatesigningrequest
-func (h *CertificateSigningRequestHandler) createLogEntry(csr *certificatesv1.CertificateSigningRequest) types.LogEntry {
+// createLogEntry creates a CertificateSigningRequestData from a certificatesigningrequest
+func (h *CertificateSigningRequestHandler) createLogEntry(csr *certificatesv1.CertificateSigningRequest) types.CertificateSigningRequestData {
 	// Convert usages to strings
 	var usages []string
 	for _, usage := range csr.Spec.Usages {
@@ -71,16 +71,22 @@ func (h *CertificateSigningRequestHandler) createLogEntry(csr *certificatesv1.Ce
 
 	// Create data structure
 	data := types.CertificateSigningRequestData{
-		CreatedTimestamp:  utils.ExtractCreationTimestamp(csr),
-		Labels:            utils.ExtractLabels(csr),
-		Annotations:       utils.ExtractAnnotations(csr),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "certificatesigningrequest",
+			Name:             utils.ExtractName(csr),
+			Namespace:        utils.ExtractNamespace(csr),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(csr),
+			Labels:           utils.ExtractLabels(csr),
+			Annotations:      utils.ExtractAnnotations(csr),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		Status:            status,
 		SignerName:        csr.Spec.SignerName,
 		ExpirationSeconds: csr.Spec.ExpirationSeconds,
 		Usages:            usages,
-		CreatedByKind:     createdByKind,
-		CreatedByName:     createdByName,
 	}
 
-	return utils.CreateLogEntry("certificatesigningrequest", utils.ExtractName(csr), utils.ExtractNamespace(csr), data)
+	return data
 }

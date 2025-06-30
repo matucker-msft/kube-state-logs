@@ -34,56 +34,62 @@ func (h *ResourceQuotaHandler) SetupInformer(factory informers.SharedInformerFac
 }
 
 // Collect gathers resourcequota metrics from the cluster (uses cache)
-func (h *ResourceQuotaHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *ResourceQuotaHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all resourcequotas from the cache
-	rqList := utils.SafeGetStoreList(h.GetInformer())
+	quotas := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range rqList {
-		rq, ok := obj.(*corev1.ResourceQuota)
+	for _, obj := range quotas {
+		quota, ok := obj.(*corev1.ResourceQuota)
 		if !ok {
 			continue
 		}
 
-		if !utils.ShouldIncludeNamespace(namespaces, rq.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, quota.Namespace) {
 			continue
 		}
 
-		entry := h.createLogEntry(rq)
+		entry := h.createLogEntry(quota)
 		entries = append(entries, entry)
 	}
 
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a resourcequota
-func (h *ResourceQuotaHandler) createLogEntry(rq *corev1.ResourceQuota) types.LogEntry {
-	hard := resourceListToInt64Map(rq.Spec.Hard)
-	used := resourceListToInt64Map(rq.Status.Used)
+// createLogEntry creates a ResourceQuotaData from a resourcequota
+func (h *ResourceQuotaHandler) createLogEntry(quota *corev1.ResourceQuota) types.ResourceQuotaData {
+	hard := resourceListToInt64Map(quota.Spec.Hard)
+	used := resourceListToInt64Map(quota.Status.Used)
 
 	// Format scopes
 	// See: https://kubernetes.io/docs/concepts/policy/resource-quotas/#quota-scopes
-	scopes := make([]string, len(rq.Spec.Scopes))
-	for i, scope := range rq.Spec.Scopes {
+	scopes := make([]string, len(quota.Spec.Scopes))
+	for i, scope := range quota.Spec.Scopes {
 		scopes[i] = string(scope)
 	}
 
-	createdByKind, createdByName := utils.GetOwnerReferenceInfo(rq)
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(quota)
 
 	// Create data structure
 	data := types.ResourceQuotaData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(rq),
-		Labels:           utils.ExtractLabels(rq),
-		Annotations:      utils.ExtractAnnotations(rq),
-		Hard:             hard,
-		Used:             used,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
-		Scopes:           scopes,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "resourcequota",
+			Name:             utils.ExtractName(quota),
+			Namespace:        utils.ExtractNamespace(quota),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(quota),
+			Labels:           utils.ExtractLabels(quota),
+			Annotations:      utils.ExtractAnnotations(quota),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		Hard:   hard,
+		Used:   used,
+		Scopes: scopes,
 	}
 
-	return utils.CreateLogEntry("resourcequota", utils.ExtractName(rq), utils.ExtractNamespace(rq), data)
+	return data
 }
 
 // resourceListToInt64Map converts corev1.ResourceList to map[string]int64

@@ -34,37 +34,37 @@ func (h *ClusterRoleBindingHandler) SetupInformer(factory informers.SharedInform
 }
 
 // Collect gathers clusterrolebinding metrics from the cluster (uses cache)
-func (h *ClusterRoleBindingHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *ClusterRoleBindingHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all clusterrolebindings from the cache
-	crbList := utils.SafeGetStoreList(h.GetInformer())
+	bindings := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range crbList {
-		crb, ok := obj.(*rbacv1.ClusterRoleBinding)
+	for _, obj := range bindings {
+		binding, ok := obj.(*rbacv1.ClusterRoleBinding)
 		if !ok {
 			continue
 		}
 
-		entry := h.createLogEntry(crb)
+		entry := h.createLogEntry(binding)
 		entries = append(entries, entry)
 	}
 
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a clusterrolebinding
-func (h *ClusterRoleBindingHandler) createLogEntry(crb *rbacv1.ClusterRoleBinding) types.LogEntry {
+// createLogEntry creates a ClusterRoleBindingData from a clusterrolebinding
+func (h *ClusterRoleBindingHandler) createLogEntry(binding *rbacv1.ClusterRoleBinding) types.ClusterRoleBindingData {
 	// Convert role ref
 	roleRef := types.RoleRef{
-		APIGroup: crb.RoleRef.APIGroup,
-		Kind:     crb.RoleRef.Kind,
-		Name:     crb.RoleRef.Name,
+		APIGroup: binding.RoleRef.APIGroup,
+		Kind:     binding.RoleRef.Kind,
+		Name:     binding.RoleRef.Name,
 	}
 
 	// Convert subjects
 	var subjects []types.Subject
-	for _, subject := range crb.Subjects {
+	for _, subject := range binding.Subjects {
 		subj := types.Subject{
 			Kind:      subject.Kind,
 			Name:      subject.Name,
@@ -74,18 +74,24 @@ func (h *ClusterRoleBindingHandler) createLogEntry(crb *rbacv1.ClusterRoleBindin
 		subjects = append(subjects, subj)
 	}
 
-	createdByKind, createdByName := utils.GetOwnerReferenceInfo(crb)
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(binding)
 
 	// Create data structure
 	data := types.ClusterRoleBindingData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(crb),
-		Labels:           utils.ExtractLabels(crb),
-		Annotations:      utils.ExtractAnnotations(crb),
-		RoleRef:          roleRef,
-		Subjects:         subjects,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "clusterrolebinding",
+			Name:             utils.ExtractName(binding),
+			Namespace:        utils.ExtractNamespace(binding),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(binding),
+			Labels:           utils.ExtractLabels(binding),
+			Annotations:      utils.ExtractAnnotations(binding),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		RoleRef:  roleRef,
+		Subjects: subjects,
 	}
 
-	return utils.CreateLogEntry("clusterrolebinding", utils.ExtractName(crb), utils.ExtractNamespace(crb), data)
+	return data
 }

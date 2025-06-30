@@ -12,6 +12,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	testutils "github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
@@ -52,8 +53,45 @@ func createTestService(name, namespace string, serviceType corev1.ServiceType) *
 	return service
 }
 
-// createTestEndpoints creates test Endpoints for a service
-func createTestEndpoints(name, namespace string, addresses int) *corev1.Endpoints {
+// createTestServiceEndpoints creates a test service with various configurations
+func createTestServiceEndpoints(name, namespace string, serviceType corev1.ServiceType) *corev1.Service {
+	now := metav1.Now()
+	service := &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app":     name,
+				"version": "v1",
+			},
+			Annotations: map[string]string{
+				"description": "test service",
+			},
+			CreationTimestamp: now,
+			Generation:        1,
+		},
+		Spec: corev1.ServiceSpec{
+			Type: serviceType,
+			Ports: []corev1.ServicePort{
+				{
+					Name:       "http",
+					Protocol:   corev1.ProtocolTCP,
+					Port:       80,
+					TargetPort: intstr.FromInt(8080),
+					NodePort:   30080,
+				},
+			},
+			Selector: map[string]string{
+				"app": name,
+			},
+			ClusterIP: "10.0.0.1",
+		},
+	}
+	return service
+}
+
+// createTestEndpointsForService creates test Endpoints for a service
+func createTestEndpointsForService(name, namespace string, addresses int) *corev1.Endpoints {
 	endpoints := &corev1.Endpoints{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
@@ -103,73 +141,143 @@ func TestServiceHandler_SetupInformer(t *testing.T) {
 }
 
 func TestServiceHandler_Collect(t *testing.T) {
+	// Create test services
 	service1 := createTestService("test-service-1", "default", corev1.ServiceTypeClusterIP)
-	service2 := createTestService("test-service-2", "kube-system", corev1.ServiceTypeNodePort)
+	service2 := createTestService("test-service-2", "kube-system", corev1.ServiceTypeLoadBalancer)
+
+	// Create fake client with test services
 	client := fake.NewSimpleClientset(service1, service2)
 	handler := NewServiceHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
+
+	// Setup informer
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
+
+	// Start the factory to populate the cache
 	factory.Start(nil)
 	factory.WaitForCacheSync(nil)
+
+	// Test collecting all services
 	ctx := context.Background()
 	entries, err := handler.Collect(ctx, []string{})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 2 {
 		t.Fatalf("Expected 2 entries, got %d", len(entries))
 	}
+
+	// Test collecting from specific namespace
 	entries, err = handler.Collect(ctx, []string{"default"})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 1 {
 		t.Fatalf("Expected 1 entry for default namespace, got %d", len(entries))
 	}
-	if entries[0].Namespace != "default" {
-		t.Errorf("Expected namespace 'default', got '%s'", entries[0].Namespace)
+
+	// Type assert to ServiceData for assertions
+	entry, ok := entries[0].(types.ServiceData)
+	if !ok {
+		t.Fatalf("Expected ServiceData type, got %T", entries[0])
+	}
+
+	if entry.Namespace != "default" {
+		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
 	}
 }
 
 func TestServiceHandler_createLogEntry(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewServiceHandler(client)
+
+	// Test service with ClusterIP type
 	service := createTestService("test-service", "default", corev1.ServiceTypeClusterIP)
 	entry := handler.createLogEntry(service)
+
+	// Verify basic fields
 	if entry.ResourceType != "service" {
 		t.Errorf("Expected resource type 'service', got '%s'", entry.ResourceType)
 	}
+
 	if entry.Name != "test-service" {
 		t.Errorf("Expected name 'test-service', got '%s'", entry.Name)
 	}
+
 	if entry.Namespace != "default" {
 		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
 	}
-	data := entry.Data
-	val, ok := data["type"]
-	if !ok || val == nil {
-		t.Fatalf("type missing or nil")
+
+	// Verify service-specific fields
+	if entry.Type != "ClusterIP" {
+		t.Errorf("Expected service type 'ClusterIP', got '%s'", entry.Type)
 	}
-	if val.(string) != "ClusterIP" {
-		t.Errorf("Expected type 'ClusterIP', got '%s'", val.(string))
+
+	if entry.ClusterIP != "10.0.0.1" {
+		t.Errorf("Expected cluster IP '10.0.0.1', got '%s'", entry.ClusterIP)
 	}
-	val, ok = data["clusterIP"]
-	if !ok || val == nil {
-		t.Fatalf("clusterIP missing or nil")
+
+	if len(entry.Ports) != 1 {
+		t.Errorf("Expected 1 port, got %d", len(entry.Ports))
 	}
-	if val.(string) != "10.0.0.1" {
-		t.Errorf("Expected cluster IP '10.0.0.1', got '%s'", val.(string))
+
+	if entry.Ports[0].Port != 80 {
+		t.Errorf("Expected port 80, got %d", entry.Ports[0].Port)
 	}
-	val, ok = data["endpointsCount"]
-	if !ok || val == nil {
-		t.Fatalf("endpointsCount missing or nil")
+
+	if entry.Ports[0].TargetPort != 8080 {
+		t.Errorf("Expected target port 8080, got %d", entry.Ports[0].TargetPort)
 	}
-	if val.(int) != 0 {
-		t.Errorf("Expected endpoints count 0, got %d", val.(int))
+
+	if entry.Ports[0].Protocol != "TCP" {
+		t.Errorf("Expected protocol 'TCP', got '%s'", entry.Ports[0].Protocol)
+	}
+
+	// Verify metadata
+	if entry.Labels["app"] != "test-service" {
+		t.Errorf("Expected label 'app' to be 'test-service', got '%s'", entry.Labels["app"])
+	}
+
+	if entry.Annotations["description"] != "test service" {
+		t.Errorf("Expected annotation 'description' to be 'test service', got '%s'", entry.Annotations["description"])
+	}
+}
+
+func TestServiceHandler_createLogEntry_LoadBalancer(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	handler := NewServiceHandler(client)
+
+	// Test service with LoadBalancer type
+	service := createTestService("test-service", "default", corev1.ServiceTypeLoadBalancer)
+	service.Status.LoadBalancer.Ingress = []corev1.LoadBalancerIngress{
+		{
+			IP:       "192.168.1.100",
+			Hostname: "test-lb.example.com",
+		},
+	}
+
+	entry := handler.createLogEntry(service)
+
+	if entry.Type != "LoadBalancer" {
+		t.Errorf("Expected service type 'LoadBalancer', got '%s'", entry.Type)
+	}
+
+	if len(entry.LoadBalancerIngress) != 1 {
+		t.Errorf("Expected 1 load balancer ingress, got %d", len(entry.LoadBalancerIngress))
+	}
+
+	if entry.LoadBalancerIngress[0].IP != "192.168.1.100" {
+		t.Errorf("Expected load balancer IP '192.168.1.100', got '%s'", entry.LoadBalancerIngress[0].IP)
+	}
+
+	if entry.LoadBalancerIngress[0].Hostname != "test-lb.example.com" {
+		t.Errorf("Expected load balancer hostname 'test-lb.example.com', got '%s'", entry.LoadBalancerIngress[0].Hostname)
 	}
 }
 
@@ -186,20 +294,13 @@ func TestServiceHandler_createLogEntry_WithOwnerReference(t *testing.T) {
 		},
 	}
 	entry := handler.createLogEntry(service)
-	data := entry.Data
-	val, ok := data["createdByKind"]
-	if !ok || val == nil {
-		t.Fatalf("createdByKind missing or nil")
+
+	if entry.CreatedByKind != "Deployment" {
+		t.Errorf("Expected created by kind 'Deployment', got '%s'", entry.CreatedByKind)
 	}
-	if val.(string) != "Deployment" {
-		t.Errorf("Expected created by kind 'Deployment', got '%s'", val.(string))
-	}
-	val, ok = data["createdByName"]
-	if !ok || val == nil {
-		t.Fatalf("createdByName missing or nil")
-	}
-	if val.(string) != "test-deploy" {
-		t.Errorf("Expected created by name 'test-deploy', got '%s'", val.(string))
+
+	if entry.CreatedByName != "test-deploy" {
+		t.Errorf("Expected created by name 'test-deploy', got '%s'", entry.CreatedByName)
 	}
 }
 
@@ -225,37 +326,54 @@ func TestServiceHandler_Collect_EmptyCache(t *testing.T) {
 }
 
 func TestServiceHandler_Collect_NamespaceFiltering(t *testing.T) {
+	// Create test services in different namespaces
 	service1 := createTestService("test-service-1", "default", corev1.ServiceTypeClusterIP)
-	service2 := createTestService("test-service-2", "kube-system", corev1.ServiceTypeNodePort)
-	service3 := createTestService("test-service-3", "monitoring", corev1.ServiceTypeLoadBalancer)
+	service2 := createTestService("test-service-2", "kube-system", corev1.ServiceTypeLoadBalancer)
+	service3 := createTestService("test-service-3", "monitoring", corev1.ServiceTypeNodePort)
+
 	client := fake.NewSimpleClientset(service1, service2, service3)
 	handler := NewServiceHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
+
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
+
 	factory.Start(nil)
 	factory.WaitForCacheSync(nil)
+
 	ctx := context.Background()
+
+	// Test multiple namespace filtering
 	entries, err := handler.Collect(ctx, []string{"default", "monitoring"})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 2 {
 		t.Fatalf("Expected 2 entries for default and monitoring namespaces, got %d", len(entries))
 	}
+
+	// Verify correct namespaces
 	namespaces := make(map[string]bool)
 	for _, entry := range entries {
-		namespaces[entry.Namespace] = true
+		entryData, ok := entry.(types.ServiceData)
+		if !ok {
+			t.Fatalf("Expected ServiceData type, got %T", entry)
+		}
+		namespaces[entryData.Namespace] = true
 	}
+
 	if !namespaces["default"] {
 		t.Error("Expected entry from default namespace")
 	}
+
 	if !namespaces["monitoring"] {
 		t.Error("Expected entry from monitoring namespace")
 	}
+
 	if namespaces["kube-system"] {
 		t.Error("Did not expect entry from kube-system namespace")
 	}
@@ -271,7 +389,7 @@ func TestServiceHandler_countEndpointsForService(t *testing.T) {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
 	// Create endpoints before starting informers
-	endpoints := createTestEndpoints("test-service", "default", 3)
+	endpoints := createTestEndpointsForService("test-service", "default", 3)
 	_, err = client.CoreV1().Endpoints("default").Create(context.Background(), endpoints, metav1.CreateOptions{})
 	if err != nil {
 		t.Fatalf("Failed to create endpoints: %v", err)

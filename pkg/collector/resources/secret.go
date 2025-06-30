@@ -2,6 +2,7 @@ package resources
 
 import (
 	"context"
+	"sort"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -34,8 +35,8 @@ func (h *SecretHandler) SetupInformer(factory informers.SharedInformerFactory, l
 }
 
 // Collect gathers secret metrics from the cluster (uses cache)
-func (h *SecretHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *SecretHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all secrets from the cache
 	secrets := utils.SafeGetStoreList(h.GetInformer())
@@ -57,24 +58,35 @@ func (h *SecretHandler) Collect(ctx context.Context, namespaces []string) ([]typ
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a secret
-func (h *SecretHandler) createLogEntry(secret *corev1.Secret) types.LogEntry {
+// createLogEntry creates a SecretData from a secret
+func (h *SecretHandler) createLogEntry(secret *corev1.Secret) types.SecretData {
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(secret)
 
 	var dataKeys []string
 	for key := range secret.Data {
 		dataKeys = append(dataKeys, key)
 	}
-
-	data := types.SecretData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(secret),
-		Labels:           utils.ExtractLabels(secret),
-		Annotations:      utils.ExtractAnnotations(secret),
-		Type:             string(secret.Type),
-		DataKeys:         dataKeys,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
+	for key := range secret.StringData {
+		dataKeys = append(dataKeys, key)
 	}
 
-	return utils.CreateLogEntry("secret", utils.ExtractName(secret), utils.ExtractNamespace(secret), data)
+	sort.Strings(dataKeys)
+
+	data := types.SecretData{
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "secret",
+			Name:             utils.ExtractName(secret),
+			Namespace:        utils.ExtractNamespace(secret),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(secret),
+			Labels:           utils.ExtractLabels(secret),
+			Annotations:      utils.ExtractAnnotations(secret),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		Type:     string(secret.Type),
+		DataKeys: dataKeys,
+	}
+
+	return data
 }

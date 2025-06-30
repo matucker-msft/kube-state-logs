@@ -34,31 +34,31 @@ func (h *EndpointsHandler) SetupInformer(factory informers.SharedInformerFactory
 }
 
 // Collect gathers endpoints metrics from the cluster (uses cache)
-func (h *EndpointsHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *EndpointsHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all endpoints from the cache
-	endpointsList := utils.SafeGetStoreList(h.GetInformer())
+	endpoints := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range endpointsList {
-		endpoints, ok := obj.(*corev1.Endpoints)
+	for _, obj := range endpoints {
+		endpoint, ok := obj.(*corev1.Endpoints)
 		if !ok {
 			continue
 		}
 
-		if !utils.ShouldIncludeNamespace(namespaces, endpoints.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, endpoint.Namespace) {
 			continue
 		}
 
-		entry := h.createLogEntry(endpoints)
+		entry := h.createLogEntry(endpoint)
 		entries = append(entries, entry)
 	}
 
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from endpoints
-func (h *EndpointsHandler) createLogEntry(endpoints *corev1.Endpoints) types.LogEntry {
+// createLogEntry creates an EndpointsData from endpoints
+func (h *EndpointsHandler) createLogEntry(endpoints *corev1.Endpoints) types.EndpointsData {
 	// Extract addresses and ports from all subsets
 	var addresses []types.EndpointAddressData
 	var ports []types.EndpointPortData
@@ -101,15 +101,31 @@ func (h *EndpointsHandler) createLogEntry(endpoints *corev1.Endpoints) types.Log
 
 	// Create data structure
 	data := types.EndpointsData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(endpoints),
-		Labels:           utils.ExtractLabels(endpoints),
-		Annotations:      utils.ExtractAnnotations(endpoints),
-		Addresses:        addresses,
-		Ports:            ports,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
-		Ready:            ready,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "endpoints",
+			Name:             utils.ExtractName(endpoints),
+			Namespace:        utils.ExtractNamespace(endpoints),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(endpoints),
+			Labels:           utils.ExtractLabels(endpoints),
+			Annotations:      utils.ExtractAnnotations(endpoints),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		Addresses: func() []types.EndpointAddressData {
+			if addresses == nil {
+				return []types.EndpointAddressData{}
+			}
+			return addresses
+		}(),
+		Ports: func() []types.EndpointPortData {
+			if ports == nil {
+				return []types.EndpointPortData{}
+			}
+			return ports
+		}(),
+		Ready: ready,
 	}
 
-	return utils.CreateLogEntry("endpoints", utils.ExtractName(endpoints), utils.ExtractNamespace(endpoints), data)
+	return data
 }

@@ -13,6 +13,8 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
 func TestEndpointsHandler(t *testing.T) {
@@ -202,7 +204,11 @@ func TestEndpointsHandler(t *testing.T) {
 			}
 			entryNames := make([]string, len(entries))
 			for i, entry := range entries {
-				entryNames[i] = entry.Name
+				endpointsData, ok := entry.(types.EndpointsData)
+				if !ok {
+					t.Fatalf("Expected EndpointsData type, got %T", entry)
+				}
+				entryNames[i] = endpointsData.Name
 			}
 			for _, expectedName := range tt.expectedNames {
 				found := false
@@ -217,45 +223,49 @@ func TestEndpointsHandler(t *testing.T) {
 				}
 			}
 			if tt.expectedFields != nil && len(entries) > 0 {
-				entry := entries[0]
+				endpointsData, ok := entries[0].(types.EndpointsData)
+				if !ok {
+					t.Fatalf("Expected EndpointsData type, got %T", entries[0])
+				}
 				for field, expectedValue := range tt.expectedFields {
 					switch field {
 					case "created_by_kind":
-						if entry.Data["createdByKind"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, entry.Data["createdByKind"])
+						if endpointsData.CreatedByKind != expectedValue.(string) {
+							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, endpointsData.CreatedByKind)
 						}
 					case "created_by_name":
-						if entry.Data["createdByName"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_name %s, got %v", expectedValue, entry.Data["createdByName"])
+						if endpointsData.CreatedByName != expectedValue.(string) {
+							t.Errorf("Expected created_by_name %s, got %v", expectedValue, endpointsData.CreatedByName)
 						}
 					case "ready":
-						if entry.Data["ready"] != expectedValue.(bool) {
-							t.Errorf("Expected ready %v, got %v", expectedValue, entry.Data["ready"])
+						if endpointsData.Ready != expectedValue.(bool) {
+							t.Errorf("Expected ready %v, got %v", expectedValue, endpointsData.Ready)
 						}
 					}
 				}
 			}
 			for _, entry := range entries {
-				if entry.ResourceType != "endpoints" {
-					t.Errorf("Expected resource type 'endpoints', got %s", entry.ResourceType)
+				endpointsData, ok := entry.(types.EndpointsData)
+				if !ok {
+					t.Fatalf("Expected EndpointsData type, got %T", entry)
 				}
-				if entry.Name == "" {
+				if endpointsData.ResourceType != "endpoints" {
+					t.Errorf("Expected resource type 'endpoints', got %s", endpointsData.ResourceType)
+				}
+				if endpointsData.Name == "" {
 					t.Error("Entry name should not be empty")
 				}
-				if entry.Namespace == "" {
+				if endpointsData.Namespace == "" {
 					t.Error("Entry namespace should not be empty")
 				}
-				if entry.Data["createdTimestamp"] == nil {
-					t.Error("Created timestamp should not be nil")
+				if endpointsData.CreatedTimestamp == 0 {
+					t.Error("Created timestamp should not be zero")
 				}
-				if entry.Data["addresses"] == nil {
+				if endpointsData.Addresses == nil {
 					t.Error("addresses should not be nil")
 				}
-				if entry.Data["ports"] == nil {
+				if endpointsData.Ports == nil {
 					t.Error("ports should not be nil")
-				}
-				if entry.Data["ready"] == nil {
-					t.Error("ready should not be nil")
 				}
 			}
 		})
@@ -304,4 +314,256 @@ func TestEndpointsHandler_InvalidObject(t *testing.T) {
 
 func stringPtr(s string) *string {
 	return &s
+}
+
+// createTestEndpoints creates a test endpoints with various configurations
+func createTestEndpoints(name, namespace string, addresses int) *corev1.Endpoints {
+	endpoints := &corev1.Endpoints{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app":     name,
+				"version": "v1",
+			},
+			Annotations: map[string]string{
+				"description": "test endpoints",
+			},
+			CreationTimestamp: metav1.Now(),
+		},
+		Subsets: []corev1.EndpointSubset{
+			{
+				Addresses: make([]corev1.EndpointAddress, addresses),
+				NotReadyAddresses: []corev1.EndpointAddress{
+					{
+						IP: "10.244.0.2",
+						TargetRef: &corev1.ObjectReference{
+							Kind:      "Pod",
+							Name:      "test-pod-2",
+							Namespace: namespace,
+						},
+					},
+				},
+				Ports: []corev1.EndpointPort{
+					{
+						Name:     "http",
+						Port:     80,
+						Protocol: corev1.ProtocolTCP,
+					},
+					{
+						Name:     "https",
+						Port:     443,
+						Protocol: corev1.ProtocolTCP,
+					},
+				},
+			},
+		},
+	}
+
+	// Populate addresses
+	for i := 0; i < addresses; i++ {
+		endpoints.Subsets[0].Addresses[i] = corev1.EndpointAddress{
+			IP:       "10.244.0.1",
+			Hostname: "test-pod-1",
+			NodeName: stringPtr("test-node"),
+			TargetRef: &corev1.ObjectReference{
+				Kind:      "Pod",
+				Name:      "test-pod-1",
+				Namespace: namespace,
+			},
+		}
+	}
+
+	return endpoints
+}
+
+func TestNewEndpointsHandler(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	handler := NewEndpointsHandler(client)
+
+	if handler == nil {
+		t.Fatal("Expected handler to be created, got nil")
+	}
+
+	// Verify BaseHandler is embedded
+	if handler.BaseHandler == (utils.BaseHandler{}) {
+		t.Error("Expected BaseHandler to be embedded")
+	}
+}
+
+func TestEndpointsHandler_SetupInformer(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	handler := NewEndpointsHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	logger := &testutils.MockLogger{}
+
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	// Verify informer is set up
+	if handler.GetInformer() == nil {
+		t.Error("Expected informer to be set up")
+	}
+}
+
+func TestEndpointsHandler_Collect(t *testing.T) {
+	endpoints1 := createTestEndpoints("test-endpoints-1", "default", 2)
+	endpoints2 := createTestEndpoints("test-endpoints-2", "kube-system", 1)
+
+	client := fake.NewSimpleClientset(endpoints1, endpoints2)
+	handler := NewEndpointsHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	logger := &testutils.MockLogger{}
+
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+
+	factory.Start(nil)
+	factory.WaitForCacheSync(nil)
+
+	ctx := context.Background()
+	entries, err := handler.Collect(ctx, []string{})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
+	}
+
+	// Type assert to EndpointsData for assertions
+	entry, ok := entries[0].(types.EndpointsData)
+	if !ok {
+		t.Fatalf("Expected EndpointsData type, got %T", entries[0])
+	}
+
+	if entry.Name == "" {
+		t.Error("Expected name to not be empty")
+	}
+
+	if entry.Namespace == "" {
+		t.Error("Expected namespace to not be empty")
+	}
+}
+
+func TestEndpointsHandler_createLogEntry(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	handler := NewEndpointsHandler(client)
+	endpoints := createTestEndpoints("test-endpoints", "default", 2)
+	entry := handler.createLogEntry(endpoints)
+
+	if entry.ResourceType != "endpoints" {
+		t.Errorf("Expected resource type 'endpoints', got '%s'", entry.ResourceType)
+	}
+
+	if entry.Name != "test-endpoints" {
+		t.Errorf("Expected name 'test-endpoints', got '%s'", entry.Name)
+	}
+
+	if entry.Namespace != "default" {
+		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
+	}
+
+	// Verify endpoints-specific fields
+	if len(entry.Addresses) != 2 {
+		t.Errorf("Expected 2 addresses, got %d", len(entry.Addresses))
+	}
+
+	if len(entry.Ports) != 2 {
+		t.Errorf("Expected 2 ports, got %d", len(entry.Ports))
+	}
+
+	if !entry.Ready {
+		t.Error("Expected Ready to be true")
+	}
+
+	// Verify metadata
+	if entry.Labels["app"] != "test-endpoints" {
+		t.Errorf("Expected label 'app' to be 'test-endpoints', got '%s'", entry.Labels["app"])
+	}
+
+	if entry.Annotations["description"] != "test endpoints" {
+		t.Errorf("Expected annotation 'description' to be 'test endpoints', got '%s'", entry.Annotations["description"])
+	}
+}
+
+func TestEndpointsHandler_createLogEntry_WithOwnerReference(t *testing.T) {
+	client := fake.NewSimpleClientset()
+	handler := NewEndpointsHandler(client)
+	endpoints := createTestEndpoints("test-endpoints", "default", 1)
+	endpoints.OwnerReferences = []metav1.OwnerReference{
+		{
+			APIVersion: "v1",
+			Kind:       "Service",
+			Name:       "test-service",
+			UID:        "test-uid",
+		},
+	}
+	entry := handler.createLogEntry(endpoints)
+
+	if entry.CreatedByKind != "Service" {
+		t.Errorf("Expected created by kind 'Service', got '%s'", entry.CreatedByKind)
+	}
+
+	if entry.CreatedByName != "test-service" {
+		t.Errorf("Expected created by name 'test-service', got '%s'", entry.CreatedByName)
+	}
+}
+
+func TestEndpointsHandler_Collect_NamespaceFiltering(t *testing.T) {
+	// Create test endpoints in different namespaces
+	endpoints1 := createTestEndpoints("test-endpoints-1", "default", 1)
+	endpoints2 := createTestEndpoints("test-endpoints-2", "kube-system", 1)
+	endpoints3 := createTestEndpoints("test-endpoints-3", "monitoring", 1)
+
+	client := fake.NewSimpleClientset(endpoints1, endpoints2, endpoints3)
+	handler := NewEndpointsHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	logger := &testutils.MockLogger{}
+
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+
+	factory.Start(nil)
+	factory.WaitForCacheSync(nil)
+
+	ctx := context.Background()
+
+	// Test multiple namespace filtering
+	entries, err := handler.Collect(ctx, []string{"default", "monitoring"})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries for default and monitoring namespaces, got %d", len(entries))
+	}
+
+	// Verify correct namespaces
+	namespaces := make(map[string]bool)
+	for _, entry := range entries {
+		endpointsData, ok := entry.(types.EndpointsData)
+		if !ok {
+			t.Fatalf("Expected EndpointsData type, got %T", entry)
+		}
+		namespaces[endpointsData.Namespace] = true
+	}
+
+	if !namespaces["default"] {
+		t.Error("Expected entry from default namespace")
+	}
+
+	if !namespaces["monitoring"] {
+		t.Error("Expected entry from monitoring namespace")
+	}
+
+	if namespaces["kube-system"] {
+		t.Error("Did not expect entry from kube-system namespace")
+	}
 }

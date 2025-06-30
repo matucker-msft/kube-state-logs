@@ -34,54 +34,60 @@ func (h *ValidatingAdmissionPolicyBindingHandler) SetupInformer(factory informer
 }
 
 // Collect gathers validatingadmissionpolicybinding metrics from the cluster (uses cache)
-func (h *ValidatingAdmissionPolicyBindingHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *ValidatingAdmissionPolicyBindingHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all validatingadmissionpolicybindings from the cache
-	vapbList := utils.SafeGetStoreList(h.GetInformer())
+	bindings := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range vapbList {
-		vapb, ok := obj.(*admissionregistrationv1beta1.ValidatingAdmissionPolicyBinding)
+	for _, obj := range bindings {
+		binding, ok := obj.(*admissionregistrationv1beta1.ValidatingAdmissionPolicyBinding)
 		if !ok {
 			continue
 		}
 
-		entry := h.createLogEntry(vapb)
+		entry := h.createLogEntry(binding)
 		entries = append(entries, entry)
 	}
 
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a ValidatingAdmissionPolicyBinding
-func (h *ValidatingAdmissionPolicyBindingHandler) createLogEntry(vapb *admissionregistrationv1beta1.ValidatingAdmissionPolicyBinding) types.LogEntry {
-	createdTimestamp := utils.ExtractCreationTimestamp(vapb)
-	createdByKind, createdByName := utils.GetOwnerReferenceInfo(vapb)
+// createLogEntry creates a ValidatingAdmissionPolicyBindingData from a validatingadmissionpolicybinding
+func (h *ValidatingAdmissionPolicyBindingHandler) createLogEntry(binding *admissionregistrationv1beta1.ValidatingAdmissionPolicyBinding) types.ValidatingAdmissionPolicyBindingData {
+	createdTimestamp := utils.ExtractCreationTimestamp(binding)
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(binding)
 
 	policyName := ""
-	if vapb.Spec.PolicyName != "" {
-		policyName = vapb.Spec.PolicyName
+	if binding.Spec.PolicyName != "" {
+		policyName = binding.Spec.PolicyName
 	}
 
 	paramRef := ""
-	if vapb.Spec.ParamRef != nil {
-		paramRef = vapb.Spec.ParamRef.Name
+	if binding.Spec.ParamRef != nil {
+		paramRef = binding.Spec.ParamRef.Name
 	}
 
 	observedGeneration := int64(0)
 
 	data := types.ValidatingAdmissionPolicyBindingData{
-		CreatedTimestamp:   createdTimestamp,
-		Labels:             vapb.GetLabels(),
-		Annotations:        vapb.GetAnnotations(),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "validatingadmissionpolicybinding",
+			Name:             utils.ExtractName(binding),
+			Namespace:        utils.ExtractNamespace(binding),
+			CreatedTimestamp: createdTimestamp,
+			Labels:           binding.GetLabels(),
+			Annotations:      binding.GetAnnotations(),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		PolicyName:         policyName,
 		ParamRef:           paramRef,
 		MatchResources:     []string{},
 		ValidationActions:  []string{},
 		ObservedGeneration: observedGeneration,
-		CreatedByKind:      createdByKind,
-		CreatedByName:      createdByName,
 	}
 
-	return utils.CreateLogEntry("validatingadmissionpolicybinding", utils.ExtractName(vapb), utils.ExtractNamespace(vapb), data)
+	return data
 }

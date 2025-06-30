@@ -34,31 +34,31 @@ func (h *ClusterRoleHandler) SetupInformer(factory informers.SharedInformerFacto
 }
 
 // Collect gathers clusterrole metrics from the cluster (uses cache)
-func (h *ClusterRoleHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *ClusterRoleHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all clusterroles from the cache
-	crList := utils.SafeGetStoreList(h.GetInformer())
+	roles := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range crList {
-		cr, ok := obj.(*rbacv1.ClusterRole)
+	for _, obj := range roles {
+		role, ok := obj.(*rbacv1.ClusterRole)
 		if !ok {
 			continue
 		}
 
-		entry := h.createLogEntry(cr)
+		entry := h.createLogEntry(role)
 		entries = append(entries, entry)
 	}
 
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a clusterrole
-func (h *ClusterRoleHandler) createLogEntry(cr *rbacv1.ClusterRole) types.LogEntry {
+// createLogEntry creates a ClusterRoleData from a clusterrole
+func (h *ClusterRoleHandler) createLogEntry(role *rbacv1.ClusterRole) types.ClusterRoleData {
 	// Convert rules
 	// See: https://kubernetes.io/docs/reference/access-authn-authz/rbac/#role-and-clusterrole
 	var rules []types.PolicyRule
-	for _, rule := range cr.Rules {
+	for _, rule := range role.Rules {
 		policyRule := types.PolicyRule{
 			APIGroups:     rule.APIGroups,
 			Resources:     rule.Resources,
@@ -68,17 +68,23 @@ func (h *ClusterRoleHandler) createLogEntry(cr *rbacv1.ClusterRole) types.LogEnt
 		rules = append(rules, policyRule)
 	}
 
-	createdByKind, createdByName := utils.GetOwnerReferenceInfo(cr)
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(role)
 
 	// Create data structure
 	data := types.ClusterRoleData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(cr),
-		Labels:           utils.ExtractLabels(cr),
-		Annotations:      utils.ExtractAnnotations(cr),
-		Rules:            rules,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "clusterrole",
+			Name:             utils.ExtractName(role),
+			Namespace:        utils.ExtractNamespace(role),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(role),
+			Labels:           utils.ExtractLabels(role),
+			Annotations:      utils.ExtractAnnotations(role),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		Rules: rules,
 	}
 
-	return utils.CreateLogEntry("clusterrole", utils.ExtractName(cr), utils.ExtractNamespace(cr), data)
+	return data
 }

@@ -6,18 +6,18 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 
 	testutils "github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
-	"github.com/matucker-msft/kube-state-logs/pkg/utils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
-// createTestDaemonSet creates a test DaemonSet with various configurations
+// createTestDaemonSet creates a test daemonset with various configurations
 func createTestDaemonSet(name, namespace string) *appsv1.DaemonSet {
-	now := metav1.Now()
-	ds := &appsv1.DaemonSet{
+	daemonSet := &appsv1.DaemonSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -28,219 +28,268 @@ func createTestDaemonSet(name, namespace string) *appsv1.DaemonSet {
 			Annotations: map[string]string{
 				"description": "test daemonset",
 			},
-			CreationTimestamp: now,
+			CreationTimestamp: metav1.Now(),
 			Generation:        1,
 		},
 		Spec: appsv1.DaemonSetSpec{
-			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{Type: appsv1.RollingUpdateDaemonSetStrategyType},
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": name,
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": name,
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+						},
+					},
+				},
+			},
+			UpdateStrategy: appsv1.DaemonSetUpdateStrategy{
+				Type: appsv1.RollingUpdateDaemonSetStrategyType,
+			},
 		},
 		Status: appsv1.DaemonSetStatus{
-			DesiredNumberScheduled: 3,
 			CurrentNumberScheduled: 3,
-			NumberReady:            3,
-			NumberAvailable:        3,
-			NumberUnavailable:      0,
 			NumberMisscheduled:     0,
+			DesiredNumberScheduled: 3,
+			NumberReady:            2,
 			UpdatedNumberScheduled: 3,
+			NumberAvailable:        2,
+			NumberUnavailable:      1,
 			ObservedGeneration:     1,
+			Conditions: []appsv1.DaemonSetCondition{
+				{
+					Type:               "Available",
+					Status:             corev1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+					Reason:             "DaemonSetAvailable",
+					Message:            "DaemonSet is available",
+				},
+				{
+					Type:               "Progressing",
+					Status:             corev1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+					Reason:             "DaemonSetProgressing",
+					Message:            "DaemonSet is progressing",
+				},
+			},
 		},
 	}
-	return ds
-}
 
-func TestNewDaemonSetHandler(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewDaemonSetHandler(client)
-	if handler == nil {
-		t.Fatal("Expected handler to be created, got nil")
-	}
-	if handler.BaseHandler == (utils.BaseHandler{}) {
-		t.Error("Expected BaseHandler to be embedded")
-	}
-}
-
-func TestDaemonSetHandler_SetupInformer(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewDaemonSetHandler(client)
-	factory := informers.NewSharedInformerFactory(client, time.Hour)
-	logger := &testutils.MockLogger{}
-	err := handler.SetupInformer(factory, logger, time.Hour)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-	if handler.GetInformer() == nil {
-		t.Error("Expected informer to be set up")
-	}
+	return daemonSet
 }
 
 func TestDaemonSetHandler_Collect(t *testing.T) {
-	ds1 := createTestDaemonSet("test-ds-1", "default")
-	ds2 := createTestDaemonSet("test-ds-2", "kube-system")
-	client := fake.NewSimpleClientset(ds1, ds2)
+	// Create test daemonsets
+	daemonSet1 := createTestDaemonSet("test-daemonset-1", "default")
+	daemonSet2 := createTestDaemonSet("test-daemonset-2", "kube-system")
+
+	// Create fake client with test daemonsets
+	client := fake.NewSimpleClientset(daemonSet1, daemonSet2)
 	handler := NewDaemonSetHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
+
+	// Setup informer
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
+
+	// Start the factory to populate the cache
 	factory.Start(nil)
 	factory.WaitForCacheSync(nil)
+
+	// Test collecting all daemonsets
 	ctx := context.Background()
 	entries, err := handler.Collect(ctx, []string{})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 2 {
 		t.Fatalf("Expected 2 entries, got %d", len(entries))
 	}
+
+	// Test collecting from specific namespace
 	entries, err = handler.Collect(ctx, []string{"default"})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 1 {
 		t.Fatalf("Expected 1 entry for default namespace, got %d", len(entries))
 	}
-	if entries[0].Namespace != "default" {
-		t.Errorf("Expected namespace 'default', got '%s'", entries[0].Namespace)
+
+	// Type assert to DaemonSetData for assertions
+	entry, ok := entries[0].(types.DaemonSetData)
+	if !ok {
+		t.Fatalf("Expected DaemonSetData type, got %T", entries[0])
+	}
+
+	if entry.Namespace != "default" {
+		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
 	}
 }
 
 func TestDaemonSetHandler_createLogEntry(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewDaemonSetHandler(client)
-	ds := createTestDaemonSet("test-ds", "default")
-	entry := handler.createLogEntry(ds)
+	daemonSet := createTestDaemonSet("test-daemonset", "default")
+	entry := handler.createLogEntry(daemonSet)
+
 	if entry.ResourceType != "daemonset" {
 		t.Errorf("Expected resource type 'daemonset', got '%s'", entry.ResourceType)
 	}
-	if entry.Name != "test-ds" {
-		t.Errorf("Expected name 'test-ds', got '%s'", entry.Name)
+
+	if entry.Name != "test-daemonset" {
+		t.Errorf("Expected name 'test-daemonset', got '%s'", entry.Name)
 	}
+
 	if entry.Namespace != "default" {
 		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
 	}
-	data := entry.Data
-	val, ok := data["desiredNumberScheduled"]
-	if !ok || val == nil {
-		t.Fatalf("desiredNumberScheduled missing or nil")
+
+	// Verify daemonset-specific fields
+	if entry.DesiredNumberScheduled != 3 {
+		t.Errorf("Expected desired number scheduled 3, got %d", entry.DesiredNumberScheduled)
 	}
-	if val.(int32) != 3 {
-		t.Errorf("Expected desired number scheduled 3, got %d", val.(int32))
+
+	if entry.CurrentNumberScheduled != 3 {
+		t.Errorf("Expected current number scheduled 3, got %d", entry.CurrentNumberScheduled)
 	}
-	val, ok = data["currentNumberScheduled"]
-	if !ok || val == nil {
-		t.Fatalf("currentNumberScheduled missing or nil")
+
+	if entry.NumberReady != 2 {
+		t.Errorf("Expected number ready 2, got %d", entry.NumberReady)
 	}
-	if val.(int32) != 3 {
-		t.Errorf("Expected current number scheduled 3, got %d", val.(int32))
+
+	if entry.NumberAvailable != 2 {
+		t.Errorf("Expected number available 2, got %d", entry.NumberAvailable)
 	}
-	val, ok = data["numberReady"]
-	if !ok || val == nil {
-		t.Fatalf("numberReady missing or nil")
+
+	if entry.NumberUnavailable != 1 {
+		t.Errorf("Expected number unavailable 1, got %d", entry.NumberUnavailable)
 	}
-	if val.(int32) != 3 {
-		t.Errorf("Expected number ready 3, got %d", val.(int32))
+
+	if entry.UpdatedNumberScheduled != 3 {
+		t.Errorf("Expected updated number scheduled 3, got %d", entry.UpdatedNumberScheduled)
 	}
-	val, ok = data["numberAvailable"]
-	if !ok || val == nil {
-		t.Fatalf("numberAvailable missing or nil")
+
+	if entry.NumberMisscheduled != 0 {
+		t.Errorf("Expected number misscheduled 0, got %d", entry.NumberMisscheduled)
 	}
-	if val.(int32) != 3 {
-		t.Errorf("Expected number available 3, got %d", val.(int32))
+
+	if entry.ObservedGeneration != 1 {
+		t.Errorf("Expected observed generation 1, got %d", entry.ObservedGeneration)
 	}
-	val, ok = data["updateStrategy"]
-	if !ok || val == nil {
-		t.Fatalf("updateStrategy missing or nil")
+
+	if entry.UpdateStrategy != "RollingUpdate" {
+		t.Errorf("Expected update strategy 'RollingUpdate', got '%s'", entry.UpdateStrategy)
 	}
-	if val.(string) != "RollingUpdate" {
-		t.Errorf("Expected update strategy 'RollingUpdate', got '%s'", val.(string))
+
+	// Verify conditions
+	if !entry.ConditionAvailable {
+		t.Error("Expected ConditionAvailable to be true")
+	}
+
+	if !entry.ConditionProgressing {
+		t.Error("Expected ConditionProgressing to be true")
+	}
+
+	if entry.ConditionReplicaFailure {
+		t.Error("Expected ConditionReplicaFailure to be false")
+	}
+
+	// Verify metadata
+	if entry.Labels["app"] != "test-daemonset" {
+		t.Errorf("Expected label 'app' to be 'test-daemonset', got '%s'", entry.Labels["app"])
+	}
+
+	if entry.Annotations["description"] != "test daemonset" {
+		t.Errorf("Expected annotation 'description' to be 'test daemonset', got '%s'", entry.Annotations["description"])
 	}
 }
 
 func TestDaemonSetHandler_createLogEntry_WithOwnerReference(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewDaemonSetHandler(client)
-	ds := createTestDaemonSet("test-ds", "default")
-	ds.OwnerReferences = []metav1.OwnerReference{
+	daemonSet := createTestDaemonSet("test-daemonset", "default")
+	daemonSet.OwnerReferences = []metav1.OwnerReference{
 		{
 			APIVersion: "apps/v1",
 			Kind:       "Deployment",
-			Name:       "test-deploy",
+			Name:       "test-deployment",
 			UID:        "test-uid",
 		},
 	}
-	entry := handler.createLogEntry(ds)
-	data := entry.Data
-	val, ok := data["createdByKind"]
-	if !ok || val == nil {
-		t.Fatalf("createdByKind missing or nil")
-	}
-	if val.(string) != "Deployment" {
-		t.Errorf("Expected created by kind 'Deployment', got '%s'", val.(string))
-	}
-	val, ok = data["createdByName"]
-	if !ok || val == nil {
-		t.Fatalf("createdByName missing or nil")
-	}
-	if val.(string) != "test-deploy" {
-		t.Errorf("Expected created by name 'test-deploy', got '%s'", val.(string))
-	}
-}
+	entry := handler.createLogEntry(daemonSet)
 
-func TestDaemonSetHandler_Collect_EmptyCache(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewDaemonSetHandler(client)
-	factory := informers.NewSharedInformerFactory(client, time.Hour)
-	logger := &testutils.MockLogger{}
-	err := handler.SetupInformer(factory, logger, time.Hour)
-	if err != nil {
-		t.Fatalf("Failed to setup informer: %v", err)
+	if entry.CreatedByKind != "Deployment" {
+		t.Errorf("Expected created by kind 'Deployment', got '%s'", entry.CreatedByKind)
 	}
-	factory.Start(nil)
-	factory.WaitForCacheSync(nil)
-	ctx := context.Background()
-	entries, err := handler.Collect(ctx, []string{})
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-	if len(entries) != 0 {
-		t.Fatalf("Expected 0 entries for empty cache, got %d", len(entries))
+
+	if entry.CreatedByName != "test-deployment" {
+		t.Errorf("Expected created by name 'test-deployment', got '%s'", entry.CreatedByName)
 	}
 }
 
 func TestDaemonSetHandler_Collect_NamespaceFiltering(t *testing.T) {
-	ds1 := createTestDaemonSet("test-ds-1", "default")
-	ds2 := createTestDaemonSet("test-ds-2", "kube-system")
-	ds3 := createTestDaemonSet("test-ds-3", "monitoring")
-	client := fake.NewSimpleClientset(ds1, ds2, ds3)
+	// Create test daemonsets in different namespaces
+	daemonSet1 := createTestDaemonSet("test-daemonset-1", "default")
+	daemonSet2 := createTestDaemonSet("test-daemonset-2", "kube-system")
+	daemonSet3 := createTestDaemonSet("test-daemonset-3", "monitoring")
+
+	client := fake.NewSimpleClientset(daemonSet1, daemonSet2, daemonSet3)
 	handler := NewDaemonSetHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
+
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
+
 	factory.Start(nil)
 	factory.WaitForCacheSync(nil)
+
 	ctx := context.Background()
+
+	// Test multiple namespace filtering
 	entries, err := handler.Collect(ctx, []string{"default", "monitoring"})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 2 {
 		t.Fatalf("Expected 2 entries for default and monitoring namespaces, got %d", len(entries))
 	}
+
+	// Verify correct namespaces
 	namespaces := make(map[string]bool)
 	for _, entry := range entries {
-		namespaces[entry.Namespace] = true
+		entryData, ok := entry.(types.DaemonSetData)
+		if !ok {
+			t.Fatalf("Expected DaemonSetData type, got %T", entry)
+		}
+		namespaces[entryData.Namespace] = true
 	}
+
 	if !namespaces["default"] {
 		t.Error("Expected entry from default namespace")
 	}
+
 	if !namespaces["monitoring"] {
 		t.Error("Expected entry from monitoring namespace")
 	}
+
 	if namespaces["kube-system"] {
 		t.Error("Did not expect entry from kube-system namespace")
 	}

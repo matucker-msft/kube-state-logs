@@ -34,13 +34,13 @@ func (h *RuntimeClassHandler) SetupInformer(factory informers.SharedInformerFact
 }
 
 // Collect gathers runtimeclass metrics from the cluster (uses cache)
-func (h *RuntimeClassHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *RuntimeClassHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all runtimeclasses from the cache
-	rcList := utils.SafeGetStoreList(h.GetInformer())
+	runtimeClasses := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range rcList {
+	for _, obj := range runtimeClasses {
 		rc, ok := obj.(*nodev1.RuntimeClass)
 		if !ok {
 			continue
@@ -53,20 +53,26 @@ func (h *RuntimeClassHandler) Collect(ctx context.Context, namespaces []string) 
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a RuntimeClass
-func (h *RuntimeClassHandler) createLogEntry(rc *nodev1.RuntimeClass) types.LogEntry {
+// createLogEntry creates a RuntimeClassData from a runtimeclass
+func (h *RuntimeClassHandler) createLogEntry(rc *nodev1.RuntimeClass) types.RuntimeClassData {
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(rc)
 
 	// Create data structure
 	// See: https://kubernetes.io/docs/concepts/containers/runtime-class/
 	data := types.RuntimeClassData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(rc),
-		Labels:           utils.ExtractLabels(rc),
-		Annotations:      utils.ExtractAnnotations(rc),
-		Handler:          rc.Handler,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "runtimeclass",
+			Name:             utils.ExtractName(rc),
+			Namespace:        utils.ExtractNamespace(rc),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(rc),
+			Labels:           utils.ExtractLabels(rc),
+			Annotations:      utils.ExtractAnnotations(rc),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		Handler: rc.Handler,
 	}
 
-	return utils.CreateLogEntry("runtimeclass", utils.ExtractName(rc), utils.ExtractNamespace(rc), data)
+	return data
 }

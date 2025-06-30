@@ -34,13 +34,13 @@ func (h *ServiceAccountHandler) SetupInformer(factory informers.SharedInformerFa
 }
 
 // Collect gathers serviceaccount metrics from the cluster (uses cache)
-func (h *ServiceAccountHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *ServiceAccountHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all serviceaccounts from the cache
-	serviceAccounts := utils.SafeGetStoreList(h.GetInformer())
+	sas := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range serviceAccounts {
+	for _, obj := range sas {
 		sa, ok := obj.(*corev1.ServiceAccount)
 		if !ok {
 			continue
@@ -57,8 +57,8 @@ func (h *ServiceAccountHandler) Collect(ctx context.Context, namespaces []string
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a serviceaccount
-func (h *ServiceAccountHandler) createLogEntry(sa *corev1.ServiceAccount) types.LogEntry {
+// createLogEntry creates a ServiceAccountData from a serviceaccount
+func (h *ServiceAccountHandler) createLogEntry(sa *corev1.ServiceAccount) types.ServiceAccountData {
 	// Extract secrets
 	var secrets []string
 	for _, secret := range sa.Secrets {
@@ -83,15 +83,31 @@ func (h *ServiceAccountHandler) createLogEntry(sa *corev1.ServiceAccount) types.
 
 	// Create data structure
 	data := types.ServiceAccountData{
-		CreatedTimestamp:             utils.ExtractCreationTimestamp(sa),
-		Labels:                       utils.ExtractLabels(sa),
-		Annotations:                  utils.ExtractAnnotations(sa),
-		Secrets:                      secrets,
-		ImagePullSecrets:             imagePullSecrets,
-		CreatedByKind:                createdByKind,
-		CreatedByName:                createdByName,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "serviceaccount",
+			Name:             utils.ExtractName(sa),
+			Namespace:        utils.ExtractNamespace(sa),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(sa),
+			Labels:           utils.ExtractLabels(sa),
+			Annotations:      utils.ExtractAnnotations(sa),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		Secrets: func() []string {
+			if secrets == nil {
+				return []string{}
+			}
+			return secrets
+		}(),
+		ImagePullSecrets: func() []string {
+			if imagePullSecrets == nil {
+				return []string{}
+			}
+			return imagePullSecrets
+		}(),
 		AutomountServiceAccountToken: &automountToken,
 	}
 
-	return utils.CreateLogEntry("serviceaccount", utils.ExtractName(sa), utils.ExtractNamespace(sa), data)
+	return data
 }

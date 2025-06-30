@@ -1,29 +1,27 @@
 package types
 
 import (
-	"reflect"
-	"strings"
 	"time"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// LogEntry represents a single log entry for a Kubernetes resource
-type LogEntry struct {
-	Timestamp    time.Time      `json:"timestamp"`
-	ResourceType string         `json:"resourceType"`
-	Name         string         `json:"name"`
-	Namespace    string         `json:"namespace"`
-	Data         map[string]any `json:"data"`
+// LogEntryMetadata contains the common metadata for all log entries
+type LogEntryMetadata struct {
+	Timestamp        time.Time         `json:"timestamp"`
+	ResourceType     string            `json:"resourceType"`
+	Name             string            `json:"name"`
+	Namespace        string            `json:"namespace"`
+	CreatedTimestamp int64             `json:"createdTimestamp"`
+	Labels           map[string]string `json:"labels"`
+	Annotations      map[string]string `json:"annotations"`
+	CreatedByKind    string            `json:"createdByKind"`
+	CreatedByName    string            `json:"createdByName"`
 }
 
 // DeploymentData represents deployment-specific metrics (matching kube-state-metrics)
 type DeploymentData struct {
-	// Basic deployment info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// Replica counts
 	DesiredReplicas     int32 `json:"desiredReplicas"`
 	CurrentReplicas     int32 `json:"currentReplicas"`
@@ -49,10 +47,6 @@ type DeploymentData struct {
 	ConditionProgressing    bool `json:"conditionProgressing"`
 	ConditionReplicaFailure bool `json:"conditionReplicaFailure"`
 
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-
 	// Missing from KSM
 	Paused             bool  `json:"paused"`
 	MetadataGeneration int64 `json:"metadataGeneration"`
@@ -60,6 +54,7 @@ type DeploymentData struct {
 
 // PodData represents pod-specific metrics (matching kube-state-metrics)
 type PodData struct {
+	LogEntryMetadata
 	// Basic pod info
 	NodeName      string `json:"nodeName"`
 	HostIP        string `json:"hostIP"`
@@ -76,13 +71,7 @@ type PodData struct {
 	PodScheduled    bool `json:"podScheduled"`
 
 	// Pod status
-	RestartCount  int32  `json:"restartCount"`
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-
-	// Labels and annotations
-	Labels      map[string]string `json:"labels"`
-	Annotations map[string]string `json:"annotations"`
+	RestartCount int32 `json:"restartCount"`
 
 	// Missing from KSM
 	DeletionTimestamp      *time.Time        `json:"deletionTimestamp"`
@@ -167,6 +156,7 @@ type ContainerData struct {
 
 // ServiceData represents service-specific metrics (matching kube-state-metrics)
 type ServiceData struct {
+	LogEntryMetadata
 	// Basic service info
 	Type           string            `json:"type"`
 	ClusterIP      string            `json:"clusterIP"`
@@ -174,8 +164,6 @@ type ServiceData struct {
 	LoadBalancerIP string            `json:"loadBalancerIP"`
 	Ports          []ServicePortData `json:"ports"`
 	Selector       map[string]string `json:"selector"`
-	Labels         map[string]string `json:"labels"`
-	Annotations    map[string]string `json:"annotations"`
 
 	// Service status
 	EndpointsCount int `json:"endpointsCount"`
@@ -189,13 +177,7 @@ type ServiceData struct {
 	// External name
 	ExternalName string `json:"externalName"`
 
-	// Created by info
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-
 	// Missing from KSM
-	CreatedTimestamp                      int64  `json:"createdTimestamp"`
-	InternalTrafficPolicy                 string `json:"internalTrafficPolicy"`
 	ExternalTrafficPolicy                 string `json:"externalTrafficPolicy"`
 	SessionAffinityClientIPTimeoutSeconds int32  `json:"sessionAffinityClientIPTimeoutSeconds"`
 
@@ -222,6 +204,7 @@ type LoadBalancerIngressData struct {
 
 // NodeData represents node-specific metrics (matching kube-state-metrics)
 type NodeData struct {
+	LogEntryMetadata
 	// Basic node info
 	Architecture            string `json:"architecture"`
 	OperatingSystem         string `json:"operatingSystem"`
@@ -236,10 +219,6 @@ type NodeData struct {
 	Conditions  map[string]bool   `json:"conditions"`
 	Phase       string            `json:"phase"`
 
-	// Node info
-	Labels      map[string]string `json:"labels"`
-	Annotations map[string]string `json:"annotations"`
-
 	// Node addresses
 	InternalIP string `json:"internalIP"`
 	ExternalIP string `json:"externalIP"`
@@ -249,12 +228,7 @@ type NodeData struct {
 	Unschedulable bool `json:"unschedulable"`
 	Ready         bool `json:"ready"`
 
-	// Created by info
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-
 	// Missing from KSM
-	CreatedTimestamp  int64       `json:"createdTimestamp"`
 	Role              string      `json:"role"`
 	Taints            []TaintData `json:"taints"`
 	DeletionTimestamp *time.Time  `json:"deletionTimestamp"`
@@ -269,11 +243,7 @@ type TaintData struct {
 
 // ReplicaSetData represents replicaset-specific metrics (matching kube-state-metrics)
 type ReplicaSetData struct {
-	// Basic replicaset info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// Replica counts
 	DesiredReplicas      int32 `json:"desiredReplicas"`
 	CurrentReplicas      int32 `json:"currentReplicas"`
@@ -289,21 +259,13 @@ type ReplicaSetData struct {
 	ConditionProgressing    bool `json:"conditionProgressing"`
 	ConditionReplicaFailure bool `json:"conditionReplicaFailure"`
 
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-
 	// Replicaset specific
 	IsCurrent bool `json:"isCurrent"` // Whether this is the current replicaset for its owner
 }
 
 // StatefulSetData represents statefulset-specific metrics (matching kube-state-metrics)
 type StatefulSetData struct {
-	// Basic statefulset info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// Replica counts
 	DesiredReplicas int32 `json:"desiredReplicas"`
 	CurrentReplicas int32 `json:"currentReplicas"`
@@ -320,10 +282,6 @@ type StatefulSetData struct {
 	ConditionProgressing    bool `json:"conditionProgressing"`
 	ConditionReplicaFailure bool `json:"conditionReplicaFailure"`
 
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-
 	// Statefulset specific
 	ServiceName         string `json:"serviceName"`
 	PodManagementPolicy string `json:"podManagementPolicy"`
@@ -332,11 +290,7 @@ type StatefulSetData struct {
 
 // DaemonSetData represents daemonset-specific metrics (matching kube-state-metrics)
 type DaemonSetData struct {
-	// Basic daemonset info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// Replica counts
 	DesiredNumberScheduled int32 `json:"desiredNumberScheduled"`
 	CurrentNumberScheduled int32 `json:"currentNumberScheduled"`
@@ -354,21 +308,13 @@ type DaemonSetData struct {
 	ConditionProgressing    bool `json:"conditionProgressing"`
 	ConditionReplicaFailure bool `json:"conditionReplicaFailure"`
 
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-
 	// Daemonset specific
 	UpdateStrategy string `json:"updateStrategy"`
 }
 
 // NamespaceData represents namespace-specific metrics (matching kube-state-metrics)
 type NamespaceData struct {
-	// Basic namespace info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// Namespace status
 	Phase string `json:"phase"`
 
@@ -376,21 +322,13 @@ type NamespaceData struct {
 	ConditionActive      bool `json:"conditionActive"`
 	ConditionTerminating bool `json:"conditionTerminating"`
 
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-
 	// Namespace specific
 	DeletionTimestamp *metav1.Time `json:"deletionTimestamp"`
 }
 
 // JobData represents job-specific metrics (matching kube-state-metrics)
 type JobData struct {
-	// Basic job info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// Job status
 	ActivePods    int32 `json:"activePods"`
 	SucceededPods int32 `json:"succeededPods"`
@@ -406,10 +344,6 @@ type JobData struct {
 	ConditionComplete bool `json:"conditionComplete"`
 	ConditionFailed   bool `json:"conditionFailed"`
 
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-
 	// Job specific
 	JobType string `json:"jobType"` // "Job" or "CronJob"
 	Suspend *bool  `json:"suspend"`
@@ -417,11 +351,7 @@ type JobData struct {
 
 // CronJobData represents cronjob-specific metrics (matching kube-state-metrics)
 type CronJobData struct {
-	// Basic cronjob info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// CronJob spec
 	Schedule                   string `json:"schedule"`
 	ConcurrencyPolicy          string `json:"concurrencyPolicy"`
@@ -438,50 +368,26 @@ type CronJobData struct {
 
 	// Conditions
 	ConditionActive bool `json:"conditionActive"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 }
 
 // ConfigMapData represents configmap-specific metrics (matching kube-state-metrics)
 type ConfigMapData struct {
-	// Basic configmap info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// ConfigMap specific
 	DataKeys []string `json:"dataKeys"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 }
 
 // SecretData represents secret-specific metrics (matching kube-state-metrics)
 type SecretData struct {
-	// Basic secret info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// Secret specific
 	Type     string   `json:"type"`
 	DataKeys []string `json:"dataKeys"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 }
 
 // PersistentVolumeClaimData represents persistentvolumeclaim-specific metrics (matching kube-state-metrics)
 type PersistentVolumeClaimData struct {
-	// Basic persistentvolumeclaim info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// PVC spec
 	AccessModes      []string `json:"accessModes"`
 	StorageClassName *string  `json:"storageClassName"`
@@ -496,10 +402,6 @@ type PersistentVolumeClaimData struct {
 	ConditionBound   bool `json:"conditionBound"`
 	ConditionLost    bool `json:"conditionLost"`
 
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-
 	// PVC specific
 	RequestStorage string `json:"requestStorage"`
 	UsedStorage    string `json:"usedStorage"`
@@ -507,11 +409,7 @@ type PersistentVolumeClaimData struct {
 
 // IngressData represents ingress-specific metrics (matching kube-state-metrics)
 type IngressData struct {
-	// Basic ingress info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// Ingress spec
 	IngressClassName *string `json:"ingressClassName"`
 	LoadBalancerIP   string  `json:"loadBalancerIP"`
@@ -527,10 +425,6 @@ type IngressData struct {
 
 	// Conditions
 	ConditionLoadBalancerReady bool `json:"conditionLoadBalancerReady"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 }
 
 // IngressRuleData represents ingress rule information
@@ -555,11 +449,7 @@ type IngressTLSData struct {
 
 // HorizontalPodAutoscalerData represents horizontalpodautoscaler-specific metrics (matching kube-state-metrics)
 type HorizontalPodAutoscalerData struct {
-	// Basic horizontalpodautoscaler info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// HPA spec
 	MinReplicas                       *int32 `json:"minReplicas"`
 	MaxReplicas                       int32  `json:"maxReplicas"`
@@ -577,10 +467,6 @@ type HorizontalPodAutoscalerData struct {
 	ConditionScalingActive  bool `json:"conditionScalingActive"`
 	ConditionScalingLimited bool `json:"conditionScalingLimited"`
 
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-
 	// HPA specific
 	ScaleTargetRef  string `json:"scaleTargetRef"`
 	ScaleTargetKind string `json:"scaleTargetKind"`
@@ -588,18 +474,10 @@ type HorizontalPodAutoscalerData struct {
 
 // ServiceAccountData represents serviceaccount-specific metrics (matching kube-state-metrics)
 type ServiceAccountData struct {
-	// Basic serviceaccount info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// ServiceAccount specific
 	Secrets          []string `json:"secrets"`
 	ImagePullSecrets []string `json:"imagePullSecrets"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 
 	// ServiceAccount specific
 	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken"`
@@ -607,18 +485,10 @@ type ServiceAccountData struct {
 
 // EndpointsData represents endpoints-specific metrics (matching kube-state-metrics)
 type EndpointsData struct {
-	// Basic endpoints info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// Endpoints specific
 	Addresses []EndpointAddressData `json:"addresses"`
 	Ports     []EndpointPortData    `json:"ports"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 
 	// Endpoints specific
 	Ready bool `json:"ready"`
@@ -641,11 +511,7 @@ type EndpointPortData struct {
 
 // PersistentVolumeData represents persistentvolume-specific metrics (matching kube-state-metrics)
 type PersistentVolumeData struct {
-	// Basic persistentvolume info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// PersistentVolume specific
 	CapacityBytes          int64  `json:"capacityBytes"`
 	AccessModes            string `json:"accessModes"`
@@ -656,28 +522,16 @@ type PersistentVolumeData struct {
 	VolumePluginName       string `json:"volumePluginName"`
 	PersistentVolumeSource string `json:"persistentVolumeSource"`
 
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-
 	// PersistentVolume specific
 	IsDefaultClass bool `json:"isDefaultClass"`
 }
 
 // ResourceQuotaData represents resourcequota-specific metrics (matching kube-state-metrics)
 type ResourceQuotaData struct {
-	// Basic resourcequota info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// ResourceQuota specific
 	Hard map[string]int64 `json:"hard"`
 	Used map[string]int64 `json:"used"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 
 	// ResourceQuota specific
 	Scopes []string `json:"scopes"`
@@ -685,11 +539,7 @@ type ResourceQuotaData struct {
 
 // PodDisruptionBudgetData represents poddisruptionbudget-specific metrics (matching kube-state-metrics)
 type PodDisruptionBudgetData struct {
-	// Basic poddisruptionbudget info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// PodDisruptionBudget specific
 	MinAvailable             int32 `json:"minAvailable"`
 	MaxUnavailable           int32 `json:"maxUnavailable"`
@@ -705,38 +555,22 @@ type PodDisruptionBudgetData struct {
 	StatusDisruptionsAllowed int32 `json:"statusDisruptionsAllowed"`
 	StatusTotalReplicas      int32 `json:"statusTotalReplicas"`
 	StatusDisruptionAllowed  bool  `json:"statusDisruptionAllowed"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 }
 
-// CRDData represents generic CRD metrics (similar to kube-state-metrics)
+// CRDData represents CRD-specific metrics
 type CRDData struct {
-	// Basic CRD info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// CRD specific
 	APIVersion   string         `json:"apiVersion"`
 	Kind         string         `json:"kind"`
 	Spec         map[string]any `json:"spec"`
 	Status       map[string]any `json:"status"`
 	CustomFields map[string]any `json:"customFields"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 }
 
 // StorageClassData represents storageclass-specific metrics (matching kube-state-metrics)
 type StorageClassData struct {
-	// Basic storageclass info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// StorageClass specific
 	Provisioner          string            `json:"provisioner"`
 	ReclaimPolicy        string            `json:"reclaimPolicy"`
@@ -746,29 +580,17 @@ type StorageClassData struct {
 	MountOptions         []string          `json:"mountOptions"`
 	AllowedTopologies    map[string]any    `json:"allowedTopologies"`
 
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-
 	// StorageClass specific
 	IsDefaultClass bool `json:"isDefaultClass"`
 }
 
 // NetworkPolicyData represents networkpolicy-specific metrics (matching kube-state-metrics)
 type NetworkPolicyData struct {
-	// Basic networkpolicy info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// NetworkPolicy specific
 	PolicyTypes  []string                   `json:"policyTypes"`
 	IngressRules []NetworkPolicyIngressRule `json:"ingressRules"`
 	EgressRules  []NetworkPolicyEgressRule  `json:"egressRules"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 }
 
 // NetworkPolicyIngressRule represents an ingress rule in a network policy
@@ -799,11 +621,7 @@ type NetworkPolicyPeer struct {
 
 // ReplicationControllerData represents replicationcontroller-specific metrics (matching kube-state-metrics)
 type ReplicationControllerData struct {
-	// Basic replicationcontroller info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// ReplicationController specific
 	DesiredReplicas      int32 `json:"desiredReplicas"`
 	CurrentReplicas      int32 `json:"currentReplicas"`
@@ -811,27 +629,15 @@ type ReplicationControllerData struct {
 	AvailableReplicas    int32 `json:"availableReplicas"`
 	FullyLabeledReplicas int32 `json:"fullyLabeledReplicas"`
 
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-
 	// ReplicationController specific
 	ObservedGeneration int64 `json:"observedGeneration"`
 }
 
 // LimitRangeData represents limitrange-specific metrics (matching kube-state-metrics)
 type LimitRangeData struct {
-	// Basic limitrange info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// LimitRange specific
 	Limits []LimitRangeItem `json:"limits"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 }
 
 // LimitRangeItem represents a limit range item
@@ -846,93 +652,37 @@ type LimitRangeItem struct {
 	MaxLimitRequestRatio map[string]string `json:"maxLimitRequestRatio"`
 }
 
-// LeaseData represents lease-specific metrics (matching kube-state-metrics)
-type LeaseData struct {
-	// Basic lease info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
-	// Lease specific
-	HolderIdentity       string     `json:"holderIdentity"`
-	LeaseDurationSeconds int32      `json:"leaseDurationSeconds"`
-	RenewTime            *time.Time `json:"renewTime"`
-	AcquireTime          *time.Time `json:"acquireTime"`
-	LeaseTransitions     int32      `json:"leaseTransitions"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-}
-
-// RoleData represents role-specific metrics (matching kube-state-metrics)
-type RoleData struct {
-	// Basic role info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
-	// Role specific
-	Rules []PolicyRule `json:"rules"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-}
-
-// ClusterRoleData represents clusterrole-specific metrics (matching kube-state-metrics)
-type ClusterRoleData struct {
-	// Basic clusterrole info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
-	// ClusterRole specific
-	Rules []PolicyRule `json:"rules"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-}
-
-// RoleBindingData represents rolebinding-specific metrics (matching kube-state-metrics)
-type RoleBindingData struct {
-	// Basic rolebinding info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
-	// RoleBinding specific
-	RoleRef  RoleRef   `json:"roleRef"`
-	Subjects []Subject `json:"subjects"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
-}
-
-// ClusterRoleBindingData represents clusterrolebinding-specific metrics (matching kube-state-metrics)
-type ClusterRoleBindingData struct {
-	// Basic clusterrolebinding info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
-	// ClusterRoleBinding specific
-	RoleRef  RoleRef   `json:"roleRef"`
-	Subjects []Subject `json:"subjects"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
+// CertificateSigningRequestData represents certificatesigningrequest-specific metrics
+type CertificateSigningRequestData struct {
+	LogEntryMetadata
+	// CertificateSigningRequest specific
+	Status            string   `json:"status"`
+	SignerName        string   `json:"signerName"`
+	ExpirationSeconds *int32   `json:"expirationSeconds"`
+	Usages            []string `json:"usages"`
 }
 
 // PolicyRule represents a policy rule in RBAC
 type PolicyRule struct {
-	APIGroups     []string `json:"apiGroups"`
-	Resources     []string `json:"resources"`
-	ResourceNames []string `json:"resourceNames"`
-	Verbs         []string `json:"verbs"`
+	APIGroups       []string `json:"apiGroups"`
+	Resources       []string `json:"resources"`
+	Verbs           []string `json:"verbs"`
+	ResourceNames   []string `json:"resourceNames"`
+	NonResourceURLs []string `json:"nonResourceURLs"`
+}
+
+// RoleData represents role-specific metrics
+type RoleData struct {
+	LogEntryMetadata
+	// Role specific
+	Rules []PolicyRule `json:"rules"`
+}
+
+// ClusterRoleData represents clusterrole-specific metrics
+type ClusterRoleData struct {
+	LogEntryMetadata
+	// ClusterRole specific
+	Rules []PolicyRule `json:"rules"`
 }
 
 // RoleRef represents a role reference in RBAC
@@ -945,80 +695,50 @@ type RoleRef struct {
 // Subject represents a subject in RBAC
 type Subject struct {
 	Kind      string `json:"kind"`
+	APIGroup  string `json:"apiGroup"`
 	Name      string `json:"name"`
 	Namespace string `json:"namespace"`
-	APIGroup  string `json:"apiGroup"`
 }
 
-// VolumeAttachmentData represents volumeattachment-specific metrics (matching kube-state-metrics)
-type VolumeAttachmentData struct {
-	// Basic volumeattachment info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
-	// VolumeAttachment specific
-	Attacher           string            `json:"attacher"`
-	VolumeName         string            `json:"volumeName"`
-	NodeName           string            `json:"nodeName"`
-	Attached           bool              `json:"attached"`
-	AttachmentMetadata map[string]string `json:"attachmentMetadata"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
+// RoleBindingData represents rolebinding-specific metrics
+type RoleBindingData struct {
+	LogEntryMetadata
+	// RoleBinding specific
+	RoleRef  RoleRef   `json:"roleRef"`
+	Subjects []Subject `json:"subjects"`
 }
 
-// CertificateSigningRequestData represents certificatesigningrequest-specific metrics (matching kube-state-metrics)
-type CertificateSigningRequestData struct {
-	// Basic certificatesigningrequest info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
-	// CertificateSigningRequest specific
-	Status            string   `json:"status"`
-	SignerName        string   `json:"signerName"`
-	ExpirationSeconds *int32   `json:"expirationSeconds"`
-	Usages            []string `json:"usages"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
+// ClusterRoleBindingData represents clusterrolebinding-specific metrics
+type ClusterRoleBindingData struct {
+	LogEntryMetadata
+	// ClusterRoleBinding specific
+	RoleRef  RoleRef   `json:"roleRef"`
+	Subjects []Subject `json:"subjects"`
 }
 
-// MutatingWebhookConfigurationData represents mutatingwebhookconfiguration-specific metrics (matching kube-state-metrics)
-type MutatingWebhookConfigurationData struct {
-	// Basic mutatingwebhookconfiguration info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
-	// MutatingWebhookConfiguration specific
-	Webhooks []WebhookData `json:"webhooks"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
+// IngressClassData represents ingressclass-specific metrics
+type IngressClassData struct {
+	LogEntryMetadata
+	// IngressClass specific
+	Controller string `json:"controller"`
+	IsDefault  bool   `json:"isDefault"`
 }
 
-// ValidatingWebhookConfigurationData represents validatingwebhookconfiguration-specific metrics (matching kube-state-metrics)
-type ValidatingWebhookConfigurationData struct {
-	// Basic validatingwebhookconfiguration info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
-	// ValidatingWebhookConfiguration specific
-	Webhooks []WebhookData `json:"webhooks"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
+// LeaseData represents lease-specific metrics
+type LeaseData struct {
+	LogEntryMetadata
+	// Lease specific
+	HolderIdentity       string     `json:"holderIdentity"`
+	LeaseDurationSeconds int32      `json:"leaseDurationSeconds"`
+	RenewTime            *time.Time `json:"renewTime"`
+	AcquireTime          *time.Time `json:"acquireTime"`
+	LeaseTransitions     int32      `json:"leaseTransitions"`
 }
 
-// WebhookData represents webhook information
+// WebhookData represents webhook-specific metrics
 type WebhookData struct {
+	LogEntryMetadata
+	// Webhook specific
 	Name                    string                  `json:"name"`
 	ClientConfig            WebhookClientConfigData `json:"clientConfig"`
 	Rules                   []WebhookRuleData       `json:"rules"`
@@ -1027,90 +747,76 @@ type WebhookData struct {
 	NamespaceSelector       map[string]string       `json:"namespaceSelector"`
 	ObjectSelector          map[string]string       `json:"objectSelector"`
 	SideEffects             string                  `json:"sideEffects"`
-	TimeoutSeconds          int32                   `json:"timeoutSeconds"`
+	TimeoutSeconds          *int32                  `json:"timeoutSeconds"`
 	AdmissionReviewVersions []string                `json:"admissionReviewVersions"`
 }
 
-// WebhookClientConfigData represents webhook client configuration
+// WebhookClientConfigData represents webhook client config-specific metrics
 type WebhookClientConfigData struct {
+	LogEntryMetadata
+	// WebhookClientConfig specific
 	URL      string              `json:"url"`
 	Service  *WebhookServiceData `json:"service"`
 	CABundle []byte              `json:"caBundle"`
 }
 
-// WebhookServiceData represents webhook service configuration
+// WebhookServiceData represents webhook service-specific metrics
 type WebhookServiceData struct {
+	LogEntryMetadata
+	// WebhookService specific
 	Namespace string `json:"namespace"`
 	Name      string `json:"name"`
 	Path      string `json:"path"`
 	Port      int32  `json:"port"`
 }
 
-// WebhookRuleData represents webhook rule information
+// WebhookRuleData represents webhook rule-specific metrics
 type WebhookRuleData struct {
+	LogEntryMetadata
+	// WebhookRule specific
 	APIGroups   []string `json:"apiGroups"`
 	APIVersions []string `json:"apiVersions"`
 	Resources   []string `json:"resources"`
 	Scope       string   `json:"scope"`
 }
 
-// IngressClassData represents ingressclass-specific metrics (matching kube-state-metrics)
-type IngressClassData struct {
-	// Basic ingressclass info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
-	// IngressClass specific
-	Controller string `json:"controller"`
-	IsDefault  bool   `json:"isDefault"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
+// MutatingWebhookConfigurationData represents mutatingwebhookconfiguration-specific metrics
+type MutatingWebhookConfigurationData struct {
+	LogEntryMetadata
+	// MutatingWebhookConfiguration specific
+	Webhooks []WebhookData `json:"webhooks"`
 }
 
-// PriorityClassData represents priorityclass-specific metrics (matching kube-state-metrics)
+// PriorityClassData represents priorityclass-specific metrics
 type PriorityClassData struct {
-	// Basic priorityclass info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// PriorityClass specific
 	Value            int32  `json:"value"`
 	GlobalDefault    bool   `json:"globalDefault"`
 	Description      string `json:"description"`
 	PreemptionPolicy string `json:"preemptionPolicy"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 }
 
-// RuntimeClassData represents runtimeclass-specific metrics (matching kube-state-metrics)
+// RuntimeClassData represents runtimeclass-specific metrics
 type RuntimeClassData struct {
-	// Basic runtimeclass info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
+	LogEntryMetadata
 	// RuntimeClass specific
 	Handler string `json:"handler"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 }
 
-// ValidatingAdmissionPolicyData represents validatingadmissionpolicy-specific metrics (matching kube-state-metrics)
-type ValidatingAdmissionPolicyData struct {
-	// Basic validatingadmissionpolicy info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
+// VolumeAttachmentData represents volumeattachment-specific metrics
+type VolumeAttachmentData struct {
+	LogEntryMetadata
+	// VolumeAttachment specific
+	Attacher   string `json:"attacher"`
+	VolumeName string `json:"volumeName"`
+	NodeName   string `json:"nodeName"`
+	Attached   bool   `json:"attached"`
+}
 
-	// ValidatingAdmissionPolicy specific
+// ValidatingAdmissionPolicyData represents validatingadmissionpolicy-specific metrics
+type ValidatingAdmissionPolicyData struct {
+	LogEntryMetadata
 	FailurePolicy      string   `json:"failurePolicy"`
 	MatchConstraints   []string `json:"matchConstraints"`
 	Validations        []string `json:"validations"`
@@ -1121,75 +827,21 @@ type ValidatingAdmissionPolicyData struct {
 	ObservedGeneration int64    `json:"observedGeneration"`
 	TypeChecking       string   `json:"typeChecking"`
 	ExpressionWarnings []string `json:"expressionWarnings"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 }
 
-// ValidatingAdmissionPolicyBindingData represents validatingadmissionpolicybinding-specific metrics (matching kube-state-metrics)
+// ValidatingAdmissionPolicyBindingData represents validatingadmissionpolicybinding-specific metrics
 type ValidatingAdmissionPolicyBindingData struct {
-	// Basic validatingadmissionpolicybinding info
-	CreatedTimestamp int64             `json:"createdTimestamp"`
-	Labels           map[string]string `json:"labels"`
-	Annotations      map[string]string `json:"annotations"`
-
-	// ValidatingAdmissionPolicyBinding specific
+	LogEntryMetadata
 	PolicyName         string   `json:"policyName"`
 	ParamRef           string   `json:"paramRef"`
 	MatchResources     []string `json:"matchResources"`
 	ValidationActions  []string `json:"validationActions"`
 	ObservedGeneration int64    `json:"observedGeneration"`
-
-	// Metadata
-	CreatedByKind string `json:"createdByKind"`
-	CreatedByName string `json:"createdByName"`
 }
 
-// convertStructToMap converts a struct to a map[string]any for JSON serialization
-func convertStructToMap(obj any) map[string]any {
-	result := make(map[string]any)
-
-	v := reflect.ValueOf(obj)
-	if v.Kind() == reflect.Ptr {
-		v = v.Elem()
-	}
-
-	if v.Kind() != reflect.Struct {
-		return result
-	}
-
-	t := v.Type()
-	for i := 0; i < v.NumField(); i++ {
-		field := v.Field(i)
-		fieldType := t.Field(i)
-
-		// Get JSON tag name
-		jsonTag := fieldType.Tag.Get("json")
-		if jsonTag == "" || jsonTag == "-" {
-			continue
-		}
-
-		// Remove comma and options from JSON tag
-		if commaIndex := strings.Index(jsonTag, ","); commaIndex != -1 {
-			jsonTag = jsonTag[:commaIndex]
-		}
-
-		// Convert field value to any
-		var value any
-		switch field.Kind() {
-		case reflect.Ptr:
-			if field.IsNil() {
-				value = nil
-			} else {
-				value = field.Elem().Interface()
-			}
-		default:
-			value = field.Interface()
-		}
-
-		result[jsonTag] = value
-	}
-
-	return result
+// ValidatingWebhookConfigurationData represents validatingwebhookconfiguration-specific metrics
+type ValidatingWebhookConfigurationData struct {
+	LogEntryMetadata
+	// ValidatingWebhookConfiguration specific
+	Webhooks []WebhookData `json:"webhooks"`
 }

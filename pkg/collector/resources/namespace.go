@@ -35,31 +35,31 @@ func (h *NamespaceHandler) SetupInformer(factory informers.SharedInformerFactory
 }
 
 // Collect gathers namespace metrics from the cluster (uses cache)
-func (h *NamespaceHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *NamespaceHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all namespaces from the cache
 	namespaceList := utils.SafeGetStoreList(h.GetInformer())
 
 	for _, obj := range namespaceList {
-		ns, ok := obj.(*corev1.Namespace)
+		namespace, ok := obj.(*corev1.Namespace)
 		if !ok {
 			continue
 		}
 
-		if !utils.ShouldIncludeNamespace(namespaces, ns.Name) {
+		if !utils.ShouldIncludeNamespace(namespaces, namespace.Name) {
 			continue
 		}
 
-		entry := h.createLogEntry(ns)
+		entry := h.createLogEntry(namespace)
 		entries = append(entries, entry)
 	}
 
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a namespace
-func (h *NamespaceHandler) createLogEntry(ns *corev1.Namespace) types.LogEntry {
+// createLogEntry creates a NamespaceData from a namespace
+func (h *NamespaceHandler) createLogEntry(ns *corev1.Namespace) types.NamespaceData {
 	// Determine phase
 	phase := string(ns.Status.Phase)
 
@@ -85,16 +85,22 @@ func (h *NamespaceHandler) createLogEntry(ns *corev1.Namespace) types.LogEntry {
 	}
 
 	data := types.NamespaceData{
-		CreatedTimestamp:     utils.ExtractCreationTimestamp(ns),
-		Labels:               utils.ExtractLabels(ns),
-		Annotations:          utils.ExtractAnnotations(ns),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "namespace",
+			Name:             utils.ExtractName(ns),
+			Namespace:        utils.ExtractNamespace(ns),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(ns),
+			Labels:           utils.ExtractLabels(ns),
+			Annotations:      utils.ExtractAnnotations(ns),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		Phase:                phase,
 		ConditionActive:      conditionActive,
 		ConditionTerminating: conditionTerminating,
-		CreatedByKind:        createdByKind,
-		CreatedByName:        createdByName,
 		DeletionTimestamp:    deletionTimestamp,
 	}
 
-	return utils.CreateLogEntry("namespace", utils.ExtractName(ns), utils.ExtractNamespace(ns), data)
+	return data
 }

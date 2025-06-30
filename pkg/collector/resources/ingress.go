@@ -35,13 +35,13 @@ func (h *IngressHandler) SetupInformer(factory informers.SharedInformerFactory, 
 }
 
 // Collect gathers ingress metrics from the cluster (uses cache)
-func (h *IngressHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *IngressHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all ingresses from the cache
-	ingressList := utils.SafeGetStoreList(h.GetInformer())
+	ingresses := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range ingressList {
+	for _, obj := range ingresses {
 		ingress, ok := obj.(*networkingv1.Ingress)
 		if !ok {
 			continue
@@ -58,8 +58,8 @@ func (h *IngressHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from an ingress
-func (h *IngressHandler) createLogEntry(ingress *networkingv1.Ingress) types.LogEntry {
+// createLogEntry creates an IngressData from an ingress
+func (h *IngressHandler) createLogEntry(ingress *networkingv1.Ingress) types.IngressData {
 	// Extract ingress class name
 	var ingressClassName *string
 	if ingress.Spec.IngressClassName != nil {
@@ -127,18 +127,34 @@ func (h *IngressHandler) createLogEntry(ingress *networkingv1.Ingress) types.Log
 
 	// Create data structure
 	data := types.IngressData{
-		CreatedTimestamp:           utils.ExtractCreationTimestamp(ingress),
-		Labels:                     utils.ExtractLabels(ingress),
-		Annotations:                utils.ExtractAnnotations(ingress),
-		IngressClassName:           ingressClassName,
-		LoadBalancerIP:             "",
-		LoadBalancerIngress:        loadBalancerIngress,
-		Rules:                      rules,
-		TLS:                        tls,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "ingress",
+			Name:             utils.ExtractName(ingress),
+			Namespace:        utils.ExtractNamespace(ingress),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(ingress),
+			Labels:           utils.ExtractLabels(ingress),
+			Annotations:      utils.ExtractAnnotations(ingress),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		IngressClassName: ingressClassName,
+		LoadBalancerIP:   "",
+		LoadBalancerIngress: func() []types.LoadBalancerIngressData {
+			if loadBalancerIngress == nil {
+				return []types.LoadBalancerIngressData{}
+			}
+			return loadBalancerIngress
+		}(),
+		Rules: rules,
+		TLS: func() []types.IngressTLSData {
+			if tls == nil {
+				return []types.IngressTLSData{}
+			}
+			return tls
+		}(),
 		ConditionLoadBalancerReady: conditionLoadBalancerReady,
-		CreatedByKind:              createdByKind,
-		CreatedByName:              createdByName,
 	}
 
-	return utils.CreateLogEntry("ingress", utils.ExtractName(ingress), utils.ExtractNamespace(ingress), data)
+	return data
 }

@@ -34,13 +34,13 @@ func (h *IngressClassHandler) SetupInformer(factory informers.SharedInformerFact
 }
 
 // Collect gathers ingressclass metrics from the cluster (uses cache)
-func (h *IngressClassHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *IngressClassHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all ingressclasses from the cache
-	icList := utils.SafeGetStoreList(h.GetInformer())
+	ingressClasses := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range icList {
+	for _, obj := range ingressClasses {
 		ic, ok := obj.(*networkingv1.IngressClass)
 		if !ok {
 			continue
@@ -53,8 +53,8 @@ func (h *IngressClassHandler) Collect(ctx context.Context, namespaces []string) 
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from an ingressclass
-func (h *IngressClassHandler) createLogEntry(ic *networkingv1.IngressClass) types.LogEntry {
+// createLogEntry creates a IngressClassData from an ingressclass
+func (h *IngressClassHandler) createLogEntry(ic *networkingv1.IngressClass) types.IngressClassData {
 	isDefault := false
 	annotations := utils.ExtractAnnotations(ic)
 	if annotations != nil {
@@ -66,14 +66,20 @@ func (h *IngressClassHandler) createLogEntry(ic *networkingv1.IngressClass) type
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(ic)
 
 	data := types.IngressClassData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(ic),
-		Labels:           utils.ExtractLabels(ic),
-		Annotations:      annotations,
-		Controller:       ic.Spec.Controller,
-		IsDefault:        isDefault,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "ingressclass",
+			Name:             utils.ExtractName(ic),
+			Namespace:        utils.ExtractNamespace(ic),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(ic),
+			Labels:           utils.ExtractLabels(ic),
+			Annotations:      annotations,
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		Controller: ic.Spec.Controller,
+		IsDefault:  isDefault,
 	}
 
-	return utils.CreateLogEntry("ingressclass", utils.ExtractName(ic), utils.ExtractNamespace(ic), data)
+	return data
 }

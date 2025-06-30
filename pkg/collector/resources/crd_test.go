@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 func TestCRDHandler(t *testing.T) {
@@ -148,7 +149,11 @@ func TestCRDHandler(t *testing.T) {
 			}
 			entryNames := make([]string, len(entries))
 			for i, entry := range entries {
-				entryNames[i] = entry.Name
+				crdData, ok := entry.(types.CRDData)
+				if !ok {
+					t.Fatalf("Expected CRDData type, got %T", entry)
+				}
+				entryNames[i] = crdData.Name
 			}
 			for _, expectedName := range tt.expectedNames {
 				found := false
@@ -163,43 +168,50 @@ func TestCRDHandler(t *testing.T) {
 				}
 			}
 			if tt.expectedFields != nil && len(entries) > 0 {
-				entry := entries[0]
+				crdData, ok := entries[0].(types.CRDData)
+				if !ok {
+					t.Fatalf("Expected CRDData type, got %T", entries[0])
+				}
 				for field, expectedValue := range tt.expectedFields {
 					switch field {
 					case "created_by_kind":
-						if entry.Data["createdByKind"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, entry.Data["createdByKind"])
+						if crdData.CreatedByKind != expectedValue.(string) {
+							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, crdData.CreatedByKind)
 						}
 					case "created_by_name":
-						if entry.Data["createdByName"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_name %s, got %v", expectedValue, entry.Data["createdByName"])
+						if crdData.CreatedByName != expectedValue.(string) {
+							t.Errorf("Expected created_by_name %s, got %v", expectedValue, crdData.CreatedByName)
 						}
 					}
 				}
 			}
 			for _, entry := range entries {
-				if entry.ResourceType != "crd" {
-					t.Errorf("Expected resource type 'crd', got %s", entry.ResourceType)
+				crdData, ok := entry.(types.CRDData)
+				if !ok {
+					t.Fatalf("Expected CRDData type, got %T", entry)
 				}
-				if entry.Name == "" {
+				if crdData.ResourceType != "crd" {
+					t.Errorf("Expected resource type 'crd', got %s", crdData.ResourceType)
+				}
+				if crdData.Name == "" {
 					t.Error("Entry name should not be empty")
 				}
-				if entry.Data["createdTimestamp"] == nil {
-					t.Error("Created timestamp should not be nil")
+				if crdData.CreatedTimestamp == 0 {
+					t.Error("Created timestamp should not be zero")
 				}
-				if entry.Data["apiVersion"] == nil {
-					t.Error("apiVersion should not be nil")
+				if crdData.APIVersion == "" {
+					t.Error("apiVersion should not be empty")
 				}
-				if entry.Data["kind"] == nil {
-					t.Error("kind should not be nil")
+				if crdData.Kind == "" {
+					t.Error("kind should not be empty")
 				}
-				if entry.Data["spec"] == nil {
+				if crdData.Spec == nil {
 					t.Error("spec should not be nil")
 				}
-				if entry.Data["status"] == nil {
+				if crdData.Status == nil {
 					t.Error("status should not be nil")
 				}
-				if entry.Data["customFields"] == nil {
+				if crdData.CustomFields == nil {
 					t.Error("customFields should not be nil")
 				}
 			}
@@ -323,8 +335,11 @@ func TestCRDHandler_CustomFields(t *testing.T) {
 		t.Errorf("Expected 1 entry, got %d", len(entries))
 	}
 
-	entry := entries[0]
-	customFieldsData := entry.Data["customFields"].(map[string]interface{})
+	crdData, ok := entries[0].(types.CRDData)
+	if !ok {
+		t.Fatalf("Expected CRDData type, got %T", entries[0])
+	}
+	customFieldsData := crdData.CustomFields
 
 	// Check that custom fields are extracted correctly
 	if customFieldsData["spec.replicas"] != float64(3) {

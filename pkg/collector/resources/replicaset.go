@@ -2,7 +2,6 @@ package resources
 
 import (
 	"context"
-	"slices"
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -35,16 +34,13 @@ func (h *ReplicaSetHandler) SetupInformer(factory informers.SharedInformerFactor
 }
 
 // Collect gathers replicaset metrics from the cluster (uses cache)
-func (h *ReplicaSetHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *ReplicaSetHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all replicasets from the cache
-	replicasets := utils.SafeGetStoreList(h.GetInformer())
+	replicaSets := utils.SafeGetStoreList(h.GetInformer())
 
-	// Group replicasets by owner to identify current ones
-	ownerReplicaSets := make(map[string][]*appsv1.ReplicaSet)
-
-	for _, obj := range replicasets {
+	for _, obj := range replicaSets {
 		rs, ok := obj.(*appsv1.ReplicaSet)
 		if !ok {
 			continue
@@ -54,49 +50,15 @@ func (h *ReplicaSetHandler) Collect(ctx context.Context, namespaces []string) ([
 			continue
 		}
 
-		// Group by owner
-		for _, ownerRef := range rs.OwnerReferences {
-			key := rs.Namespace + "/" + ownerRef.Kind + "/" + ownerRef.Name
-			ownerReplicaSets[key] = append(ownerReplicaSets[key], rs)
-		}
-	}
-
-	// Process each group and identify current replicasets
-	for _, rsList := range ownerReplicaSets {
-		if len(rsList) == 0 {
-			continue
-		}
-
-		// Sort by creation timestamp (newest first) and generation
-		slices.SortFunc(rsList, func(a, b *appsv1.ReplicaSet) int {
-			if a.CreationTimestamp.Equal(&b.CreationTimestamp) {
-				return int(b.Generation - a.Generation)
-			}
-			return b.CreationTimestamp.Compare(a.CreationTimestamp.Time)
-		})
-
-		// Mark the first (newest) replicaset as current
-		if len(rsList) > 0 {
-			if rsList[0].Labels == nil {
-				rsList[0].Labels = make(map[string]string)
-			}
-			rsList[0].Labels["kube-state-logs/current"] = "true"
-		}
-
-		// Only log current replicasets
-		for _, rs := range rsList {
-			if rs.Labels != nil && rs.Labels["kube-state-logs/current"] == "true" {
-				entry := h.createLogEntry(rs)
-				entries = append(entries, entry)
-			}
-		}
+		entry := h.createLogEntry(rs)
+		entries = append(entries, entry)
 	}
 
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a replicaset
-func (h *ReplicaSetHandler) createLogEntry(rs *appsv1.ReplicaSet) types.LogEntry {
+// createLogEntry creates a ReplicaSetData from a replicaset
+func (h *ReplicaSetHandler) createLogEntry(rs *appsv1.ReplicaSet) types.ReplicaSetData {
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(rs)
 
 	// Get desired replicas with nil check
@@ -106,20 +68,26 @@ func (h *ReplicaSetHandler) createLogEntry(rs *appsv1.ReplicaSet) types.LogEntry
 	}
 
 	data := types.ReplicaSetData{
-		CreatedTimestamp:        utils.ExtractCreationTimestamp(rs),
-		Labels:                  utils.ExtractLabels(rs),
-		Annotations:             utils.ExtractAnnotations(rs),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "replicaset",
+			Name:             utils.ExtractName(rs),
+			Namespace:        utils.ExtractNamespace(rs),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(rs),
+			Labels:           utils.ExtractLabels(rs),
+			Annotations:      utils.ExtractAnnotations(rs),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		DesiredReplicas:         desiredReplicas,
 		CurrentReplicas:         rs.Status.Replicas,
 		ReadyReplicas:           rs.Status.ReadyReplicas,
 		AvailableReplicas:       rs.Status.AvailableReplicas,
 		FullyLabeledReplicas:    rs.Status.FullyLabeledReplicas,
 		ObservedGeneration:      rs.Status.ObservedGeneration,
-		ConditionAvailable:      utils.GetConditionStatusGeneric(rs.Status.Conditions, "ReplicaSetAvailable"),
-		ConditionProgressing:    utils.GetConditionStatusGeneric(rs.Status.Conditions, "ReplicaSetProgressing"),
-		ConditionReplicaFailure: utils.GetConditionStatusGeneric(rs.Status.Conditions, "ReplicaSetReplicaFailure"),
-		CreatedByKind:           createdByKind,
-		CreatedByName:           createdByName,
+		ConditionAvailable:      utils.GetConditionStatusGeneric(rs.Status.Conditions, "Available"),
+		ConditionProgressing:    utils.GetConditionStatusGeneric(rs.Status.Conditions, "Progressing"),
+		ConditionReplicaFailure: utils.GetConditionStatusGeneric(rs.Status.Conditions, "ReplicaFailure"),
 		IsCurrent: func() bool {
 			if rs.Labels != nil {
 				return rs.Labels["kube-state-logs/current"] == "true"
@@ -128,5 +96,5 @@ func (h *ReplicaSetHandler) createLogEntry(rs *appsv1.ReplicaSet) types.LogEntry
 		}(),
 	}
 
-	return utils.CreateLogEntry("replicaset", utils.ExtractName(rs), utils.ExtractNamespace(rs), data)
+	return data
 }

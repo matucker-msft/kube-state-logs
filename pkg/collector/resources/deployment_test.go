@@ -13,6 +13,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	testutils "github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
@@ -170,8 +171,14 @@ func TestDeploymentHandler_Collect(t *testing.T) {
 		t.Fatalf("Expected 1 entry for default namespace, got %d", len(entries))
 	}
 
-	if entries[0].Namespace != "default" {
-		t.Errorf("Expected namespace 'default', got '%s'", entries[0].Namespace)
+	// Type assert to DeploymentData for assertions
+	entry, ok := entries[0].(types.DeploymentData)
+	if !ok {
+		t.Fatalf("Expected DeploymentData type, got %T", entries[0])
+	}
+
+	if entry.Namespace != "default" {
+		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
 	}
 }
 
@@ -196,90 +203,63 @@ func TestDeploymentHandler_createLogEntry(t *testing.T) {
 		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
 	}
 
-	// Verify data structure
-	data := entry.Data
-
 	// Verify deployment-specific fields
-	val, ok := data["desiredReplicas"]
-	if !ok || val == nil {
-		t.Fatalf("desiredReplicas missing or nil")
-	}
-	if val.(int32) != 3 {
-		t.Errorf("Expected desired replicas 3, got %d", val.(int32))
+	if entry.DesiredReplicas != 3 {
+		t.Errorf("Expected desired replicas 3, got %d", entry.DesiredReplicas)
 	}
 
-	val, ok = data["currentReplicas"]
-	if !ok || val == nil {
-		t.Fatalf("currentReplicas missing or nil")
-	}
-	if val.(int32) != 3 {
-		t.Errorf("Expected current replicas 3, got %d", val.(int32))
+	if entry.CurrentReplicas != 3 {
+		t.Errorf("Expected current replicas 3, got %d", entry.CurrentReplicas)
 	}
 
-	val, ok = data["readyReplicas"]
-	if !ok || val == nil {
-		t.Fatalf("readyReplicas missing or nil")
-	}
-	if val.(int32) != 2 {
-		t.Errorf("Expected ready replicas 2, got %d", val.(int32))
+	if entry.ReadyReplicas != 2 {
+		t.Errorf("Expected ready replicas 2, got %d", entry.ReadyReplicas)
 	}
 
-	val, ok = data["strategyType"]
-	if !ok || val == nil {
-		t.Fatalf("strategyType missing or nil")
-	}
-	if val.(string) != "RollingUpdate" {
-		t.Errorf("Expected strategy type 'RollingUpdate', got '%s'", val.(string))
+	if entry.AvailableReplicas != 2 {
+		t.Errorf("Expected available replicas 2, got %d", entry.AvailableReplicas)
 	}
 
-	val, ok = data["strategyRollingUpdateMaxSurge"]
-	if !ok || val == nil {
-		t.Fatalf("strategyRollingUpdateMaxSurge missing or nil")
-	}
-	if val.(int32) != 1 {
-		t.Errorf("Expected max surge 1, got %d", val.(int32))
+	if entry.UnavailableReplicas != 1 {
+		t.Errorf("Expected unavailable replicas 1, got %d", entry.UnavailableReplicas)
 	}
 
-	val, ok = data["strategyRollingUpdateMaxUnavailable"]
-	if !ok || val == nil {
-		t.Fatalf("strategyRollingUpdateMaxUnavailable missing or nil")
-	}
-	if val.(int32) != 0 {
-		t.Errorf("Expected max unavailable 0, got %d", val.(int32))
+	if entry.UpdatedReplicas != 3 {
+		t.Errorf("Expected updated replicas 3, got %d", entry.UpdatedReplicas)
 	}
 
-	// Verify labels and annotations
-	val, ok = data["labels"]
-	if !ok || val == nil {
-		t.Fatalf("labels missing or nil")
-	}
-	if val.(map[string]string)["app"] != "test-deployment" {
-		t.Errorf("Expected label 'app' to be 'test-deployment', got '%s'", val.(map[string]string)["app"])
+	if entry.StrategyType != "RollingUpdate" {
+		t.Errorf("Expected strategy type 'RollingUpdate', got '%s'", entry.StrategyType)
 	}
 
-	val, ok = data["annotations"]
-	if !ok || val == nil {
-		t.Fatalf("annotations missing or nil")
+	if entry.StrategyRollingUpdateMaxSurge != 1 {
+		t.Errorf("Expected max surge 1, got %d", entry.StrategyRollingUpdateMaxSurge)
 	}
-	if val.(map[string]string)["description"] != "test deployment" {
-		t.Errorf("Expected annotation 'description' to be 'test deployment', got '%s'", val.(map[string]string)["description"])
+
+	if entry.StrategyRollingUpdateMaxUnavailable != 0 {
+		t.Errorf("Expected max unavailable 0, got %d", entry.StrategyRollingUpdateMaxUnavailable)
 	}
 
 	// Verify conditions
-	val, ok = data["conditionAvailable"]
-	if !ok || val == nil {
-		t.Fatalf("conditionAvailable missing or nil")
-	}
-	if !val.(bool) {
-		t.Error("Expected Available condition to be true")
+	if !entry.ConditionAvailable {
+		t.Error("Expected condition Available to be true")
 	}
 
-	val, ok = data["conditionProgressing"]
-	if !ok || val == nil {
-		t.Fatalf("conditionProgressing missing or nil")
+	if !entry.ConditionProgressing {
+		t.Error("Expected condition Progressing to be true")
 	}
-	if !val.(bool) {
-		t.Error("Expected Progressing condition to be true")
+
+	if entry.ConditionReplicaFailure {
+		t.Error("Expected condition ReplicaFailure to be false")
+	}
+
+	// Verify metadata
+	if entry.Labels["app"] != "test-deployment" {
+		t.Errorf("Expected label 'app' to be 'test-deployment', got '%s'", entry.Labels["app"])
+	}
+
+	if entry.Annotations["description"] != "test deployment" {
+		t.Errorf("Expected annotation 'description' to be 'test deployment', got '%s'", entry.Annotations["description"])
 	}
 }
 
@@ -291,31 +271,17 @@ func TestDeploymentHandler_createLogEntry_RecreateStrategy(t *testing.T) {
 	deployment := createTestDeployment("test-deployment", "default", 2, appsv1.RecreateDeploymentStrategyType)
 	entry := handler.createLogEntry(deployment)
 
-	data := entry.Data
-
-	val, ok := data["strategyType"]
-	if !ok || val == nil {
-		t.Fatalf("strategyType missing or nil")
-	}
-	if val.(string) != "Recreate" {
-		t.Errorf("Expected strategy type 'Recreate', got '%s'", val.(string))
+	if entry.StrategyType != "Recreate" {
+		t.Errorf("Expected strategy type 'Recreate', got '%s'", entry.StrategyType)
 	}
 
 	// Rolling update fields should be 0 for recreate strategy
-	val, ok = data["strategyRollingUpdateMaxSurge"]
-	if !ok || val == nil {
-		t.Fatalf("strategyRollingUpdateMaxSurge missing or nil")
-	}
-	if val.(int32) != 0 {
-		t.Errorf("Expected max surge 0 for recreate strategy, got %d", val.(int32))
+	if entry.StrategyRollingUpdateMaxSurge != 0 {
+		t.Errorf("Expected max surge 0 for recreate strategy, got %d", entry.StrategyRollingUpdateMaxSurge)
 	}
 
-	val, ok = data["strategyRollingUpdateMaxUnavailable"]
-	if !ok || val == nil {
-		t.Fatalf("strategyRollingUpdateMaxUnavailable missing or nil")
-	}
-	if val.(int32) != 0 {
-		t.Errorf("Expected max unavailable 0 for recreate strategy, got %d", val.(int32))
+	if entry.StrategyRollingUpdateMaxUnavailable != 0 {
+		t.Errorf("Expected max unavailable 0 for recreate strategy, got %d", entry.StrategyRollingUpdateMaxUnavailable)
 	}
 }
 
@@ -328,15 +294,10 @@ func TestDeploymentHandler_createLogEntry_NilReplicas(t *testing.T) {
 	deployment.Spec.Replicas = nil // Set to nil explicitly
 
 	entry := handler.createLogEntry(deployment)
-	data := entry.Data
 
 	// Should default to 1 when replicas is nil
-	val, ok := data["desiredReplicas"]
-	if !ok || val == nil {
-		t.Fatalf("desiredReplicas missing or nil")
-	}
-	if val.(int32) != 1 {
-		t.Errorf("Expected desired replicas 1 when nil, got %d", val.(int32))
+	if entry.DesiredReplicas != 1 {
+		t.Errorf("Expected desired replicas 1 when nil, got %d", entry.DesiredReplicas)
 	}
 }
 
@@ -357,22 +318,13 @@ func TestDeploymentHandler_createLogEntry_WithOwnerReference(t *testing.T) {
 	}
 
 	entry := handler.createLogEntry(deployment)
-	data := entry.Data
 
-	val, ok := data["createdByKind"]
-	if !ok || val == nil {
-		t.Fatalf("createdByKind missing or nil")
-	}
-	if val.(string) != "ReplicaSet" {
-		t.Errorf("Expected created by kind 'ReplicaSet', got '%s'", val.(string))
+	if entry.CreatedByKind != "ReplicaSet" {
+		t.Errorf("Expected created by kind 'ReplicaSet', got '%s'", entry.CreatedByKind)
 	}
 
-	val, ok = data["createdByName"]
-	if !ok || val == nil {
-		t.Fatalf("createdByName missing or nil")
-	}
-	if val.(string) != "test-replicaset" {
-		t.Errorf("Expected created by name 'test-replicaset', got '%s'", val.(string))
+	if entry.CreatedByName != "test-replicaset" {
+		t.Errorf("Expected created by name 'test-replicaset', got '%s'", entry.CreatedByName)
 	}
 }
 
@@ -466,7 +418,11 @@ func TestDeploymentHandler_Collect_NamespaceFiltering(t *testing.T) {
 	// Verify correct namespaces
 	namespaces := make(map[string]bool)
 	for _, entry := range entries {
-		namespaces[entry.Namespace] = true
+		entryData, ok := entry.(types.DeploymentData)
+		if !ok {
+			t.Fatalf("Expected DeploymentData type, got %T", entry)
+		}
+		namespaces[entryData.Namespace] = true
 	}
 
 	if !namespaces["default"] {

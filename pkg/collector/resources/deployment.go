@@ -5,6 +5,7 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 
@@ -34,8 +35,8 @@ func (h *DeploymentHandler) SetupInformer(factory informers.SharedInformerFactor
 }
 
 // Collect gathers deployment metrics from the cluster (uses cache)
-func (h *DeploymentHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *DeploymentHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all deployments from the cache
 	deployments := utils.SafeGetStoreList(h.GetInformer())
@@ -57,8 +58,8 @@ func (h *DeploymentHandler) Collect(ctx context.Context, namespaces []string) ([
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a deployment
-func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.LogEntry {
+// createLogEntry creates a DeploymentData from a deployment
+func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.DeploymentData {
 	// Get strategy info
 	strategyType := string(deployment.Spec.Strategy.Type)
 	strategyRollingUpdateMaxSurge := int32(0)
@@ -73,26 +74,50 @@ func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.
 		}
 	}
 
-	// Get desired replicas with nil check
-	desiredReplicas := int32(1) // Default value per Kubernetes API
+	// Get desired replicas
+	desiredReplicas := int32(1) // Default to 1 when spec.replicas is nil
 	if deployment.Spec.Replicas != nil {
 		desiredReplicas = *deployment.Spec.Replicas
 	}
 
-	createdByKind, createdByName := utils.GetOwnerReferenceInfo(deployment)
-
-	// Get status fields with nil checks
+	// Get current replicas
 	currentReplicas := deployment.Status.Replicas
 	readyReplicas := deployment.Status.ReadyReplicas
 	availableReplicas := deployment.Status.AvailableReplicas
 	unavailableReplicas := deployment.Status.UnavailableReplicas
 	updatedReplicas := deployment.Status.UpdatedReplicas
-	observedGeneration := deployment.Status.ObservedGeneration
 
-	data := types.DeploymentData{
-		CreatedTimestamp:                    utils.ExtractCreationTimestamp(deployment),
-		Labels:                              utils.ExtractLabels(deployment),
-		Annotations:                         utils.ExtractAnnotations(deployment),
+	// Check conditions
+	conditionAvailable := false
+	conditionProgressing := false
+	conditionReplicaFailure := false
+
+	for _, condition := range deployment.Status.Conditions {
+		switch condition.Type {
+		case appsv1.DeploymentAvailable:
+			conditionAvailable = condition.Status == corev1.ConditionTrue
+		case appsv1.DeploymentProgressing:
+			conditionProgressing = condition.Status == corev1.ConditionTrue
+		case appsv1.DeploymentReplicaFailure:
+			conditionReplicaFailure = condition.Status == corev1.ConditionTrue
+		}
+	}
+
+	observedGeneration := deployment.Status.ObservedGeneration
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(deployment)
+
+	return types.DeploymentData{
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "deployment",
+			Name:             utils.ExtractName(deployment),
+			Namespace:        utils.ExtractNamespace(deployment),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(deployment),
+			Labels:           utils.ExtractLabels(deployment),
+			Annotations:      utils.ExtractAnnotations(deployment),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		DesiredReplicas:                     desiredReplicas,
 		CurrentReplicas:                     currentReplicas,
 		ReadyReplicas:                       readyReplicas,
@@ -107,16 +132,13 @@ func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.
 		StrategyType:                        strategyType,
 		StrategyRollingUpdateMaxSurge:       strategyRollingUpdateMaxSurge,
 		StrategyRollingUpdateMaxUnavailable: strategyRollingUpdateMaxUnavailable,
-		ConditionAvailable:                  h.getConditionStatus(deployment.Status.Conditions, "Available"),
-		ConditionProgressing:                h.getConditionStatus(deployment.Status.Conditions, "Progressing"),
-		ConditionReplicaFailure:             h.getConditionStatus(deployment.Status.Conditions, "ReplicaFailure"),
-		CreatedByKind:                       createdByKind,
-		CreatedByName:                       createdByName,
+		ConditionAvailable:                  conditionAvailable,
+		ConditionProgressing:                conditionProgressing,
+		ConditionReplicaFailure:             conditionReplicaFailure,
 		Paused:                              deployment.Spec.Paused,
 		MetadataGeneration:                  utils.ExtractGeneration(deployment),
 	}
 
-	return utils.CreateLogEntry("deployment", utils.ExtractName(deployment), utils.ExtractNamespace(deployment), data)
 }
 
 // getConditionStatus checks if a condition is true

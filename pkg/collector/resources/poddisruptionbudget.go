@@ -34,13 +34,13 @@ func (h *PodDisruptionBudgetHandler) SetupInformer(factory informers.SharedInfor
 }
 
 // Collect gathers poddisruptionbudget metrics from the cluster (uses cache)
-func (h *PodDisruptionBudgetHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *PodDisruptionBudgetHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all poddisruptionbudgets from the cache
-	pdbList := utils.SafeGetStoreList(h.GetInformer())
+	pdbs := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range pdbList {
+	for _, obj := range pdbs {
 		pdb, ok := obj.(*policyv1.PodDisruptionBudget)
 		if !ok {
 			continue
@@ -57,8 +57,8 @@ func (h *PodDisruptionBudgetHandler) Collect(ctx context.Context, namespaces []s
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a poddisruptionbudget
-func (h *PodDisruptionBudgetHandler) createLogEntry(pdb *policyv1.PodDisruptionBudget) types.LogEntry {
+// createLogEntry creates a PodDisruptionBudgetData from a PDB
+func (h *PodDisruptionBudgetHandler) createLogEntry(pdb *policyv1.PodDisruptionBudget) types.PodDisruptionBudgetData {
 	// Get min available and max unavailable
 	// See: https://kubernetes.io/docs/concepts/workloads/pods/disruptions/#pod-disruption-budgets
 	minAvailable := int32(0)
@@ -82,26 +82,32 @@ func (h *PodDisruptionBudgetHandler) createLogEntry(pdb *policyv1.PodDisruptionB
 
 	// Create data structure
 	data := types.PodDisruptionBudgetData{
-		CreatedTimestamp:         utils.ExtractCreationTimestamp(pdb),
-		Labels:                   utils.ExtractLabels(pdb),
-		Annotations:              utils.ExtractAnnotations(pdb),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "poddisruptionbudget",
+			Name:             utils.ExtractName(pdb),
+			Namespace:        utils.ExtractNamespace(pdb),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(pdb),
+			Labels:           utils.ExtractLabels(pdb),
+			Annotations:      utils.ExtractAnnotations(pdb),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		MinAvailable:             minAvailable,
 		MaxUnavailable:           maxUnavailable,
 		CurrentHealthy:           currentHealthy,
 		DesiredHealthy:           desiredHealthy,
 		ExpectedPods:             expectedPods,
 		DisruptionsAllowed:       disruptionsAllowed,
-		TotalReplicas:            0, // Not available in v1 API
+		TotalReplicas:            0,
 		DisruptionAllowed:        disruptionAllowed,
 		StatusCurrentHealthy:     currentHealthy,
 		StatusDesiredHealthy:     desiredHealthy,
 		StatusExpectedPods:       expectedPods,
 		StatusDisruptionsAllowed: disruptionsAllowed,
-		StatusTotalReplicas:      0, // Not available in v1 API
+		StatusTotalReplicas:      0,
 		StatusDisruptionAllowed:  disruptionAllowed,
-		CreatedByKind:            createdByKind,
-		CreatedByName:            createdByName,
 	}
 
-	return utils.CreateLogEntry("poddisruptionbudget", utils.ExtractName(pdb), utils.ExtractNamespace(pdb), data)
+	return data
 }

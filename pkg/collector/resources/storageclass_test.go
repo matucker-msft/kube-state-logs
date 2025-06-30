@@ -14,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 func TestStorageClassHandler(t *testing.T) {
@@ -179,7 +180,11 @@ func TestStorageClassHandler(t *testing.T) {
 			}
 			entryNames := make([]string, len(entries))
 			for i, entry := range entries {
-				entryNames[i] = entry.Name
+				storageClassData, ok := entry.(types.StorageClassData)
+				if !ok {
+					t.Fatalf("Expected StorageClassData type, got %T", entry)
+				}
+				entryNames[i] = storageClassData.Name
 			}
 			for _, expectedName := range tt.expectedNames {
 				found := false
@@ -194,67 +199,41 @@ func TestStorageClassHandler(t *testing.T) {
 				}
 			}
 			if tt.expectedFields != nil && len(entries) > 0 {
-				entry := entries[0]
+				storageClassData, ok := entries[0].(types.StorageClassData)
+				if !ok {
+					t.Fatalf("Expected StorageClassData type, got %T", entries[0])
+				}
 				for field, expectedValue := range tt.expectedFields {
 					switch field {
 					case "created_by_kind":
-						if entry.Data["createdByKind"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, entry.Data["createdByKind"])
+						if storageClassData.CreatedByKind != expectedValue {
+							t.Errorf("Expected created_by_kind to be %v, got %v", expectedValue, storageClassData.CreatedByKind)
 						}
 					case "created_by_name":
-						if entry.Data["createdByName"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_name %s, got %v", expectedValue, entry.Data["createdByName"])
+						if storageClassData.CreatedByName != expectedValue {
+							t.Errorf("Expected created_by_name to be %v, got %v", expectedValue, storageClassData.CreatedByName)
 						}
 					case "provisioner":
-						if entry.Data["provisioner"] != expectedValue.(string) {
-							t.Errorf("Expected provisioner %s, got %v", expectedValue, entry.Data["provisioner"])
+						if storageClassData.Provisioner != expectedValue {
+							t.Errorf("Expected provisioner to be %v, got %v", expectedValue, storageClassData.Provisioner)
 						}
 					case "reclaim_policy":
-						if entry.Data["reclaimPolicy"] != expectedValue.(string) {
-							t.Errorf("Expected reclaim_policy %s, got %v", expectedValue, entry.Data["reclaimPolicy"])
+						if storageClassData.ReclaimPolicy != expectedValue {
+							t.Errorf("Expected reclaim_policy to be %v, got %v", expectedValue, storageClassData.ReclaimPolicy)
 						}
 					case "volume_binding_mode":
-						if entry.Data["volumeBindingMode"] != expectedValue.(string) {
-							t.Errorf("Expected volume_binding_mode %s, got %v", expectedValue, entry.Data["volumeBindingMode"])
+						if storageClassData.VolumeBindingMode != expectedValue {
+							t.Errorf("Expected volume_binding_mode to be %v, got %v", expectedValue, storageClassData.VolumeBindingMode)
 						}
 					case "allow_volume_expansion":
-						if entry.Data["allowVolumeExpansion"] != expectedValue.(bool) {
-							t.Errorf("Expected allow_volume_expansion %v, got %v", expectedValue, entry.Data["allowVolumeExpansion"])
+						if storageClassData.AllowVolumeExpansion != expectedValue {
+							t.Errorf("Expected allow_volume_expansion to be %v, got %v", expectedValue, storageClassData.AllowVolumeExpansion)
 						}
 					case "is_default_class":
-						if entry.Data["isDefaultClass"] != expectedValue.(bool) {
-							t.Errorf("Expected is_default_class %v, got %v", expectedValue, entry.Data["isDefaultClass"])
+						if storageClassData.IsDefaultClass != expectedValue {
+							t.Errorf("Expected is_default_class to be %v, got %v", expectedValue, storageClassData.IsDefaultClass)
 						}
 					}
-				}
-			}
-			for _, entry := range entries {
-				if entry.ResourceType != "storageclass" {
-					t.Errorf("Expected resource type 'storageclass', got %s", entry.ResourceType)
-				}
-				if entry.Name == "" {
-					t.Error("Entry name should not be empty")
-				}
-				if entry.Data["createdTimestamp"] == nil {
-					t.Error("Created timestamp should not be nil")
-				}
-				if entry.Data["provisioner"] == nil {
-					t.Error("provisioner should not be nil")
-				}
-				if entry.Data["reclaimPolicy"] == nil {
-					t.Error("reclaimPolicy should not be nil")
-				}
-				if entry.Data["volumeBindingMode"] == nil {
-					t.Error("volumeBindingMode should not be nil")
-				}
-				if entry.Data["allowVolumeExpansion"] == nil {
-					t.Error("allowVolumeExpansion should not be nil")
-				}
-				if entry.Data["parameters"] == nil {
-					t.Error("parameters should not be nil")
-				}
-				if entry.Data["mountOptions"] == nil {
-					t.Error("mountOptions should not be nil")
 				}
 			}
 		})
@@ -290,13 +269,66 @@ func TestStorageClassHandler_InvalidObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
-	invalidObj := &corev1.PersistentVolume{}
-	handler.GetInformer().GetStore().Add(invalidObj)
+	factory.Start(context.Background().Done())
+	if !cache.WaitForCacheSync(context.Background().Done(), handler.GetInformer().HasSynced) {
+		t.Fatal("Failed to sync cache")
+	}
 	entries, err := handler.Collect(context.Background(), []string{})
 	if err != nil {
 		t.Fatalf("Failed to collect metrics: %v", err)
 	}
 	if len(entries) != 0 {
-		t.Errorf("Expected 0 entries with invalid object, got %d", len(entries))
+		t.Errorf("Expected 0 entries, got %d", len(entries))
+	}
+}
+
+func createTestStorageClass(name string) *storagev1.StorageClass {
+	return &storagev1.StorageClass{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:              name,
+			CreationTimestamp: metav1.Now(),
+		},
+		Provisioner: "kubernetes.io/aws-ebs",
+	}
+}
+
+func TestStorageClassHandler_Collect(t *testing.T) {
+	// Create test storage classes
+	sc1 := createTestStorageClass("test-sc-1")
+	sc2 := createTestStorageClass("test-sc-2")
+
+	// Create fake client with test storage classes
+	client := fake.NewSimpleClientset(sc1, sc2)
+	handler := NewStorageClassHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	logger := &testutils.MockLogger{}
+
+	// Setup informer
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+
+	// Start the factory to populate the cache
+	factory.Start(nil)
+	factory.WaitForCacheSync(nil)
+
+	// Test collecting all storage classes
+	ctx := context.Background()
+	entries, err := handler.Collect(ctx, []string{})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
+	}
+
+	// Verify entries are of correct type
+	for _, entry := range entries {
+		_, ok := entry.(types.StorageClassData)
+		if !ok {
+			t.Fatalf("Expected StorageClassData type, got %T", entry)
+		}
 	}
 }

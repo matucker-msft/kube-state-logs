@@ -34,13 +34,13 @@ func (h *ReplicationControllerHandler) SetupInformer(factory informers.SharedInf
 }
 
 // Collect gathers replicationcontroller metrics from the cluster (uses cache)
-func (h *ReplicationControllerHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *ReplicationControllerHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all replicationcontrollers from the cache
-	rcList := utils.SafeGetStoreList(h.GetInformer())
+	rcs := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range rcList {
+	for _, obj := range rcs {
 		rc, ok := obj.(*corev1.ReplicationController)
 		if !ok {
 			continue
@@ -57,8 +57,8 @@ func (h *ReplicationControllerHandler) Collect(ctx context.Context, namespaces [
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a replicationcontroller
-func (h *ReplicationControllerHandler) createLogEntry(rc *corev1.ReplicationController) types.LogEntry {
+// createLogEntry creates a ReplicationControllerData from a replicationcontroller
+func (h *ReplicationControllerHandler) createLogEntry(rc *corev1.ReplicationController) types.ReplicationControllerData {
 	// Get desired replicas
 	// Default to 1 when spec.replicas is nil (Kubernetes API default)
 	// See: https://kubernetes.io/docs/concepts/workloads/controllers/replicationcontroller/#replicationcontroller
@@ -71,18 +71,24 @@ func (h *ReplicationControllerHandler) createLogEntry(rc *corev1.ReplicationCont
 
 	// Create data structure
 	data := types.ReplicationControllerData{
-		CreatedTimestamp:     utils.ExtractCreationTimestamp(rc),
-		Labels:               utils.ExtractLabels(rc),
-		Annotations:          utils.ExtractAnnotations(rc),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "replicationcontroller",
+			Name:             utils.ExtractName(rc),
+			Namespace:        utils.ExtractNamespace(rc),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(rc),
+			Labels:           utils.ExtractLabels(rc),
+			Annotations:      utils.ExtractAnnotations(rc),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		DesiredReplicas:      desiredReplicas,
 		CurrentReplicas:      rc.Status.Replicas,
 		ReadyReplicas:        rc.Status.ReadyReplicas,
 		AvailableReplicas:    rc.Status.AvailableReplicas,
 		FullyLabeledReplicas: rc.Status.FullyLabeledReplicas,
-		CreatedByKind:        createdByKind,
-		CreatedByName:        createdByName,
 		ObservedGeneration:   rc.Status.ObservedGeneration,
 	}
 
-	return utils.CreateLogEntry("replicationcontroller", utils.ExtractName(rc), utils.ExtractNamespace(rc), data)
+	return data
 }

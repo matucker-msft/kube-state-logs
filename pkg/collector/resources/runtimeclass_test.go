@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	nodev1 "k8s.io/api/node/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -13,6 +14,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 func TestRuntimeClassHandler(t *testing.T) {
@@ -48,6 +50,7 @@ func TestRuntimeClassHandler(t *testing.T) {
 			Name:              "empty-runtime",
 			CreationTimestamp: metav1.Now(),
 		},
+		Handler: "default",
 	}
 
 	tests := []struct {
@@ -107,7 +110,11 @@ func TestRuntimeClassHandler(t *testing.T) {
 			}
 			entryNames := make([]string, len(entries))
 			for i, entry := range entries {
-				entryNames[i] = entry.Name
+				runtimeClassData, ok := entry.(types.RuntimeClassData)
+				if !ok {
+					t.Fatalf("Expected RuntimeClassData type, got %T", entry)
+				}
+				entryNames[i] = runtimeClassData.Name
 			}
 			for _, expectedName := range tt.expectedNames {
 				found := false
@@ -122,32 +129,39 @@ func TestRuntimeClassHandler(t *testing.T) {
 				}
 			}
 			if tt.expectedFields != nil && len(entries) > 0 {
-				entry := entries[0]
+				runtimeClassData, ok := entries[0].(types.RuntimeClassData)
+				if !ok {
+					t.Fatalf("Expected RuntimeClassData type, got %T", entries[0])
+				}
 				for field, expectedValue := range tt.expectedFields {
 					switch field {
 					case "created_by_kind":
-						if entry.Data["createdByKind"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, entry.Data["createdByKind"])
+						if runtimeClassData.CreatedByKind != expectedValue.(string) {
+							t.Errorf("Expected created_by_kind %s, got %v", expectedValue, runtimeClassData.CreatedByKind)
 						}
 					case "created_by_name":
-						if entry.Data["createdByName"] != expectedValue.(string) {
-							t.Errorf("Expected created_by_name %s, got %v", expectedValue, entry.Data["createdByName"])
+						if runtimeClassData.CreatedByName != expectedValue.(string) {
+							t.Errorf("Expected created_by_name %s, got %v", expectedValue, runtimeClassData.CreatedByName)
 						}
 					}
 				}
 			}
 			for _, entry := range entries {
-				if entry.ResourceType != "runtimeclass" {
-					t.Errorf("Expected resource type 'runtimeclass', got %s", entry.ResourceType)
+				runtimeClassData, ok := entry.(types.RuntimeClassData)
+				if !ok {
+					t.Fatalf("Expected RuntimeClassData type, got %T", entry)
 				}
-				if entry.Name == "" {
+				if runtimeClassData.ResourceType != "runtimeclass" {
+					t.Errorf("Expected resource type 'runtimeclass', got %s", runtimeClassData.ResourceType)
+				}
+				if runtimeClassData.Name == "" {
 					t.Error("Entry name should not be empty")
 				}
-				if entry.Data["createdTimestamp"] == nil {
-					t.Error("Created timestamp should not be nil")
+				if runtimeClassData.CreatedTimestamp == 0 {
+					t.Error("Created timestamp should not be zero")
 				}
-				if entry.Data["handler"] == nil {
-					t.Error("handler should not be nil")
+				if runtimeClassData.Handler == "" {
+					t.Error("handler should not be empty")
 				}
 			}
 		})
@@ -183,7 +197,7 @@ func TestRuntimeClassHandler_InvalidObject(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
-	invalidObj := &metav1.Status{}
+	invalidObj := &corev1.Pod{}
 	handler.GetInformer().GetStore().Add(invalidObj)
 	entries, err := handler.Collect(context.Background(), []string{})
 	if err != nil {

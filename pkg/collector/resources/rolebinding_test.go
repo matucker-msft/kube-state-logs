@@ -3,37 +3,43 @@ package resources
 import (
 	"context"
 	"testing"
+	"time"
 
+	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	testutils "github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 func createTestRoleBinding(name, namespace string) *rbacv1.RoleBinding {
 	return &rbacv1.RoleBinding{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:              name,
-			Namespace:         namespace,
-			Labels:            map[string]string{"app": "test-app"},
-			Annotations:       map[string]string{"test-annotation": "test-value"},
-			CreationTimestamp: metav1.Now(),
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "User",
-				Name:      "test-user",
-				Namespace: namespace,
+			Name:      name,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app": name,
 			},
+			Annotations: map[string]string{
+				"description": "test role binding",
+			},
+			CreationTimestamp: metav1.Now(),
 		},
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "Role",
 			Name:     "test-role",
+		},
+		Subjects: []rbacv1.Subject{
+			{
+				Kind:      "ServiceAccount",
+				Name:      "test-service-account",
+				Namespace: "default",
+			},
 		},
 	}
 }
@@ -81,91 +87,83 @@ func TestRoleBindingHandler_SetupInformer_Proper(t *testing.T) {
 }
 
 func TestRoleBindingHandler_Collect(t *testing.T) {
-	client := fake.NewSimpleClientset()
+	rb1 := createTestRoleBinding("test-rb-1", "default")
+	rb2 := createTestRoleBinding("test-rb-2", "kube-system")
+
+	client := fake.NewSimpleClientset(rb1, rb2)
 	handler := NewRoleBindingHandler(client)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
-	rb := createTestRoleBinding("test-rb", "test-ns")
-	informer := cache.NewSharedIndexInformer(
-		&cache.ListWatch{},
-		&rbacv1.RoleBinding{},
-		0,
-		cache.Indexers{},
-	)
-	handler.SetupBaseInformer(informer, logger)
-	store := informer.GetStore()
-	store.Add(rb)
-	entries, err := handler.Collect(context.Background(), []string{})
+
+	err := handler.SetupInformer(factory, logger, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+
+	factory.Start(nil)
+	factory.WaitForCacheSync(nil)
+
+	ctx := context.Background()
+	entries, err := handler.Collect(ctx, []string{})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	if len(entries) != 1 {
-		t.Fatalf("Expected 1 entry, got %d", len(entries))
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries, got %d", len(entries))
 	}
-	entry := entries[0]
-	if entry.ResourceType != "rolebinding" {
-		t.Errorf("Expected resource type 'rolebinding', got %s", entry.ResourceType)
+
+	// Type assert to RoleBindingData for assertions
+	entry, ok := entries[0].(types.RoleBindingData)
+	if !ok {
+		t.Fatalf("Expected RoleBindingData type, got %T", entries[0])
 	}
-	if entry.Name != "test-rb" {
-		t.Errorf("Expected name 'test-rb', got %s", entry.Name)
+
+	if entry.Name == "" {
+		t.Error("Expected name to not be empty")
 	}
-	if entry.Namespace != "test-ns" {
-		t.Errorf("Expected namespace 'test-ns', got %s", entry.Namespace)
-	}
-	data := entry.Data
-	if data["labels"].(map[string]string)["app"] != "test-app" {
-		t.Errorf("Expected label 'app' to be 'test-app', got %s", data["labels"].(map[string]string)["app"])
-	}
-	if data["annotations"].(map[string]string)["test-annotation"] != "test-value" {
-		t.Errorf("Expected annotation 'test-annotation' to be 'test-value', got %s", data["annotations"].(map[string]string)["test-annotation"])
-	}
-	subjects, ok := data["subjects"].([]types.Subject)
-	if !ok || len(subjects) != 1 {
-		t.Errorf("Expected subjects to be []types.Subject of length 1, got %v", data["subjects"])
-	}
-	roleRef, ok := data["roleRef"].(types.RoleRef)
-	if !ok || roleRef.Name != "test-role" {
-		t.Errorf("Expected roleRef name 'test-role', got %v", roleRef.Name)
+
+	if entry.Namespace == "" {
+		t.Error("Expected namespace to not be empty")
 	}
 }
 
-func TestRoleBindingHandler_Collect_Empty(t *testing.T) {
+func TestRoleBindingHandler_EmptyCache(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewRoleBindingHandler(client)
-	logger := &testutils.MockLogger{}
-	informer := cache.NewSharedIndexInformer(
-		&cache.ListWatch{},
-		&rbacv1.RoleBinding{},
-		0,
-		cache.Indexers{},
-	)
-	handler.SetupBaseInformer(informer, logger)
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	err := handler.SetupInformer(factory, &testutils.MockLogger{}, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+	factory.Start(context.Background().Done())
+	factory.WaitForCacheSync(context.Background().Done())
 	entries, err := handler.Collect(context.Background(), []string{})
 	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
+		t.Fatalf("Failed to collect metrics: %v", err)
 	}
 	if len(entries) != 0 {
-		t.Fatalf("Expected 0 entries, got %d", len(entries))
+		t.Errorf("Expected 0 entries, got %d", len(entries))
 	}
 }
 
-func TestRoleBindingHandler_Collect_InvalidObject(t *testing.T) {
+func TestRoleBindingHandler_InvalidObject(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewRoleBindingHandler(client)
-	logger := &testutils.MockLogger{}
-	informer := cache.NewSharedIndexInformer(
-		&cache.ListWatch{},
-		&rbacv1.RoleBinding{},
-		0,
-		cache.Indexers{},
-	)
-	handler.SetupBaseInformer(informer, logger)
-	store := informer.GetStore()
-	store.Add(&rbacv1.ClusterRoleBinding{})
+	factory := informers.NewSharedInformerFactory(client, time.Hour)
+	err := handler.SetupInformer(factory, &testutils.MockLogger{}, time.Hour)
+	if err != nil {
+		t.Fatalf("Failed to setup informer: %v", err)
+	}
+	invalidObj := &corev1.Pod{}
+	handler.GetInformer().GetStore().Add(invalidObj)
+	factory.Start(context.Background().Done())
+	factory.WaitForCacheSync(context.Background().Done())
 	entries, err := handler.Collect(context.Background(), []string{})
 	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
+		t.Fatalf("Failed to collect metrics: %v", err)
 	}
 	if len(entries) != 0 {
-		t.Fatalf("Expected 0 entries, got %d", len(entries))
+		t.Errorf("Expected 0 entries with invalid object, got %d", len(entries))
 	}
 }

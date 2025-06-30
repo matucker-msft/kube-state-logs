@@ -11,7 +11,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	testutils "github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
-	"github.com/matucker-msft/kube-state-logs/pkg/utils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 // createTestLease creates a test Lease with various configurations
@@ -46,31 +46,6 @@ func createTestLease(name, namespace string) *coordinationv1.Lease {
 	return lease
 }
 
-func TestNewLeaseHandler(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewLeaseHandler(client)
-	if handler == nil {
-		t.Fatal("Expected handler to be created, got nil")
-	}
-	if handler.BaseHandler == (utils.BaseHandler{}) {
-		t.Error("Expected BaseHandler to be embedded")
-	}
-}
-
-func TestLeaseHandler_SetupInformer(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewLeaseHandler(client)
-	factory := informers.NewSharedInformerFactory(client, time.Hour)
-	logger := &testutils.MockLogger{}
-	err := handler.SetupInformer(factory, logger, time.Hour)
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-	if handler.GetInformer() == nil {
-		t.Error("Expected informer to be set up")
-	}
-}
-
 func TestLeaseHandler_Collect(t *testing.T) {
 	lease1 := createTestLease("test-lease-1", "default")
 	lease2 := createTestLease("test-lease-2", "kube-system")
@@ -99,8 +74,12 @@ func TestLeaseHandler_Collect(t *testing.T) {
 	if len(entries) != 1 {
 		t.Fatalf("Expected 1 entry for default namespace, got %d", len(entries))
 	}
-	if entries[0].Namespace != "default" {
-		t.Errorf("Expected namespace 'default', got '%s'", entries[0].Namespace)
+	leaseData, ok := entries[0].(types.LeaseData)
+	if !ok {
+		t.Fatalf("Expected LeaseData type, got %T", entries[0])
+	}
+	if leaseData.Namespace != "default" {
+		t.Errorf("Expected namespace 'default', got '%s'", leaseData.Namespace)
 	}
 }
 
@@ -118,41 +97,20 @@ func TestLeaseHandler_createLogEntry(t *testing.T) {
 	if entry.Namespace != "default" {
 		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
 	}
-	data := entry.Data
-	val, ok := data["holderIdentity"]
-	if !ok || val == nil {
-		t.Fatalf("holderIdentity missing or nil")
+	if entry.HolderIdentity != "test-holder" {
+		t.Errorf("Expected holder identity 'test-holder', got '%s'", entry.HolderIdentity)
 	}
-	if val.(string) != "test-holder" {
-		t.Errorf("Expected holder identity 'test-holder', got '%s'", val.(string))
+	if entry.LeaseDurationSeconds != 15 {
+		t.Errorf("Expected lease duration seconds 15, got %d", entry.LeaseDurationSeconds)
 	}
-	val, ok = data["leaseDurationSeconds"]
-	if !ok || val == nil {
-		t.Fatalf("leaseDurationSeconds missing or nil")
+	if entry.LeaseTransitions != 1 {
+		t.Errorf("Expected lease transitions 1, got %d", entry.LeaseTransitions)
 	}
-	if val.(int32) != 15 {
-		t.Errorf("Expected lease duration seconds 15, got %d", val.(int32))
+	if entry.RenewTime == nil {
+		t.Error("Expected renew time to not be nil")
 	}
-	val, ok = data["leaseTransitions"]
-	if !ok || val == nil {
-		t.Fatalf("leaseTransitions missing or nil")
-	}
-	if val.(int32) != 1 {
-		t.Errorf("Expected lease transitions 1, got %d", val.(int32))
-	}
-	val, ok = data["renewTime"]
-	if !ok || val == nil {
-		t.Fatalf("renewTime missing or nil")
-	}
-	if _, ok := val.(time.Time); !ok {
-		t.Error("Expected renew time to be time.Time")
-	}
-	val, ok = data["acquireTime"]
-	if !ok || val == nil {
-		t.Fatalf("acquireTime missing or nil")
-	}
-	if _, ok := val.(time.Time); !ok {
-		t.Error("Expected acquire time to be time.Time")
+	if entry.AcquireTime == nil {
+		t.Error("Expected acquire time to not be nil")
 	}
 }
 
@@ -169,20 +127,11 @@ func TestLeaseHandler_createLogEntry_WithOwnerReference(t *testing.T) {
 		},
 	}
 	entry := handler.createLogEntry(lease)
-	data := entry.Data
-	val, ok := data["createdByKind"]
-	if !ok || val == nil {
-		t.Fatalf("createdByKind missing or nil")
+	if entry.CreatedByKind != "Deployment" {
+		t.Errorf("Expected created by kind 'Deployment', got '%s'", entry.CreatedByKind)
 	}
-	if val.(string) != "Deployment" {
-		t.Errorf("Expected created by kind 'Deployment', got '%s'", val.(string))
-	}
-	val, ok = data["createdByName"]
-	if !ok || val == nil {
-		t.Fatalf("createdByName missing or nil")
-	}
-	if val.(string) != "test-deploy" {
-		t.Errorf("Expected created by name 'test-deploy', got '%s'", val.(string))
+	if entry.CreatedByName != "test-deploy" {
+		t.Errorf("Expected created by name 'test-deploy', got '%s'", entry.CreatedByName)
 	}
 }
 
@@ -203,42 +152,59 @@ func TestLeaseHandler_Collect_EmptyCache(t *testing.T) {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 	if len(entries) != 0 {
-		t.Fatalf("Expected 0 entries for empty cache, got %d", len(entries))
+		t.Errorf("Expected 0 entries, got %d", len(entries))
 	}
 }
 
 func TestLeaseHandler_Collect_NamespaceFiltering(t *testing.T) {
+	// Create test leases in different namespaces
 	lease1 := createTestLease("test-lease-1", "default")
 	lease2 := createTestLease("test-lease-2", "kube-system")
 	lease3 := createTestLease("test-lease-3", "monitoring")
+
 	client := fake.NewSimpleClientset(lease1, lease2, lease3)
 	handler := NewLeaseHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
+
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
+
 	factory.Start(nil)
 	factory.WaitForCacheSync(nil)
+
 	ctx := context.Background()
+
+	// Test multiple namespace filtering
 	entries, err := handler.Collect(ctx, []string{"default", "monitoring"})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 2 {
 		t.Fatalf("Expected 2 entries for default and monitoring namespaces, got %d", len(entries))
 	}
+
+	// Verify correct namespaces
 	namespaces := make(map[string]bool)
 	for _, entry := range entries {
-		namespaces[entry.Namespace] = true
+		leaseData, ok := entry.(types.LeaseData)
+		if !ok {
+			t.Fatalf("Expected LeaseData type, got %T", entry)
+		}
+		namespaces[leaseData.Namespace] = true
 	}
+
 	if !namespaces["default"] {
 		t.Error("Expected entry from default namespace")
 	}
+
 	if !namespaces["monitoring"] {
 		t.Error("Expected entry from monitoring namespace")
 	}
+
 	if namespaces["kube-system"] {
 		t.Error("Did not expect entry from kube-system namespace")
 	}

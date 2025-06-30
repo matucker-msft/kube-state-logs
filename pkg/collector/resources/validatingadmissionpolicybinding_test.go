@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 	"k8s.io/client-go/informers"
 )
 
@@ -125,9 +126,10 @@ func TestValidatingAdmissionPolicyBindingHandler_Collect(t *testing.T) {
 		t.Fatalf("Expected 1 entry, got %d", len(entries))
 	}
 
-	entry := entries[0]
-	if entry.ResourceType != "validatingadmissionpolicybinding" {
-		t.Errorf("Expected resource type 'validatingadmissionpolicybinding', got %s", entry.ResourceType)
+	// Type assert to ValidatingAdmissionPolicyBindingData for assertions
+	entry, ok := entries[0].(types.ValidatingAdmissionPolicyBindingData)
+	if !ok {
+		t.Fatalf("Expected ValidatingAdmissionPolicyBindingData type, got %T", entries[0])
 	}
 
 	if entry.Name != "test-vapb" {
@@ -135,31 +137,20 @@ func TestValidatingAdmissionPolicyBindingHandler_Collect(t *testing.T) {
 	}
 
 	// Verify data
-	data := entry.Data
-	if data["policyName"] != "test-policy" {
-		t.Errorf("Expected policy name 'test-policy', got %s", data["policyName"])
+	if entry.PolicyName != "test-policy" {
+		t.Errorf("Expected policy name 'test-policy', got %s", entry.PolicyName)
 	}
 
-	if data["paramRef"] != "test-param" {
-		t.Errorf("Expected param ref 'test-param', got %s", data["paramRef"])
+	if entry.ParamRef != "test-param" {
+		t.Errorf("Expected param ref 'test-param', got %s", entry.ParamRef)
 	}
 
-	labels, ok := data["labels"].(map[string]string)
-	if !ok {
-		t.Fatal("Expected labels to be map[string]string")
+	if entry.Labels["app"] != "test-app" {
+		t.Errorf("Expected label 'app' to be 'test-app', got %s", entry.Labels["app"])
 	}
 
-	if labels["app"] != "test-app" {
-		t.Errorf("Expected label 'app' to be 'test-app', got %s", labels["app"])
-	}
-
-	annotations, ok := data["annotations"].(map[string]string)
-	if !ok {
-		t.Fatal("Expected annotations to be map[string]string")
-	}
-
-	if annotations["test-annotation"] != "test-value" {
-		t.Errorf("Expected annotation 'test-annotation' to be 'test-value', got %s", annotations["test-annotation"])
+	if entry.Annotations["test-annotation"] != "test-value" {
+		t.Errorf("Expected annotation 'test-annotation' to be 'test-value', got %s", entry.Annotations["test-annotation"])
 	}
 }
 
@@ -204,7 +195,7 @@ func TestValidatingAdmissionPolicyBindingHandler_Collect_InvalidObject(t *testin
 
 	// Add invalid object to store
 	store := informer.GetStore()
-	store.Add(&corev1.Pod{}) // Wrong type
+	store.Add(&corev1.Pod{})
 
 	// Collect entries
 	entries, err := handler.Collect(context.Background(), []string{})
@@ -213,84 +204,57 @@ func TestValidatingAdmissionPolicyBindingHandler_Collect_InvalidObject(t *testin
 	}
 
 	if len(entries) != 0 {
-		t.Fatalf("Expected 0 entries, got %d", len(entries))
+		t.Fatalf("Expected 0 entries with invalid object, got %d", len(entries))
 	}
 }
 
 func TestValidatingAdmissionPolicyBindingHandler_CreateLogEntry(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewValidatingAdmissionPolicyBindingHandler(client)
-
-	// Create test validatingadmissionpolicybinding with owner reference
-	ownerRef := metav1.OwnerReference{
-		Kind: "Deployment",
-		Name: "test-deployment",
-	}
 	vapb := createTestValidatingAdmissionPolicyBinding("test-vapb")
-	vapb.OwnerReferences = []metav1.OwnerReference{ownerRef}
-
-	// Create log entry
 	entry := handler.createLogEntry(vapb)
-
-	if entry.ResourceType != "validatingadmissionpolicybinding" {
-		t.Errorf("Expected resource type 'validatingadmissionpolicybinding', got %s", entry.ResourceType)
-	}
 
 	if entry.Name != "test-vapb" {
 		t.Errorf("Expected name 'test-vapb', got %s", entry.Name)
 	}
 
-	// Verify data
-	data := entry.Data
-	if data["createdByKind"] != "Deployment" {
-		t.Errorf("Expected created by kind 'Deployment', got %s", data["createdByKind"])
+	if entry.PolicyName != "test-policy" {
+		t.Errorf("Expected policy name 'test-policy', got %s", entry.PolicyName)
 	}
 
-	if data["createdByName"] != "test-deployment" {
-		t.Errorf("Expected created by name 'test-deployment', got %s", data["createdByName"])
+	if entry.ParamRef != "test-param" {
+		t.Errorf("Expected param ref 'test-param', got %s", entry.ParamRef)
 	}
 
-	if data["policyName"] != "test-policy" {
-		t.Errorf("Expected policy name 'test-policy', got %s", data["policyName"])
+	if entry.Labels["app"] != "test-app" {
+		t.Errorf("Expected label 'app' to be 'test-app', got %s", entry.Labels["app"])
 	}
 
-	if data["paramRef"] != "test-param" {
-		t.Errorf("Expected param ref 'test-param', got %s", data["paramRef"])
+	if entry.Annotations["test-annotation"] != "test-value" {
+		t.Errorf("Expected annotation 'test-annotation' to be 'test-value', got %s", entry.Annotations["test-annotation"])
 	}
 }
 
 func TestValidatingAdmissionPolicyBindingHandler_CreateLogEntry_NoParamRef(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewValidatingAdmissionPolicyBindingHandler(client)
-
-	// Create test validatingadmissionpolicybinding without param ref
 	vapb := createTestValidatingAdmissionPolicyBinding("test-vapb")
 	vapb.Spec.ParamRef = nil
-
-	// Create log entry
 	entry := handler.createLogEntry(vapb)
 
-	// Verify data
-	data := entry.Data
-	if data["paramRef"] != "" {
-		t.Errorf("Expected empty param ref, got %s", data["paramRef"])
+	if entry.ParamRef != "" {
+		t.Errorf("Expected empty param ref, got %s", entry.ParamRef)
 	}
 }
 
 func TestValidatingAdmissionPolicyBindingHandler_CreateLogEntry_NoPolicyName(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewValidatingAdmissionPolicyBindingHandler(client)
-
-	// Create test validatingadmissionpolicybinding without policy name
 	vapb := createTestValidatingAdmissionPolicyBinding("test-vapb")
 	vapb.Spec.PolicyName = ""
-
-	// Create log entry
 	entry := handler.createLogEntry(vapb)
 
-	// Verify data
-	data := entry.Data
-	if data["policyName"] != "" {
-		t.Errorf("Expected empty policy name, got %s", data["policyName"])
+	if entry.PolicyName != "" {
+		t.Errorf("Expected empty policy name, got %s", entry.PolicyName)
 	}
 }

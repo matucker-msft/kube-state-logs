@@ -34,13 +34,13 @@ func (h *HorizontalPodAutoscalerHandler) SetupInformer(factory informers.SharedI
 }
 
 // Collect gathers horizontalpodautoscaler metrics from the cluster (uses cache)
-func (h *HorizontalPodAutoscalerHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *HorizontalPodAutoscalerHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all horizontalpodautoscalers from the cache
-	hpaList := utils.SafeGetStoreList(h.GetInformer())
+	hpas := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range hpaList {
+	for _, obj := range hpas {
 		hpa, ok := obj.(*autoscalingv2.HorizontalPodAutoscaler)
 		if !ok {
 			continue
@@ -57,8 +57,8 @@ func (h *HorizontalPodAutoscalerHandler) Collect(ctx context.Context, namespaces
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a horizontalpodautoscaler
-func (h *HorizontalPodAutoscalerHandler) createLogEntry(hpa *autoscalingv2.HorizontalPodAutoscaler) types.LogEntry {
+// createLogEntry creates a HorizontalPodAutoscalerData from an HPA
+func (h *HorizontalPodAutoscalerHandler) createLogEntry(hpa *autoscalingv2.HorizontalPodAutoscaler) types.HorizontalPodAutoscalerData {
 	// Extract target CPU and memory utilization
 	var targetCPUUtilizationPercentage *int32
 	var targetMemoryUtilizationPercentage *int32
@@ -105,9 +105,17 @@ func (h *HorizontalPodAutoscalerHandler) createLogEntry(hpa *autoscalingv2.Horiz
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(hpa)
 
 	data := types.HorizontalPodAutoscalerData{
-		CreatedTimestamp:                   utils.ExtractCreationTimestamp(hpa),
-		Labels:                             utils.ExtractLabels(hpa),
-		Annotations:                        utils.ExtractAnnotations(hpa),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "horizontalpodautoscaler",
+			Name:             utils.ExtractName(hpa),
+			Namespace:        utils.ExtractNamespace(hpa),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(hpa),
+			Labels:           utils.ExtractLabels(hpa),
+			Annotations:      utils.ExtractAnnotations(hpa),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		MinReplicas:                        &minReplicas,
 		MaxReplicas:                        hpa.Spec.MaxReplicas,
 		TargetCPUUtilizationPercentage:     targetCPUUtilizationPercentage,
@@ -119,11 +127,9 @@ func (h *HorizontalPodAutoscalerHandler) createLogEntry(hpa *autoscalingv2.Horiz
 		ConditionAbleToScale:               conditionAbleToScale,
 		ConditionScalingActive:             conditionScalingActive,
 		ConditionScalingLimited:            conditionScalingLimited,
-		CreatedByKind:                      createdByKind,
-		CreatedByName:                      createdByName,
-		ScaleTargetRef:                     hpa.Spec.ScaleTargetRef.Name,
+		ScaleTargetRef:                     hpa.Spec.ScaleTargetRef.Kind + "/" + hpa.Spec.ScaleTargetRef.Name,
 		ScaleTargetKind:                    hpa.Spec.ScaleTargetRef.Kind,
 	}
 
-	return utils.CreateLogEntry("horizontalpodautoscaler", utils.ExtractName(hpa), utils.ExtractNamespace(hpa), data)
+	return data
 }

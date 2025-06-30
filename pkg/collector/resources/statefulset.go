@@ -34,13 +34,13 @@ func (h *StatefulSetHandler) SetupInformer(factory informers.SharedInformerFacto
 }
 
 // Collect gathers statefulset metrics from the cluster (uses cache)
-func (h *StatefulSetHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *StatefulSetHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all statefulsets from the cache
-	statefulsets := utils.SafeGetStoreList(h.GetInformer())
+	statefulSets := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range statefulsets {
+	for _, obj := range statefulSets {
 		sts, ok := obj.(*appsv1.StatefulSet)
 		if !ok {
 			continue
@@ -57,8 +57,8 @@ func (h *StatefulSetHandler) Collect(ctx context.Context, namespaces []string) (
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a statefulset
-func (h *StatefulSetHandler) createLogEntry(sts *appsv1.StatefulSet) types.LogEntry {
+// createLogEntry creates a StatefulSetData from a statefulset
+func (h *StatefulSetHandler) createLogEntry(sts *appsv1.StatefulSet) types.StatefulSetData {
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(sts)
 
 	serviceName := ""
@@ -75,9 +75,17 @@ func (h *StatefulSetHandler) createLogEntry(sts *appsv1.StatefulSet) types.LogEn
 	}
 
 	data := types.StatefulSetData{
-		CreatedTimestamp:        utils.ExtractCreationTimestamp(sts),
-		Labels:                  utils.ExtractLabels(sts),
-		Annotations:             utils.ExtractAnnotations(sts),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "statefulset",
+			Name:             utils.ExtractName(sts),
+			Namespace:        utils.ExtractNamespace(sts),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(sts),
+			Labels:           utils.ExtractLabels(sts),
+			Annotations:      utils.ExtractAnnotations(sts),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		DesiredReplicas:         desiredReplicas,
 		CurrentReplicas:         sts.Status.Replicas,
 		ReadyReplicas:           sts.Status.ReadyReplicas,
@@ -85,15 +93,13 @@ func (h *StatefulSetHandler) createLogEntry(sts *appsv1.StatefulSet) types.LogEn
 		ObservedGeneration:      sts.Status.ObservedGeneration,
 		CurrentRevision:         sts.Status.CurrentRevision,
 		UpdateRevision:          sts.Status.UpdateRevision,
-		ConditionAvailable:      utils.GetConditionStatusGeneric(sts.Status.Conditions, "StatefulSetAvailable"),
-		ConditionProgressing:    utils.GetConditionStatusGeneric(sts.Status.Conditions, "StatefulSetProgressing"),
-		ConditionReplicaFailure: utils.GetConditionStatusGeneric(sts.Status.Conditions, "StatefulSetReplicaFailure"),
-		CreatedByKind:           createdByKind,
-		CreatedByName:           createdByName,
+		ConditionAvailable:      utils.GetConditionStatusGeneric(sts.Status.Conditions, "Available"),
+		ConditionProgressing:    utils.GetConditionStatusGeneric(sts.Status.Conditions, "Progressing"),
+		ConditionReplicaFailure: utils.GetConditionStatusGeneric(sts.Status.Conditions, "ReplicaFailure"),
 		ServiceName:             serviceName,
 		PodManagementPolicy:     podManagementPolicy,
 		UpdateStrategy:          updateStrategy,
 	}
 
-	return utils.CreateLogEntry("statefulset", utils.ExtractName(sts), utils.ExtractNamespace(sts), data)
+	return data
 }

@@ -34,13 +34,13 @@ func (h *NetworkPolicyHandler) SetupInformer(factory informers.SharedInformerFac
 }
 
 // Collect gathers networkpolicy metrics from the cluster (uses cache)
-func (h *NetworkPolicyHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *NetworkPolicyHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all networkpolicies from the cache
-	npList := utils.SafeGetStoreList(h.GetInformer())
+	networkPolicies := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range npList {
+	for _, obj := range networkPolicies {
 		np, ok := obj.(*networkingv1.NetworkPolicy)
 		if !ok {
 			continue
@@ -57,8 +57,8 @@ func (h *NetworkPolicyHandler) Collect(ctx context.Context, namespaces []string)
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a networkpolicy
-func (h *NetworkPolicyHandler) createLogEntry(np *networkingv1.NetworkPolicy) types.LogEntry {
+// createLogEntry creates a NetworkPolicyData from a networkpolicy
+func (h *NetworkPolicyHandler) createLogEntry(np *networkingv1.NetworkPolicy) types.NetworkPolicyData {
 	// Get policy types
 	// Default includes "Ingress" when policyTypes is not specified
 	// See: https://kubernetes.io/docs/concepts/services-networking/network-policies/#default-policies
@@ -69,39 +69,53 @@ func (h *NetworkPolicyHandler) createLogEntry(np *networkingv1.NetworkPolicy) ty
 
 	// Convert ingress rules
 	var ingressRules []types.NetworkPolicyIngressRule
-	for _, rule := range np.Spec.Ingress {
-		ingressRule := types.NetworkPolicyIngressRule{
-			Ports: h.convertPorts(rule.Ports),
-			From:  h.convertPeers(rule.From),
+	if np.Spec.Ingress != nil && len(np.Spec.Ingress) > 0 {
+		for _, rule := range np.Spec.Ingress {
+			ingressRule := types.NetworkPolicyIngressRule{
+				Ports: h.convertPorts(rule.Ports),
+				From:  h.convertPeers(rule.From),
+			}
+			ingressRules = append(ingressRules, ingressRule)
 		}
-		ingressRules = append(ingressRules, ingressRule)
+	} else {
+		ingressRules = make([]types.NetworkPolicyIngressRule, 0)
 	}
 
 	// Convert egress rules
 	var egressRules []types.NetworkPolicyEgressRule
-	for _, rule := range np.Spec.Egress {
-		egressRule := types.NetworkPolicyEgressRule{
-			Ports: h.convertPorts(rule.Ports),
-			To:    h.convertPeers(rule.To),
+	if np.Spec.Egress != nil && len(np.Spec.Egress) > 0 {
+		for _, rule := range np.Spec.Egress {
+			egressRule := types.NetworkPolicyEgressRule{
+				Ports: h.convertPorts(rule.Ports),
+				To:    h.convertPeers(rule.To),
+			}
+			egressRules = append(egressRules, egressRule)
 		}
-		egressRules = append(egressRules, egressRule)
+	} else {
+		egressRules = make([]types.NetworkPolicyEgressRule, 0)
 	}
 
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(np)
 
 	// Create data structure
 	data := types.NetworkPolicyData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(np),
-		Labels:           utils.ExtractLabels(np),
-		Annotations:      utils.ExtractAnnotations(np),
-		PolicyTypes:      policyTypes,
-		IngressRules:     ingressRules,
-		EgressRules:      egressRules,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "networkpolicy",
+			Name:             utils.ExtractName(np),
+			Namespace:        utils.ExtractNamespace(np),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(np),
+			Labels:           utils.ExtractLabels(np),
+			Annotations:      utils.ExtractAnnotations(np),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		PolicyTypes:  policyTypes,
+		IngressRules: ingressRules,
+		EgressRules:  egressRules,
 	}
 
-	return utils.CreateLogEntry("networkpolicy", utils.ExtractName(np), utils.ExtractNamespace(np), data)
+	return data
 }
 
 // convertPorts converts networkingv1.NetworkPolicyPort to types.NetworkPolicyPort

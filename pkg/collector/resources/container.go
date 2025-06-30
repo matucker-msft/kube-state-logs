@@ -34,8 +34,8 @@ func (h *ContainerHandler) SetupInformer(factory informers.SharedInformerFactory
 }
 
 // Collect gathers container metrics from the cluster (uses cache)
-func (h *ContainerHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *ContainerHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all pods from the cache
 	pods := utils.SafeGetStoreList(h.GetInformer())
@@ -50,40 +50,21 @@ func (h *ContainerHandler) Collect(ctx context.Context, namespaces []string) ([]
 			continue
 		}
 
-		// Create separate log entries for each container
-		containerEntries := h.createContainerLogEntries(pod)
-		entries = append(entries, containerEntries...)
+		// Process each container in the pod
+		for _, containerSpec := range pod.Spec.Containers {
+			entry := h.createLogEntry(pod, containerSpec)
+			entries = append(entries, entry)
+		}
 	}
 
 	return entries, nil
 }
 
-// createContainerLogEntries creates LogEntry for each container in a pod
-func (h *ContainerHandler) createContainerLogEntries(pod *corev1.Pod) []types.LogEntry {
-	var entries []types.LogEntry
-
-	// Process all containers (including init containers)
-	for _, container := range pod.Spec.Containers {
-		entry := h.createContainerLogEntry(pod, &container, false)
-		entries = append(entries, entry)
-	}
-
-	for _, container := range pod.Spec.InitContainers {
-		entry := h.createContainerLogEntry(pod, &container, true)
-		entries = append(entries, entry)
-	}
-
-	return entries
-}
-
-// createContainerLogEntry creates a LogEntry for a specific container
-func (h *ContainerHandler) createContainerLogEntry(pod *corev1.Pod, containerSpec *corev1.Container, isInit bool) types.LogEntry {
+// createLogEntry creates a ContainerData from a pod and container spec
+func (h *ContainerHandler) createLogEntry(pod *corev1.Pod, containerSpec corev1.Container) types.ContainerData {
 	// Find container status
 	var containerStatus *corev1.ContainerStatus
 	statuses := pod.Status.ContainerStatuses
-	if isInit {
-		statuses = pod.Status.InitContainerStatuses
-	}
 
 	for _, status := range statuses {
 		if status.Name == containerSpec.Name {
@@ -191,5 +172,5 @@ func (h *ContainerHandler) createContainerLogEntry(pod *corev1.Pod, containerSpe
 		StateStarted:            stateStarted,
 	}
 
-	return utils.CreateLogEntry("container", utils.ExtractName(pod)+"-"+containerSpec.Name, utils.ExtractNamespace(pod), data)
+	return data
 }

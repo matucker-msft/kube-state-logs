@@ -1,6 +1,9 @@
 package utils
 
 import (
+	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -37,6 +40,34 @@ func GetConditionStatusGeneric(conditions any, conditionType string) bool {
 	case []metav1.Condition:
 		return GetConditionStatus(typedConditions, conditionType)
 	case []corev1.NodeCondition:
+		for _, condition := range typedConditions {
+			if string(condition.Type) == conditionType {
+				return condition.Status == corev1.ConditionTrue
+			}
+		}
+		return false
+	case []appsv1.DaemonSetCondition:
+		for _, condition := range typedConditions {
+			if string(condition.Type) == conditionType {
+				return condition.Status == corev1.ConditionTrue
+			}
+		}
+		return false
+	case []appsv1.StatefulSetCondition:
+		for _, condition := range typedConditions {
+			if string(condition.Type) == conditionType {
+				return condition.Status == corev1.ConditionTrue
+			}
+		}
+		return false
+	case []autoscalingv2.HorizontalPodAutoscalerCondition:
+		for _, condition := range typedConditions {
+			if string(condition.Type) == conditionType {
+				return condition.Status == corev1.ConditionTrue
+			}
+		}
+		return false
+	case []batchv1.JobCondition:
 		for _, condition := range typedConditions {
 			if string(condition.Type) == conditionType {
 				return condition.Status == corev1.ConditionTrue

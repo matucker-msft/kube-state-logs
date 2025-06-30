@@ -34,8 +34,8 @@ func (h *JobHandler) SetupInformer(factory informers.SharedInformerFactory, logg
 }
 
 // Collect gathers job metrics from the cluster (uses cache)
-func (h *JobHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *JobHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all jobs from the cache
 	jobs := utils.SafeGetStoreList(h.GetInformer())
@@ -57,8 +57,8 @@ func (h *JobHandler) Collect(ctx context.Context, namespaces []string) ([]types.
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a job
-func (h *JobHandler) createLogEntry(job *batchv1.Job) types.LogEntry {
+// createLogEntry creates a JobData from a job
+func (h *JobHandler) createLogEntry(job *batchv1.Job) types.JobData {
 	// Determine job type
 	jobType := "Job"
 	if len(job.OwnerReferences) > 0 {
@@ -90,9 +90,17 @@ func (h *JobHandler) createLogEntry(job *batchv1.Job) types.LogEntry {
 	}
 
 	data := types.JobData{
-		CreatedTimestamp:      utils.ExtractCreationTimestamp(job),
-		Labels:                utils.ExtractLabels(job),
-		Annotations:           utils.ExtractAnnotations(job),
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "job",
+			Name:             utils.ExtractName(job),
+			Namespace:        utils.ExtractNamespace(job),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(job),
+			Labels:           utils.ExtractLabels(job),
+			Annotations:      utils.ExtractAnnotations(job),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		ActivePods:            job.Status.Active,
 		SucceededPods:         job.Status.Succeeded,
 		FailedPods:            job.Status.Failed,
@@ -102,11 +110,9 @@ func (h *JobHandler) createLogEntry(job *batchv1.Job) types.LogEntry {
 		ActiveDeadlineSeconds: activeDeadlineSeconds,
 		ConditionComplete:     conditionComplete,
 		ConditionFailed:       conditionFailed,
-		CreatedByKind:         createdByKind,
-		CreatedByName:         createdByName,
 		JobType:               jobType,
 		Suspend:               suspend,
 	}
 
-	return utils.CreateLogEntry("job", utils.ExtractName(job), utils.ExtractNamespace(job), data)
+	return data
 }

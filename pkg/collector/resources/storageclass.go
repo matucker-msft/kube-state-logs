@@ -34,13 +34,13 @@ func (h *StorageClassHandler) SetupInformer(factory informers.SharedInformerFact
 }
 
 // Collect gathers storageclass metrics from the cluster (uses cache)
-func (h *StorageClassHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *StorageClassHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all storageclasses from the cache
-	scList := utils.SafeGetStoreList(h.GetInformer())
+	storageClasses := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range scList {
+	for _, obj := range storageClasses {
 		sc, ok := obj.(*storagev1.StorageClass)
 		if !ok {
 			continue
@@ -53,8 +53,8 @@ func (h *StorageClassHandler) Collect(ctx context.Context, namespaces []string) 
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a storageclass
-func (h *StorageClassHandler) createLogEntry(sc *storagev1.StorageClass) types.LogEntry {
+// createLogEntry creates a StorageClassData from a storageclass
+func (h *StorageClassHandler) createLogEntry(sc *storagev1.StorageClass) types.StorageClassData {
 	// Get reclaim policy
 	// Default is "Delete" when reclaimPolicy is nil
 	// See: https://kubernetes.io/docs/concepts/storage/storage-classes/#reclaim-policy
@@ -110,9 +110,17 @@ func (h *StorageClassHandler) createLogEntry(sc *storagev1.StorageClass) types.L
 
 	// Create data structure
 	data := types.StorageClassData{
-		CreatedTimestamp:     utils.ExtractCreationTimestamp(sc),
-		Labels:               utils.ExtractLabels(sc),
-		Annotations:          annotations,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "storageclass",
+			Name:             utils.ExtractName(sc),
+			Namespace:        utils.ExtractNamespace(sc),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(sc),
+			Labels:           utils.ExtractLabels(sc),
+			Annotations:      annotations,
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		Provisioner:          sc.Provisioner,
 		ReclaimPolicy:        reclaimPolicy,
 		VolumeBindingMode:    volumeBindingMode,
@@ -120,10 +128,8 @@ func (h *StorageClassHandler) createLogEntry(sc *storagev1.StorageClass) types.L
 		Parameters:           parameters,
 		MountOptions:         mountOptions,
 		AllowedTopologies:    allowedTopologies,
-		CreatedByKind:        createdByKind,
-		CreatedByName:        createdByName,
 		IsDefaultClass:       isDefaultClass,
 	}
 
-	return utils.CreateLogEntry("storageclass", utils.ExtractName(sc), utils.ExtractNamespace(sc), data)
+	return data
 }

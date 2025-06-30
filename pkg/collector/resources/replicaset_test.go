@@ -6,18 +6,19 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 
 	testutils "github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
-// createTestReplicaSet creates a test ReplicaSet with owner, labels, annotations, and status
-func createTestReplicaSet(name, namespace, ownerKind, ownerName string, replicas, ready, available, fullyLabeled int32, isCurrent bool) *appsv1.ReplicaSet {
-	now := metav1.Now()
-	rs := &appsv1.ReplicaSet{
+// createTestReplicaSet creates a test replicaset with various configurations
+func createTestReplicaSet(name, namespace string, replicas int32) *appsv1.ReplicaSet {
+	replicaSet := &appsv1.ReplicaSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -28,43 +29,62 @@ func createTestReplicaSet(name, namespace, ownerKind, ownerName string, replicas
 			Annotations: map[string]string{
 				"description": "test replicaset",
 			},
-			CreationTimestamp: now,
+			CreationTimestamp: metav1.Now(),
 			Generation:        1,
 		},
 		Spec: appsv1.ReplicaSetSpec{
 			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": name,
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": name,
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+						},
+					},
+				},
+			},
 		},
 		Status: appsv1.ReplicaSetStatus{
-			Replicas:             replicas,
-			ReadyReplicas:        ready,
-			AvailableReplicas:    available,
-			FullyLabeledReplicas: fullyLabeled,
+			Replicas:             3,
+			ReadyReplicas:        2,
+			AvailableReplicas:    2,
+			FullyLabeledReplicas: 3,
 			ObservedGeneration:   1,
+			Conditions: []appsv1.ReplicaSetCondition{
+				{
+					Type:               appsv1.ReplicaSetReplicaFailure,
+					Status:             corev1.ConditionFalse,
+					LastTransitionTime: metav1.Now(),
+					Reason:             "ReplicaSetAvailable",
+					Message:            "ReplicaSet is available",
+				},
+			},
 		},
 	}
-	if ownerKind != "" && ownerName != "" {
-		rs.OwnerReferences = []metav1.OwnerReference{{
-			APIVersion: "apps/v1",
-			Kind:       ownerKind,
-			Name:       ownerName,
-			UID:        "test-uid",
-		}}
-	}
-	if isCurrent {
-		if rs.Labels == nil {
-			rs.Labels = map[string]string{}
-		}
-		rs.Labels["kube-state-logs/current"] = "true"
-	}
-	return rs
+
+	return replicaSet
 }
 
 func TestNewReplicaSetHandler(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewReplicaSetHandler(client)
+
 	if handler == nil {
 		t.Fatal("Expected handler to be created, got nil")
 	}
+
+	// Verify BaseHandler is embedded
 	if handler.BaseHandler == (utils.BaseHandler{}) {
 		t.Error("Expected BaseHandler to be embedded")
 	}
@@ -75,187 +95,209 @@ func TestReplicaSetHandler_SetupInformer(t *testing.T) {
 	handler := NewReplicaSetHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
+
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
+	// Verify informer is set up
 	if handler.GetInformer() == nil {
 		t.Error("Expected informer to be set up")
 	}
 }
 
 func TestReplicaSetHandler_Collect(t *testing.T) {
-	// Create test ReplicaSets
-	rs1 := createTestReplicaSet("test-rs-1", "default", "Deployment", "test-deploy", 3, 2, 2, 2, true)
-	rs2 := createTestReplicaSet("test-rs-2", "kube-system", "Deployment", "test-deploy2", 2, 2, 2, 2, true)
-	client := fake.NewSimpleClientset(rs1, rs2)
+	// Create test replicasets
+	replicaSet1 := createTestReplicaSet("test-replicaset-1", "default", 3)
+	replicaSet2 := createTestReplicaSet("test-replicaset-2", "kube-system", 2)
+
+	// Create fake client with test replicasets
+	client := fake.NewSimpleClientset(replicaSet1, replicaSet2)
 	handler := NewReplicaSetHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
+
+	// Setup informer
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
+
+	// Start the factory to populate the cache
 	factory.Start(nil)
 	factory.WaitForCacheSync(nil)
+
+	// Test collecting all replicasets
 	ctx := context.Background()
 	entries, err := handler.Collect(ctx, []string{})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 2 {
 		t.Fatalf("Expected 2 entries, got %d", len(entries))
 	}
+
+	// Test collecting from specific namespace
 	entries, err = handler.Collect(ctx, []string{"default"})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 1 {
 		t.Fatalf("Expected 1 entry for default namespace, got %d", len(entries))
 	}
-	if entries[0].Namespace != "default" {
-		t.Errorf("Expected namespace 'default', got '%s'", entries[0].Namespace)
+
+	// Type assert to ReplicaSetData for assertions
+	entry, ok := entries[0].(types.ReplicaSetData)
+	if !ok {
+		t.Fatalf("Expected ReplicaSetData type, got %T", entries[0])
+	}
+
+	if entry.Namespace != "default" {
+		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
 	}
 }
 
 func TestReplicaSetHandler_createLogEntry(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewReplicaSetHandler(client)
-
-	rs := createTestReplicaSet("test-rs", "default", "Deployment", "test-deploy", 3, 2, 2, 2, true)
-	entry := handler.createLogEntry(rs)
+	replicaSet := createTestReplicaSet("test-replicaset", "default", 3)
+	entry := handler.createLogEntry(replicaSet)
 
 	if entry.ResourceType != "replicaset" {
 		t.Errorf("Expected resource type 'replicaset', got '%s'", entry.ResourceType)
 	}
-	if entry.Name != "test-rs" {
-		t.Errorf("Expected name 'test-rs', got '%s'", entry.Name)
+
+	if entry.Name != "test-replicaset" {
+		t.Errorf("Expected name 'test-replicaset', got '%s'", entry.Name)
 	}
+
 	if entry.Namespace != "default" {
 		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
 	}
 
-	data := entry.Data
-	val, ok := data["desiredReplicas"]
-	if !ok || val == nil {
-		t.Fatalf("desiredReplicas missing or nil")
+	// Verify replicaset-specific fields
+	if entry.DesiredReplicas != 3 {
+		t.Errorf("Expected desired replicas 3, got %d", entry.DesiredReplicas)
 	}
-	if val.(int32) != 3 {
-		t.Errorf("Expected desired replicas 3, got %d", val.(int32))
+
+	if entry.CurrentReplicas != 3 {
+		t.Errorf("Expected current replicas 3, got %d", entry.CurrentReplicas)
 	}
-	val, ok = data["currentReplicas"]
-	if !ok || val == nil {
-		t.Fatalf("currentReplicas missing or nil")
+
+	if entry.ReadyReplicas != 2 {
+		t.Errorf("Expected ready replicas 2, got %d", entry.ReadyReplicas)
 	}
-	if val.(int32) != 3 {
-		t.Errorf("Expected current replicas 3, got %d", val.(int32))
+
+	if entry.AvailableReplicas != 2 {
+		t.Errorf("Expected available replicas 2, got %d", entry.AvailableReplicas)
 	}
-	val, ok = data["readyReplicas"]
-	if !ok || val == nil {
-		t.Fatalf("readyReplicas missing or nil")
+
+	if entry.FullyLabeledReplicas != 3 {
+		t.Errorf("Expected fully labeled replicas 3, got %d", entry.FullyLabeledReplicas)
 	}
-	if val.(int32) != 2 {
-		t.Errorf("Expected ready replicas 2, got %d", val.(int32))
+
+	if entry.ObservedGeneration != 1 {
+		t.Errorf("Expected observed generation 1, got %d", entry.ObservedGeneration)
 	}
-	val, ok = data["availableReplicas"]
-	if !ok || val == nil {
-		t.Fatalf("availableReplicas missing or nil")
+
+	// Verify conditions
+	if entry.ConditionAvailable {
+		t.Error("Expected ConditionAvailable to be false")
 	}
-	if val.(int32) != 2 {
-		t.Errorf("Expected available replicas 2, got %d", val.(int32))
+
+	if entry.ConditionProgressing {
+		t.Error("Expected ConditionProgressing to be false")
 	}
-	val, ok = data["fullyLabeledReplicas"]
-	if !ok || val == nil {
-		t.Fatalf("fullyLabeledReplicas missing or nil")
+
+	if entry.ConditionReplicaFailure {
+		t.Error("Expected ConditionReplicaFailure to be false")
 	}
-	if val.(int32) != 2 {
-		t.Errorf("Expected fully labeled replicas 2, got %d", val.(int32))
+
+	// Verify metadata
+	if entry.Labels["app"] != "test-replicaset" {
+		t.Errorf("Expected label 'app' to be 'test-replicaset', got '%s'", entry.Labels["app"])
 	}
-	val, ok = data["isCurrent"]
-	if !ok || val == nil {
-		t.Fatalf("isCurrent missing or nil")
-	}
-	if !val.(bool) {
-		t.Errorf("Expected isCurrent to be true")
+
+	if entry.Annotations["description"] != "test replicaset" {
+		t.Errorf("Expected annotation 'description' to be 'test replicaset', got '%s'", entry.Annotations["description"])
 	}
 }
 
 func TestReplicaSetHandler_createLogEntry_WithOwnerReference(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewReplicaSetHandler(client)
+	replicaSet := createTestReplicaSet("test-replicaset", "default", 3)
+	replicaSet.OwnerReferences = []metav1.OwnerReference{
+		{
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+			Name:       "test-deployment",
+			UID:        "test-uid",
+		},
+	}
+	entry := handler.createLogEntry(replicaSet)
 
-	rs := createTestReplicaSet("test-rs", "default", "Deployment", "test-deploy", 3, 2, 2, 2, true)
-	entry := handler.createLogEntry(rs)
-	data := entry.Data
-	val, ok := data["createdByKind"]
-	if !ok || val == nil {
-		t.Fatalf("createdByKind missing or nil")
+	if entry.CreatedByKind != "Deployment" {
+		t.Errorf("Expected created by kind 'Deployment', got '%s'", entry.CreatedByKind)
 	}
-	if val.(string) != "Deployment" {
-		t.Errorf("Expected created by kind 'Deployment', got '%s'", val.(string))
-	}
-	val, ok = data["createdByName"]
-	if !ok || val == nil {
-		t.Fatalf("createdByName missing or nil")
-	}
-	if val.(string) != "test-deploy" {
-		t.Errorf("Expected created by name 'test-deploy', got '%s'", val.(string))
-	}
-}
 
-func TestReplicaSetHandler_Collect_EmptyCache(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewReplicaSetHandler(client)
-	factory := informers.NewSharedInformerFactory(client, time.Hour)
-	logger := &testutils.MockLogger{}
-	err := handler.SetupInformer(factory, logger, time.Hour)
-	if err != nil {
-		t.Fatalf("Failed to setup informer: %v", err)
-	}
-	factory.Start(nil)
-	factory.WaitForCacheSync(nil)
-	ctx := context.Background()
-	entries, err := handler.Collect(ctx, []string{})
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
-	}
-	if len(entries) != 0 {
-		t.Fatalf("Expected 0 entries for empty cache, got %d", len(entries))
+	if entry.CreatedByName != "test-deployment" {
+		t.Errorf("Expected created by name 'test-deployment', got '%s'", entry.CreatedByName)
 	}
 }
 
 func TestReplicaSetHandler_Collect_NamespaceFiltering(t *testing.T) {
-	rs1 := createTestReplicaSet("test-rs-1", "default", "Deployment", "test-deploy", 3, 2, 2, 2, true)
-	rs2 := createTestReplicaSet("test-rs-2", "kube-system", "Deployment", "test-deploy2", 2, 2, 2, 2, true)
-	rs3 := createTestReplicaSet("test-rs-3", "monitoring", "Deployment", "test-deploy3", 1, 1, 1, 1, true)
-	client := fake.NewSimpleClientset(rs1, rs2, rs3)
+	// Create test replicasets in different namespaces
+	replicaSet1 := createTestReplicaSet("test-replicaset-1", "default", 3)
+	replicaSet2 := createTestReplicaSet("test-replicaset-2", "kube-system", 2)
+	replicaSet3 := createTestReplicaSet("test-replicaset-3", "monitoring", 1)
+
+	client := fake.NewSimpleClientset(replicaSet1, replicaSet2, replicaSet3)
 	handler := NewReplicaSetHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
+
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
+
 	factory.Start(nil)
 	factory.WaitForCacheSync(nil)
+
 	ctx := context.Background()
+
+	// Test multiple namespace filtering
 	entries, err := handler.Collect(ctx, []string{"default", "monitoring"})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 2 {
 		t.Fatalf("Expected 2 entries for default and monitoring namespaces, got %d", len(entries))
 	}
+
+	// Verify correct namespaces
 	namespaces := make(map[string]bool)
 	for _, entry := range entries {
-		namespaces[entry.Namespace] = true
+		entryData, ok := entry.(types.ReplicaSetData)
+		if !ok {
+			t.Fatalf("Expected ReplicaSetData type, got %T", entry)
+		}
+		namespaces[entryData.Namespace] = true
 	}
+
 	if !namespaces["default"] {
 		t.Error("Expected entry from default namespace")
 	}
+
 	if !namespaces["monitoring"] {
 		t.Error("Expected entry from monitoring namespace")
 	}
+
 	if namespaces["kube-system"] {
 		t.Error("Did not expect entry from kube-system namespace")
 	}

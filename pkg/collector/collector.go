@@ -15,7 +15,6 @@ import (
 	"github.com/matucker-msft/kube-state-logs/pkg/collector/resources"
 	"github.com/matucker-msft/kube-state-logs/pkg/config"
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
-	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
 // Collector handles the collection and logging of Kubernetes resource state
@@ -241,7 +240,7 @@ func (c *Collector) collectAndLogResource(ctx context.Context, resourceName stri
 // collectAndLog collects data from all configured resources and logs them
 // This is now mainly used for initial collection or manual triggers
 func (c *Collector) collectAndLog(ctx context.Context) error {
-	var allEntries []types.LogEntry
+	var allEntries []any
 
 	// Collect from each configured resource type
 	for _, resourceType := range c.config.Resources {

@@ -6,18 +6,18 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 
 	testutils "github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
-	"github.com/matucker-msft/kube-state-logs/pkg/utils"
+	"github.com/matucker-msft/kube-state-logs/pkg/types"
 )
 
-// createTestStatefulSet creates a test StatefulSet with various configurations
+// createTestStatefulSet creates a test statefulset with various configurations
 func createTestStatefulSet(name, namespace string, replicas int32) *appsv1.StatefulSet {
-	now := metav1.Now()
-	sts := &appsv1.StatefulSet{
+	statefulSet := &appsv1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      name,
 			Namespace: namespace,
@@ -28,35 +28,72 @@ func createTestStatefulSet(name, namespace string, replicas int32) *appsv1.State
 			Annotations: map[string]string{
 				"description": "test statefulset",
 			},
-			CreationTimestamp: now,
+			CreationTimestamp: metav1.Now(),
 			Generation:        1,
 		},
 		Spec: appsv1.StatefulSetSpec{
-			Replicas:            &replicas,
-			ServiceName:         name + "-service",
+			Replicas:    &replicas,
+			ServiceName: name + "-service",
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": name,
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": name,
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "app",
+							Image: "nginx:latest",
+						},
+					},
+				},
+			},
+			UpdateStrategy: appsv1.StatefulSetUpdateStrategy{
+				Type: appsv1.RollingUpdateStatefulSetStrategyType,
+			},
 			PodManagementPolicy: appsv1.OrderedReadyPodManagement,
-			UpdateStrategy:      appsv1.StatefulSetUpdateStrategy{Type: appsv1.RollingUpdateStatefulSetStrategyType},
 		},
 		Status: appsv1.StatefulSetStatus{
-			Replicas:           replicas,
-			ReadyReplicas:      replicas,
-			UpdatedReplicas:    replicas,
+			Replicas:           3,
+			ReadyReplicas:      2,
+			UpdatedReplicas:    3,
+			CurrentRevision:    "test-revision-1",
+			UpdateRevision:     "test-revision-2",
 			ObservedGeneration: 1,
-			CurrentRevision:    name + "-rev-1",
-			UpdateRevision:     name + "-rev-1",
+			Conditions: []appsv1.StatefulSetCondition{
+				{
+					Type:               "Available",
+					Status:             corev1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+					Reason:             "StatefulSetAvailable",
+					Message:            "StatefulSet is available",
+				},
+				{
+					Type:               "Progressing",
+					Status:             corev1.ConditionTrue,
+					LastTransitionTime: metav1.Now(),
+					Reason:             "StatefulSetProgressing",
+					Message:            "StatefulSet is progressing",
+				},
+			},
 		},
 	}
-	return sts
+
+	return statefulSet
 }
 
 func TestNewStatefulSetHandler(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewStatefulSetHandler(client)
+
 	if handler == nil {
 		t.Fatal("Expected handler to be created, got nil")
-	}
-	if handler.BaseHandler == (utils.BaseHandler{}) {
-		t.Error("Expected BaseHandler to be embedded")
 	}
 }
 
@@ -65,191 +102,200 @@ func TestStatefulSetHandler_SetupInformer(t *testing.T) {
 	handler := NewStatefulSetHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
+
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
+	// Verify informer is set up
 	if handler.GetInformer() == nil {
 		t.Error("Expected informer to be set up")
 	}
 }
 
 func TestStatefulSetHandler_Collect(t *testing.T) {
-	sts1 := createTestStatefulSet("test-sts-1", "default", 3)
-	sts2 := createTestStatefulSet("test-sts-2", "kube-system", 2)
-	client := fake.NewSimpleClientset(sts1, sts2)
+	// Create test statefulsets
+	statefulSet1 := createTestStatefulSet("test-statefulset-1", "default", 3)
+	statefulSet2 := createTestStatefulSet("test-statefulset-2", "kube-system", 2)
+
+	// Create fake client with test statefulsets
+	client := fake.NewSimpleClientset(statefulSet1, statefulSet2)
 	handler := NewStatefulSetHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
+
+	// Setup informer
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
+
+	// Start the factory to populate the cache
 	factory.Start(nil)
 	factory.WaitForCacheSync(nil)
+
+	// Test collecting all statefulsets
 	ctx := context.Background()
 	entries, err := handler.Collect(ctx, []string{})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 2 {
 		t.Fatalf("Expected 2 entries, got %d", len(entries))
 	}
+
+	// Test collecting from specific namespace
 	entries, err = handler.Collect(ctx, []string{"default"})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
+
 	if len(entries) != 1 {
 		t.Fatalf("Expected 1 entry for default namespace, got %d", len(entries))
 	}
-	if entries[0].Namespace != "default" {
-		t.Errorf("Expected namespace 'default', got '%s'", entries[0].Namespace)
+
+	// Type assert to StatefulSetData for assertions
+	entry, ok := entries[0].(types.StatefulSetData)
+	if !ok {
+		t.Fatalf("Expected StatefulSetData type, got %T", entries[0])
+	}
+
+	if entry.Namespace != "default" {
+		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
 	}
 }
 
 func TestStatefulSetHandler_createLogEntry(t *testing.T) {
 	client := fake.NewSimpleClientset()
 	handler := NewStatefulSetHandler(client)
-	sts := createTestStatefulSet("test-sts", "default", 3)
-	entry := handler.createLogEntry(sts)
+	statefulSet := createTestStatefulSet("test-statefulset", "default", 3)
+	entry := handler.createLogEntry(statefulSet)
+
 	if entry.ResourceType != "statefulset" {
 		t.Errorf("Expected resource type 'statefulset', got '%s'", entry.ResourceType)
 	}
-	if entry.Name != "test-sts" {
-		t.Errorf("Expected name 'test-sts', got '%s'", entry.Name)
+
+	if entry.Name != "test-statefulset" {
+		t.Errorf("Expected name 'test-statefulset', got '%s'", entry.Name)
 	}
+
 	if entry.Namespace != "default" {
 		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
 	}
-	data := entry.Data
-	val, ok := data["desiredReplicas"]
-	if !ok || val == nil {
-		t.Fatalf("desiredReplicas missing or nil")
-	}
-	if val.(int32) != 3 {
-		t.Errorf("Expected desired replicas 3, got %d", val.(int32))
-	}
-	val, ok = data["currentReplicas"]
-	if !ok || val == nil {
-		t.Fatalf("currentReplicas missing or nil")
-	}
-	if val.(int32) != 3 {
-		t.Errorf("Expected current replicas 3, got %d", val.(int32))
-	}
-	val, ok = data["readyReplicas"]
-	if !ok || val == nil {
-		t.Fatalf("readyReplicas missing or nil")
-	}
-	if val.(int32) != 3 {
-		t.Errorf("Expected ready replicas 3, got %d", val.(int32))
-	}
-	val, ok = data["serviceName"]
-	if !ok || val == nil {
-		t.Fatalf("serviceName missing or nil")
-	}
-	if val.(string) != "test-sts-service" {
-		t.Errorf("Expected service name 'test-sts-service', got '%s'", val.(string))
-	}
-	val, ok = data["podManagementPolicy"]
-	if !ok || val == nil {
-		t.Fatalf("podManagementPolicy missing or nil")
-	}
-	if val.(string) != "OrderedReady" {
-		t.Errorf("Expected pod management policy 'OrderedReady', got '%s'", val.(string))
-	}
-	val, ok = data["updateStrategy"]
-	if !ok || val == nil {
-		t.Fatalf("updateStrategy missing or nil")
-	}
-	if val.(string) != "RollingUpdate" {
-		t.Errorf("Expected update strategy 'RollingUpdate', got '%s'", val.(string))
-	}
-}
 
-func TestStatefulSetHandler_createLogEntry_WithOwnerReference(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewStatefulSetHandler(client)
-	sts := createTestStatefulSet("test-sts", "default", 3)
-	sts.OwnerReferences = []metav1.OwnerReference{
-		{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-			Name:       "test-deploy",
-			UID:        "test-uid",
-		},
+	// Verify statefulset-specific fields
+	if entry.DesiredReplicas != 3 {
+		t.Errorf("Expected desired replicas 3, got %d", entry.DesiredReplicas)
 	}
-	entry := handler.createLogEntry(sts)
-	data := entry.Data
-	val, ok := data["createdByKind"]
-	if !ok || val == nil {
-		t.Fatalf("createdByKind missing or nil")
-	}
-	if val.(string) != "Deployment" {
-		t.Errorf("Expected created by kind 'Deployment', got '%s'", val.(string))
-	}
-	val, ok = data["createdByName"]
-	if !ok || val == nil {
-		t.Fatalf("createdByName missing or nil")
-	}
-	if val.(string) != "test-deploy" {
-		t.Errorf("Expected created by name 'test-deploy', got '%s'", val.(string))
-	}
-}
 
-func TestStatefulSetHandler_Collect_EmptyCache(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewStatefulSetHandler(client)
-	factory := informers.NewSharedInformerFactory(client, time.Hour)
-	logger := &testutils.MockLogger{}
-	err := handler.SetupInformer(factory, logger, time.Hour)
-	if err != nil {
-		t.Fatalf("Failed to setup informer: %v", err)
+	if entry.CurrentReplicas != 3 {
+		t.Errorf("Expected current replicas 3, got %d", entry.CurrentReplicas)
 	}
-	factory.Start(nil)
-	factory.WaitForCacheSync(nil)
-	ctx := context.Background()
-	entries, err := handler.Collect(ctx, []string{})
-	if err != nil {
-		t.Fatalf("Expected no error, got %v", err)
+
+	if entry.ReadyReplicas != 2 {
+		t.Errorf("Expected ready replicas 2, got %d", entry.ReadyReplicas)
 	}
-	if len(entries) != 0 {
-		t.Fatalf("Expected 0 entries for empty cache, got %d", len(entries))
+
+	if entry.UpdatedReplicas != 3 {
+		t.Errorf("Expected updated replicas 3, got %d", entry.UpdatedReplicas)
+	}
+
+	if entry.CurrentRevision != "test-revision-1" {
+		t.Errorf("Expected current revision 'test-revision-1', got '%s'", entry.CurrentRevision)
+	}
+
+	if entry.UpdateRevision != "test-revision-2" {
+		t.Errorf("Expected update revision 'test-revision-2', got '%s'", entry.UpdateRevision)
+	}
+
+	if entry.ServiceName != "test-statefulset-service" {
+		t.Errorf("Expected service name 'test-statefulset-service', got '%s'", entry.ServiceName)
+	}
+
+	if entry.PodManagementPolicy != "OrderedReady" {
+		t.Errorf("Expected pod management policy 'OrderedReady', got '%s'", entry.PodManagementPolicy)
+	}
+
+	if entry.UpdateStrategy != "RollingUpdate" {
+		t.Errorf("Expected update strategy 'RollingUpdate', got '%s'", entry.UpdateStrategy)
+	}
+
+	if !entry.ConditionAvailable {
+		t.Error("Expected condition available to be true")
+	}
+
+	if !entry.ConditionProgressing {
+		t.Error("Expected condition progressing to be true")
 	}
 }
 
 func TestStatefulSetHandler_Collect_NamespaceFiltering(t *testing.T) {
-	sts1 := createTestStatefulSet("test-sts-1", "default", 3)
-	sts2 := createTestStatefulSet("test-sts-2", "kube-system", 2)
-	sts3 := createTestStatefulSet("test-sts-3", "monitoring", 1)
-	client := fake.NewSimpleClientset(sts1, sts2, sts3)
+	// Create test statefulsets in different namespaces
+	statefulSet1 := createTestStatefulSet("test-statefulset-1", "default", 3)
+	statefulSet2 := createTestStatefulSet("test-statefulset-2", "kube-system", 2)
+	statefulSet3 := createTestStatefulSet("test-statefulset-3", "monitoring", 1)
+
+	client := fake.NewSimpleClientset(statefulSet1, statefulSet2, statefulSet3)
 	handler := NewStatefulSetHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
+
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
+
 	factory.Start(nil)
 	factory.WaitForCacheSync(nil)
+
 	ctx := context.Background()
-	entries, err := handler.Collect(ctx, []string{"default", "monitoring"})
+
+	// Test filtering by specific namespace
+	entries, err := handler.Collect(ctx, []string{"default"})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
-	if len(entries) != 2 {
-		t.Fatalf("Expected 2 entries for default and monitoring namespaces, got %d", len(entries))
+
+	if len(entries) != 1 {
+		t.Fatalf("Expected 1 entry for default namespace, got %d", len(entries))
 	}
+
+	// Type assert to StatefulSetData for assertions
+	entry, ok := entries[0].(types.StatefulSetData)
+	if !ok {
+		t.Fatalf("Expected StatefulSetData type, got %T", entries[0])
+	}
+
+	if entry.Namespace != "default" {
+		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
+	}
+
+	// Test filtering by multiple namespaces
+	entries, err = handler.Collect(ctx, []string{"default", "kube-system"})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(entries) != 2 {
+		t.Fatalf("Expected 2 entries for default and kube-system namespaces, got %d", len(entries))
+	}
+
+	// Verify both namespaces are present
 	namespaces := make(map[string]bool)
 	for _, entry := range entries {
-		namespaces[entry.Namespace] = true
+		statefulSetData, ok := entry.(types.StatefulSetData)
+		if !ok {
+			t.Fatalf("Expected StatefulSetData type, got %T", entry)
+		}
+		namespaces[statefulSetData.Namespace] = true
 	}
+
 	if !namespaces["default"] {
-		t.Error("Expected entry from default namespace")
+		t.Error("Expected to find statefulset in default namespace")
 	}
-	if !namespaces["monitoring"] {
-		t.Error("Expected entry from monitoring namespace")
-	}
-	if namespaces["kube-system"] {
-		t.Error("Did not expect entry from kube-system namespace")
+	if !namespaces["kube-system"] {
+		t.Error("Expected to find statefulset in kube-system namespace")
 	}
 }

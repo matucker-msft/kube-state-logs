@@ -41,8 +41,8 @@ func (h *ServiceHandler) SetupInformer(factory informers.SharedInformerFactory, 
 }
 
 // Collect gathers service metrics from the cluster (uses cache)
-func (h *ServiceHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *ServiceHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all services from the cache
 	services := utils.SafeGetStoreList(h.GetInformer())
@@ -64,8 +64,8 @@ func (h *ServiceHandler) Collect(ctx context.Context, namespaces []string) ([]ty
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a service
-func (h *ServiceHandler) createLogEntry(service *corev1.Service) types.LogEntry {
+// createLogEntry creates a ServiceData from a service
+func (h *ServiceHandler) createLogEntry(service *corev1.Service) types.ServiceData {
 	// Convert ports
 	var ports []types.ServicePortData
 	for _, port := range service.Spec.Ports {
@@ -111,10 +111,6 @@ func (h *ServiceHandler) createLogEntry(service *corev1.Service) types.LogEntry 
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(service)
 
 	// Get traffic policies
-	internalTrafficPolicy := ""
-	if service.Spec.InternalTrafficPolicy != nil {
-		internalTrafficPolicy = string(*service.Spec.InternalTrafficPolicy)
-	}
 	externalTrafficPolicy := string(service.Spec.ExternalTrafficPolicy)
 
 	// Get session affinity timeout
@@ -137,22 +133,27 @@ func (h *ServiceHandler) createLogEntry(service *corev1.Service) types.LogEntry 
 	}
 
 	data := types.ServiceData{
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "service",
+			Name:             utils.ExtractName(service),
+			Namespace:        utils.ExtractNamespace(service),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(service),
+			Labels:           utils.ExtractLabels(service),
+			Annotations:      utils.ExtractAnnotations(service),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
 		Type:                                  string(service.Spec.Type),
 		ClusterIP:                             service.Spec.ClusterIP,
 		ExternalIP:                            externalIP,
 		LoadBalancerIP:                        service.Spec.LoadBalancerIP,
 		Ports:                                 ports,
 		Selector:                              service.Spec.Selector,
-		Labels:                                utils.ExtractLabels(service),
-		Annotations:                           utils.ExtractAnnotations(service),
 		EndpointsCount:                        endpointsCount,
 		LoadBalancerIngress:                   loadBalancerIngress,
 		SessionAffinity:                       string(service.Spec.SessionAffinity),
 		ExternalName:                          service.Spec.ExternalName,
-		CreatedByKind:                         createdByKind,
-		CreatedByName:                         createdByName,
-		CreatedTimestamp:                      utils.ExtractCreationTimestamp(service),
-		InternalTrafficPolicy:                 internalTrafficPolicy,
 		ExternalTrafficPolicy:                 externalTrafficPolicy,
 		SessionAffinityClientIPTimeoutSeconds: sessionAffinityTimeout,
 		AllocateLoadBalancerNodePorts:         allocateLoadBalancerNodePorts,
@@ -160,7 +161,7 @@ func (h *ServiceHandler) createLogEntry(service *corev1.Service) types.LogEntry 
 		LoadBalancerSourceRanges:              service.Spec.LoadBalancerSourceRanges,
 	}
 
-	return utils.CreateLogEntry("service", utils.ExtractName(service), utils.ExtractNamespace(service), data)
+	return data
 }
 
 // countEndpointsForService counts the number of endpoints for a given service

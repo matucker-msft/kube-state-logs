@@ -34,30 +34,30 @@ func (h *ValidatingWebhookConfigurationHandler) SetupInformer(factory informers.
 }
 
 // Collect gathers validatingwebhookconfiguration metrics from the cluster (uses cache)
-func (h *ValidatingWebhookConfigurationHandler) Collect(ctx context.Context, namespaces []string) ([]types.LogEntry, error) {
-	var entries []types.LogEntry
+func (h *ValidatingWebhookConfigurationHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
+	var entries []any
 
 	// Get all validatingwebhookconfigurations from the cache
-	vwcList := utils.SafeGetStoreList(h.GetInformer())
+	webhooks := utils.SafeGetStoreList(h.GetInformer())
 
-	for _, obj := range vwcList {
-		vwc, ok := obj.(*admissionregistrationv1.ValidatingWebhookConfiguration)
+	for _, obj := range webhooks {
+		webhook, ok := obj.(*admissionregistrationv1.ValidatingWebhookConfiguration)
 		if !ok {
 			continue
 		}
 
-		entry := h.createLogEntry(vwc)
+		entry := h.createLogEntry(webhook)
 		entries = append(entries, entry)
 	}
 
 	return entries, nil
 }
 
-// createLogEntry creates a LogEntry from a validatingwebhookconfiguration
-func (h *ValidatingWebhookConfigurationHandler) createLogEntry(vwc *admissionregistrationv1.ValidatingWebhookConfiguration) types.LogEntry {
+// createLogEntry creates a ValidatingWebhookConfigurationData from a validatingwebhookconfiguration
+func (h *ValidatingWebhookConfigurationHandler) createLogEntry(webhook *admissionregistrationv1.ValidatingWebhookConfiguration) types.ValidatingWebhookConfigurationData {
 	// Extract webhooks
 	var webhooks []types.WebhookData
-	for _, webhook := range vwc.Webhooks {
+	for _, webhook := range webhook.Webhooks {
 		// Extract client config
 		var clientConfig types.WebhookClientConfigData
 		if webhook.ClientConfig.URL != nil {
@@ -112,22 +112,33 @@ func (h *ValidatingWebhookConfigurationHandler) createLogEntry(vwc *admissionreg
 			NamespaceSelector:       namespaceSelector,
 			ObjectSelector:          objectSelector,
 			SideEffects:             string(*webhook.SideEffects),
-			TimeoutSeconds:          *webhook.TimeoutSeconds,
+			TimeoutSeconds:          webhook.TimeoutSeconds,
 			AdmissionReviewVersions: webhook.AdmissionReviewVersions,
 		})
 	}
 
-	createdByKind, createdByName := utils.GetOwnerReferenceInfo(vwc)
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(webhook)
 
 	// Create data structure
 	data := types.ValidatingWebhookConfigurationData{
-		CreatedTimestamp: utils.ExtractCreationTimestamp(vwc),
-		Labels:           utils.ExtractLabels(vwc),
-		Annotations:      utils.ExtractAnnotations(vwc),
-		Webhooks:         webhooks,
-		CreatedByKind:    createdByKind,
-		CreatedByName:    createdByName,
+		LogEntryMetadata: types.LogEntryMetadata{
+			Timestamp:        time.Now(),
+			ResourceType:     "validatingwebhookconfiguration",
+			Name:             utils.ExtractName(webhook),
+			Namespace:        utils.ExtractNamespace(webhook),
+			CreatedTimestamp: utils.ExtractCreationTimestamp(webhook),
+			Labels:           utils.ExtractLabels(webhook),
+			Annotations:      utils.ExtractAnnotations(webhook),
+			CreatedByKind:    createdByKind,
+			CreatedByName:    createdByName,
+		},
+		Webhooks: func() []types.WebhookData {
+			if webhooks == nil {
+				return []types.WebhookData{}
+			}
+			return webhooks
+		}(),
 	}
 
-	return utils.CreateLogEntry("validatingwebhookconfiguration", utils.ExtractName(vwc), utils.ExtractNamespace(vwc), data)
+	return data
 }
