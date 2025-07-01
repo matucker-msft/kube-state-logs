@@ -2,26 +2,38 @@ package resources
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
 
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
 	"github.com/matucker-msft/kube-state-logs/pkg/utils"
 )
 
+// Container state constants
+const (
+	ContainerStateRunning    = "running"
+	ContainerStateWaiting    = "waiting"
+	ContainerStateTerminated = "terminated"
+	ContainerStateUnknown    = "unknown"
+)
+
 // ContainerHandler handles collection of container metrics
 type ContainerHandler struct {
 	utils.BaseHandler
+	stateCache cache.ThreadSafeStore
 }
 
 // NewContainerHandler creates a new ContainerHandler
 func NewContainerHandler(client kubernetes.Interface) *ContainerHandler {
 	return &ContainerHandler{
 		BaseHandler: utils.NewBaseHandler(client),
+		stateCache:  cache.NewThreadSafeStore(cache.Indexers{}, cache.Indices{}),
 	}
 }
 
@@ -35,10 +47,15 @@ func (h *ContainerHandler) SetupInformer(factory informers.SharedInformerFactory
 
 // Collect gathers container metrics from the cluster (uses cache)
 func (h *ContainerHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
-	var entries []any
-
 	// Get all pods from the cache
 	pods := utils.SafeGetStoreList(h.GetInformer())
+	return h.processPods(pods, namespaces)
+}
+
+// processPods processes a list of pods and returns container entries
+func (h *ContainerHandler) processPods(pods []any, namespaces []string) ([]any, error) {
+	var entries []any
+	currentStates := make(map[string]string)
 	listTime := time.Now()
 
 	for _, obj := range pods {
@@ -51,36 +68,130 @@ func (h *ContainerHandler) Collect(ctx context.Context, namespaces []string) ([]
 			continue
 		}
 
-		// Create entries for each container
+		// Process regular containers
 		for _, container := range pod.Status.ContainerStatuses {
-			entry := h.createLogEntry(pod, &container, false)
-			entry.Timestamp = listTime
-			entries = append(entries, entry)
+			containerKey := h.getContainerKey(pod.Namespace, pod.Name, container.Name, false)
+			currentState := h.getContainerState(&container)
+			currentStates[containerKey] = currentState
+
+			// Always log running containers
+			if currentState == ContainerStateRunning {
+				entry := h.createLogEntry(pod, &container, false)
+				entry.Timestamp = listTime
+				entries = append(entries, entry)
+			}
+
+			// Log newly terminated containers
+			if h.isNewlyTerminated(containerKey, currentState) {
+				entry := h.createLogEntry(pod, &container, false)
+				entry.Timestamp = listTime
+				entries = append(entries, entry)
+			}
 		}
 
-		// Create entries for each init container
+		// Process init containers
 		for _, container := range pod.Status.InitContainerStatuses {
-			entry := h.createLogEntry(pod, &container, true)
-			entry.Timestamp = listTime
-			entries = append(entries, entry)
+			containerKey := h.getContainerKey(pod.Namespace, pod.Name, container.Name, true)
+			currentState := h.getContainerState(&container)
+			currentStates[containerKey] = currentState
+
+			// Always log running init containers
+			if currentState == ContainerStateRunning {
+				entry := h.createLogEntry(pod, &container, true)
+				entry.Timestamp = listTime
+				entries = append(entries, entry)
+			}
+
+			// Log newly terminated init containers
+			if h.isNewlyTerminated(containerKey, currentState) {
+				entry := h.createLogEntry(pod, &container, true)
+				entry.Timestamp = listTime
+				entries = append(entries, entry)
+			}
 		}
 	}
 
+	// Update state cache and cleanup deleted containers
+	h.updateStateCache(currentStates)
 	return entries, nil
+}
+
+// getContainerKey creates a unique key for a container
+func (h *ContainerHandler) getContainerKey(namespace, podName, containerName string, isInit bool) string {
+	prefix := "container"
+	if isInit {
+		prefix = "init_container"
+	}
+	return fmt.Sprintf("%s/%s/%s/%s", namespace, podName, containerName, prefix)
+}
+
+// getContainerState determines the current state of a container
+func (h *ContainerHandler) getContainerState(container *corev1.ContainerStatus) string {
+	if container.State.Running != nil {
+		return ContainerStateRunning
+	} else if container.State.Waiting != nil {
+		return ContainerStateWaiting
+	} else if container.State.Terminated != nil {
+		return ContainerStateTerminated
+	}
+	return ContainerStateUnknown
+}
+
+// isNewlyTerminated checks if a container should be logged as terminated
+func (h *ContainerHandler) isNewlyTerminated(containerKey, currentState string) bool {
+	if currentState != ContainerStateTerminated {
+		return false
+	}
+
+	// Get previous state from cache
+	if previousStateObj, exists := h.stateCache.Get(containerKey); exists {
+		previousState := previousStateObj.(string)
+		// Log if it transitioned from running to terminated
+		return previousState == ContainerStateRunning
+	}
+
+	// Log if we haven't seen this container before (first time seeing a terminated container)
+	return true
+}
+
+// updateStateCache updates the state cache with current states and cleans up deleted containers
+func (h *ContainerHandler) updateStateCache(currentStates map[string]string) {
+	// Get all keys in cache
+	cacheKeys := h.stateCache.ListKeys()
+
+	// Remove containers that no longer exist
+	for _, key := range cacheKeys {
+		if _, exists := currentStates[key]; !exists {
+			h.stateCache.Delete(key)
+		}
+	}
+
+	// Update with current states
+	for key, state := range currentStates {
+		h.stateCache.Add(key, state)
+	}
 }
 
 // createLogEntry creates a ContainerData from a pod and container status
 func (h *ContainerHandler) createLogEntry(pod *corev1.Pod, container *corev1.ContainerStatus, isInitContainer bool) types.ContainerData {
+	resourceType := "container"
+	if isInitContainer {
+		resourceType = "init_container"
+	}
+
 	// Handle nil container case
 	if container == nil {
 		return types.ContainerData{
-			PodName: pod.Name,
-			State:   "unknown",
+			ResourceType: resourceType,
+			Timestamp:    time.Now(),
+			PodName:      pod.Name,
+			Namespace:    pod.Namespace,
+			State:        ContainerStateUnknown,
 		}
 	}
 
 	// Determine container state
-	state := "unknown"
+	state := ContainerStateUnknown
 	var stateRunning, stateWaiting, stateTerminated *bool
 
 	var waitingReason, waitingMessage string
@@ -92,20 +203,20 @@ func (h *ContainerHandler) createLogEntry(pod *corev1.Pod, container *corev1.Con
 	var lastTerminatedTimestamp *time.Time
 
 	if container.State.Running != nil {
-		state = "running"
+		state = ContainerStateRunning
 		val := true
 		stateRunning = &val
 		if !container.State.Running.StartedAt.IsZero() {
 			startedAt = &container.State.Running.StartedAt.Time
 		}
 	} else if container.State.Waiting != nil {
-		state = "waiting"
+		state = ContainerStateWaiting
 		val := true
 		stateWaiting = &val
 		waitingReason = string(container.State.Waiting.Reason)
 		waitingMessage = container.State.Waiting.Message
 	} else if container.State.Terminated != nil {
-		state = "terminated"
+		state = ContainerStateTerminated
 		val := true
 		stateTerminated = &val
 		exitCode = container.State.Terminated.ExitCode
@@ -159,7 +270,7 @@ func (h *ContainerHandler) createLogEntry(pod *corev1.Pod, container *corev1.Con
 	}
 
 	data := types.ContainerData{
-		ResourceType:            "container",
+		ResourceType:            resourceType,
 		Timestamp:               time.Now(),
 		Name:                    container.Name,
 		Image:                   container.Image,
