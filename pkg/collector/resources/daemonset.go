@@ -119,6 +119,8 @@ func (h *DaemonSetHandler) createLogEntry(ds *appsv1.DaemonSet) types.DaemonSetD
 		Conditions: conditions,
 
 		// Daemonset specific
-		UpdateStrategy: string(ds.Spec.UpdateStrategy.Type),
+		UpdateStrategy:     string(ds.Spec.UpdateStrategy.Type),
+		MetadataGeneration: ds.ObjectMeta.Generation,
+		CollisionCount:     ds.Status.CollisionCount,
 	}
 }

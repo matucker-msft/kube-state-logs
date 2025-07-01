@@ -326,7 +326,9 @@ type DaemonSetData struct {
 	Conditions map[string]*bool `json:"conditions"`
 
 	// Daemonset specific
-	UpdateStrategy string `json:"updateStrategy"`
+	UpdateStrategy     string `json:"updateStrategy"`
+	MetadataGeneration int64  `json:"metadataGeneration"`
+	CollisionCount     *int32 `json:"collisionCount"`
 }
 
 // NamespaceData represents namespace-specific metrics (matching kube-state-metrics)
