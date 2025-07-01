@@ -222,11 +222,11 @@ func TestStatefulSetHandler_createLogEntry(t *testing.T) {
 		t.Errorf("Expected update strategy 'RollingUpdate', got '%s'", entry.UpdateStrategy)
 	}
 
-	if !entry.ConditionAvailable {
+	if entry.ConditionAvailable == nil || !*entry.ConditionAvailable {
 		t.Error("Expected condition available to be true")
 	}
 
-	if !entry.ConditionProgressing {
+	if entry.ConditionProgressing == nil || !*entry.ConditionProgressing {
 		t.Error("Expected condition progressing to be true")
 	}
 }

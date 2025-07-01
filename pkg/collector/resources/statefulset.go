@@ -76,6 +76,26 @@ func (h *StatefulSetHandler) createLogEntry(sts *appsv1.StatefulSet) types.State
 		desiredReplicas = *sts.Spec.Replicas
 	}
 
+	// Check conditions in a single loop
+	var conditionAvailable, conditionProgressing, conditionReplicaFailure *bool
+	conditions := make(map[string]*bool)
+
+	for _, condition := range sts.Status.Conditions {
+		val := utils.ConvertCoreConditionStatus(condition.Status)
+
+		switch condition.Type {
+		case "Available":
+			conditionAvailable = val
+		case "Progressing":
+			conditionProgressing = val
+		case "ReplicaFailure":
+			conditionReplicaFailure = val
+		default:
+			// Add unknown conditions to the map
+			conditions[string(condition.Type)] = val
+		}
+	}
+
 	data := types.StatefulSetData{
 		LogEntryMetadata: types.LogEntryMetadata{
 			Timestamp:        time.Now(),
@@ -95,12 +115,13 @@ func (h *StatefulSetHandler) createLogEntry(sts *appsv1.StatefulSet) types.State
 		ObservedGeneration:      sts.Status.ObservedGeneration,
 		CurrentRevision:         sts.Status.CurrentRevision,
 		UpdateRevision:          sts.Status.UpdateRevision,
-		ConditionAvailable:      utils.GetConditionStatusGeneric(sts.Status.Conditions, "Available"),
-		ConditionProgressing:    utils.GetConditionStatusGeneric(sts.Status.Conditions, "Progressing"),
-		ConditionReplicaFailure: utils.GetConditionStatusGeneric(sts.Status.Conditions, "ReplicaFailure"),
+		ConditionAvailable:      conditionAvailable,
+		ConditionProgressing:    conditionProgressing,
+		ConditionReplicaFailure: conditionReplicaFailure,
 		ServiceName:             serviceName,
 		PodManagementPolicy:     podManagementPolicy,
 		UpdateStrategy:          updateStrategy,
+		Conditions:              conditions,
 	}
 
 	return data

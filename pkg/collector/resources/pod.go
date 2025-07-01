@@ -77,26 +77,27 @@ func (h *PodHandler) createLogEntry(pod *corev1.Pod) types.PodData {
 
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(pod)
 
-	// Check pod conditions
-	ready := false
-	initialized := false
-	scheduled := false
-	containersReady := false
-	podScheduled := false
+	// Check conditions in a single loop
+	var conditionReady, conditionInitialized, conditionScheduled, conditionContainersReady *bool
+	conditions := make(map[string]*bool)
 
 	for _, condition := range pod.Status.Conditions {
+		val := utils.ConvertCoreConditionStatus(condition.Status)
+
 		switch condition.Type {
 		case corev1.PodReady:
-			ready = condition.Status == corev1.ConditionTrue
+			conditionReady = val
 		case corev1.PodInitialized:
-			initialized = condition.Status == corev1.ConditionTrue
+			conditionInitialized = val
 		case corev1.PodScheduled:
-			scheduled = condition.Status == corev1.ConditionTrue
+			conditionScheduled = val
 		case corev1.ContainersReady:
-			containersReady = condition.Status == corev1.ConditionTrue
+			conditionContainersReady = val
+		default:
+			// Add unknown conditions to the map
+			conditions[string(condition.Type)] = val
 		}
 	}
-	podScheduled = scheduled
 
 	// Calculate total restart count
 	var totalRestartCount int32
@@ -156,10 +157,11 @@ func (h *PodHandler) createLogEntry(pod *corev1.Pod) types.PodData {
 	}
 
 	// Get unschedulable status
-	unschedulable := false
+	var unschedulable *bool
 	for _, condition := range pod.Status.Conditions {
 		if condition.Type == corev1.PodScheduled && condition.Status == corev1.ConditionFalse {
-			unschedulable = true
+			val := true
+			unschedulable = &val
 			break
 		}
 	}
@@ -275,11 +277,12 @@ func (h *PodHandler) createLogEntry(pod *corev1.Pod) types.PodData {
 		Phase:                  string(pod.Status.Phase),
 		QoSClass:               qosClass,
 		PriorityClass:          priorityClass,
-		Ready:                  ready,
-		Initialized:            initialized,
-		Scheduled:              scheduled,
-		ContainersReady:        containersReady,
-		PodScheduled:           podScheduled,
+		Ready:                  conditionReady,
+		Initialized:            conditionInitialized,
+		Scheduled:              conditionScheduled,
+		ContainersReady:        conditionContainersReady,
+		PodScheduled:           conditionScheduled,
+		Conditions:             conditions,
 		RestartCount:           totalRestartCount,
 		DeletionTimestamp:      deletionTimestamp,
 		StartTime:              startTime,

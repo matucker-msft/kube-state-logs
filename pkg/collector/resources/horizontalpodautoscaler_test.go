@@ -252,16 +252,16 @@ func TestHorizontalPodAutoscalerHandler_createLogEntry(t *testing.T) {
 	}
 
 	// Verify conditions
-	if !entry.ConditionAbleToScale {
+	if entry.ConditionAbleToScale == nil || !*entry.ConditionAbleToScale {
 		t.Error("Expected ConditionAbleToScale to be true")
 	}
 
-	if !entry.ConditionScalingActive {
+	if entry.ConditionScalingActive == nil || !*entry.ConditionScalingActive {
 		t.Error("Expected ConditionScalingActive to be true")
 	}
 
-	if entry.ConditionScalingLimited {
-		t.Error("Expected ConditionScalingLimited to be false")
+	if entry.ConditionScalingLimited != nil && *entry.ConditionScalingLimited {
+		t.Error("Expected ConditionScalingLimited to be false or nil")
 	}
 
 	// Verify metadata

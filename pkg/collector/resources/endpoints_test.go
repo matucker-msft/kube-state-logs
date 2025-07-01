@@ -238,8 +238,9 @@ func TestEndpointsHandler(t *testing.T) {
 							t.Errorf("Expected created_by_name %s, got %v", expectedValue, endpointsData.CreatedByName)
 						}
 					case "ready":
-						if endpointsData.Ready != expectedValue.(bool) {
-							t.Errorf("Expected ready %v, got %v", expectedValue, endpointsData.Ready)
+						expectedReady := expectedValue.(bool)
+						if endpointsData.Ready == nil || *endpointsData.Ready != expectedReady {
+							t.Errorf("Expected ready %v, got %v", expectedReady, endpointsData.Ready)
 						}
 					}
 				}
@@ -477,7 +478,7 @@ func TestEndpointsHandler_createLogEntry(t *testing.T) {
 		t.Errorf("Expected 2 ports, got %d", len(entry.Ports))
 	}
 
-	if !entry.Ready {
+	if entry.Ready == nil || !*entry.Ready {
 		t.Error("Expected Ready to be true")
 	}
 

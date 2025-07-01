@@ -65,16 +65,21 @@ func (h *NamespaceHandler) createLogEntry(ns *corev1.Namespace) types.NamespaceD
 	// Determine phase
 	phase := string(ns.Status.Phase)
 
-	// Determine conditions
-	conditionActive := false
-	conditionTerminating := false
+	// Check conditions in a single loop
+	var conditionActive, conditionTerminating *bool
+	conditions := make(map[string]*bool)
 
 	for _, condition := range ns.Status.Conditions {
+		val := utils.ConvertCoreConditionStatus(condition.Status)
+
 		switch condition.Type {
-		case corev1.NamespaceConditionType("Active"):
-			conditionActive = condition.Status == corev1.ConditionTrue
-		case corev1.NamespaceConditionType("Terminating"):
-			conditionTerminating = condition.Status == corev1.ConditionTrue
+		case "Active":
+			conditionActive = val
+		case "Terminating":
+			conditionTerminating = val
+		default:
+			// Add unknown conditions to the map
+			conditions[string(condition.Type)] = val
 		}
 	}
 
@@ -101,6 +106,7 @@ func (h *NamespaceHandler) createLogEntry(ns *corev1.Namespace) types.NamespaceD
 		Phase:                phase,
 		ConditionActive:      conditionActive,
 		ConditionTerminating: conditionTerminating,
+		Conditions:           conditions,
 		DeletionTimestamp:    deletionTimestamp,
 	}
 

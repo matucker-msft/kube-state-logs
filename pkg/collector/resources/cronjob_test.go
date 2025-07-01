@@ -211,7 +211,7 @@ func TestCronJobHandler_createLogEntry(t *testing.T) {
 	}
 
 	// Verify conditions
-	if !entry.ConditionActive {
+	if entry.ConditionActive == nil || !*entry.ConditionActive {
 		t.Error("Expected ConditionActive to be true")
 	}
 

@@ -126,7 +126,7 @@ func (h *EndpointsHandler) createLogEntry(endpoints *corev1.Endpoints) types.End
 			}
 			return ports
 		}(),
-		Ready: ready,
+		Ready: &ready,
 	}
 
 	return data

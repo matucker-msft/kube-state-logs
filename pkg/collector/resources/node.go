@@ -77,12 +77,19 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.NodeData {
 	capacity := utils.ExtractResourceMap(node.Status.Capacity)
 	allocatable := utils.ExtractResourceMap(node.Status.Allocatable)
 
-	// Use condition utils for node conditions
-	conditions := make(map[string]bool)
-	ready := utils.GetConditionStatusGeneric(node.Status.Conditions, string(corev1.NodeReady))
-	if node.Status.Conditions != nil {
-		for _, condition := range node.Status.Conditions {
-			conditions[string(condition.Type)] = condition.Status == corev1.ConditionTrue
+	// Get node conditions in a single loop
+	var ready *bool
+	conditions := make(map[string]*bool)
+	unschedulable := node.Spec.Unschedulable
+
+	for _, condition := range node.Status.Conditions {
+		val := utils.ConvertCoreConditionStatus(condition.Status)
+
+		if condition.Type == corev1.NodeReady {
+			ready = val
+		} else {
+			// Add other conditions to the map
+			conditions[string(condition.Type)] = val
 		}
 	}
 
@@ -139,16 +146,18 @@ func (h *NodeHandler) createLogEntry(node *corev1.Node) types.NodeData {
 		ContainerRuntimeVersion: node.Status.NodeInfo.ContainerRuntimeVersion,
 		Capacity:                capacity,
 		Allocatable:             allocatable,
-		Conditions:              conditions,
-		InternalIP:              internalIP,
-		ExternalIP:              externalIP,
-		Hostname:                hostname,
-		Unschedulable:           node.Spec.Unschedulable,
 		Ready:                   ready,
-		Role:                    nodeRole,
-		Taints:                  taints,
-		DeletionTimestamp:       utils.ExtractDeletionTimestamp(node),
 		Phase:                   phase,
+
+		// All other conditions (excluding the top-level ones)
+		Conditions:        conditions,
+		InternalIP:        internalIP,
+		ExternalIP:        externalIP,
+		Hostname:          hostname,
+		Unschedulable:     &unschedulable,
+		Role:              nodeRole,
+		Taints:            taints,
+		DeletionTimestamp: utils.ExtractDeletionTimestamp(node),
 	}
 
 	return data

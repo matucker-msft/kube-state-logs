@@ -61,12 +61,32 @@ func (h *DaemonSetHandler) Collect(ctx context.Context, namespaces []string) ([]
 
 // createLogEntry creates a DaemonSetData from a daemonset
 func (h *DaemonSetHandler) createLogEntry(ds *appsv1.DaemonSet) types.DaemonSetData {
+	// Get status fields
+	observedGeneration := ds.Status.ObservedGeneration
+
+	// Check conditions in a single loop
+	var conditionAvailable, conditionProgressing, conditionReplicaFailure *bool
+	conditions := make(map[string]*bool)
+
+	for _, condition := range ds.Status.Conditions {
+		val := utils.ConvertCoreConditionStatus(condition.Status)
+
+		switch condition.Type {
+		case "Available":
+			conditionAvailable = val
+		case "Progressing":
+			conditionProgressing = val
+		case "ReplicaFailure":
+			conditionReplicaFailure = val
+		default:
+			// Add unknown conditions to the map
+			conditions[string(condition.Type)] = val
+		}
+	}
+
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(ds)
 
-	// Get update strategy
-	updateStrategy := string(ds.Spec.UpdateStrategy.Type)
-
-	data := types.DaemonSetData{
+	return types.DaemonSetData{
 		LogEntryMetadata: types.LogEntryMetadata{
 			Timestamp:        time.Now(),
 			ResourceType:     "daemonset",
@@ -78,19 +98,27 @@ func (h *DaemonSetHandler) createLogEntry(ds *appsv1.DaemonSet) types.DaemonSetD
 			CreatedByKind:    createdByKind,
 			CreatedByName:    createdByName,
 		},
-		DesiredNumberScheduled:  ds.Status.DesiredNumberScheduled,
-		CurrentNumberScheduled:  ds.Status.CurrentNumberScheduled,
-		NumberReady:             ds.Status.NumberReady,
-		NumberAvailable:         ds.Status.NumberAvailable,
-		NumberUnavailable:       ds.Status.NumberUnavailable,
-		NumberMisscheduled:      ds.Status.NumberMisscheduled,
-		UpdatedNumberScheduled:  ds.Status.UpdatedNumberScheduled,
-		ObservedGeneration:      ds.Status.ObservedGeneration,
-		ConditionAvailable:      utils.GetConditionStatusGeneric(ds.Status.Conditions, "Available"),
-		ConditionProgressing:    utils.GetConditionStatusGeneric(ds.Status.Conditions, "Progressing"),
-		ConditionReplicaFailure: utils.GetConditionStatusGeneric(ds.Status.Conditions, "ReplicaFailure"),
-		UpdateStrategy:          updateStrategy,
-	}
+		// Replica counts
+		DesiredNumberScheduled: ds.Status.DesiredNumberScheduled,
+		CurrentNumberScheduled: ds.Status.CurrentNumberScheduled,
+		NumberReady:            ds.Status.NumberReady,
+		NumberAvailable:        ds.Status.NumberAvailable,
+		NumberUnavailable:      ds.Status.NumberUnavailable,
+		NumberMisscheduled:     ds.Status.NumberMisscheduled,
+		UpdatedNumberScheduled: ds.Status.UpdatedNumberScheduled,
 
-	return data
+		// Daemonset status
+		ObservedGeneration: observedGeneration,
+
+		// Most common conditions (for easy access)
+		ConditionAvailable:      conditionAvailable,
+		ConditionProgressing:    conditionProgressing,
+		ConditionReplicaFailure: conditionReplicaFailure,
+
+		// All other conditions (excluding the top-level ones)
+		Conditions: conditions,
+
+		// Daemonset specific
+		UpdateStrategy: string(ds.Spec.UpdateStrategy.Type),
+	}
 }

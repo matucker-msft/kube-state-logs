@@ -40,9 +40,12 @@ type DeploymentData struct {
 	StrategyRollingUpdateMaxUnavailable int32  `json:"strategyRollingUpdateMaxUnavailable"`
 
 	// Conditions (matching kube-state-metrics)
-	ConditionAvailable      bool `json:"conditionAvailable"`
-	ConditionProgressing    bool `json:"conditionProgressing"`
-	ConditionReplicaFailure bool `json:"conditionReplicaFailure"`
+	ConditionAvailable      *bool `json:"conditionAvailable"`
+	ConditionProgressing    *bool `json:"conditionProgressing"`
+	ConditionReplicaFailure *bool `json:"conditionReplicaFailure"`
+
+	// All other conditions (excluding the top-level ones)
+	Conditions map[string]*bool `json:"conditions"`
 
 	// Spec fields (matching kube-state-metrics)
 	Paused                  bool  `json:"paused"`
@@ -66,11 +69,14 @@ type PodData struct {
 	PriorityClass string `json:"priorityClass"`
 
 	// Pod conditions
-	Ready           bool `json:"ready"`
-	Initialized     bool `json:"initialized"`
-	Scheduled       bool `json:"scheduled"`
-	ContainersReady bool `json:"containersReady"`
-	PodScheduled    bool `json:"podScheduled"`
+	Ready           *bool `json:"ready"`
+	Initialized     *bool `json:"initialized"`
+	Scheduled       *bool `json:"scheduled"`
+	ContainersReady *bool `json:"containersReady"`
+	PodScheduled    *bool `json:"podScheduled"`
+
+	// All other conditions (excluding the top-level ones)
+	Conditions map[string]*bool `json:"conditions"`
 
 	// Pod status
 	RestartCount int32 `json:"restartCount"`
@@ -82,7 +88,7 @@ type PodData struct {
 	ReadyTime              *time.Time        `json:"readyTime"`
 	ScheduledTime          *time.Time        `json:"scheduledTime"`
 	StatusReason           string            `json:"statusReason"`
-	Unschedulable          bool              `json:"unschedulable"`
+	Unschedulable          *bool             `json:"unschedulable"`
 	RestartPolicy          string            `json:"restartPolicy"`
 	ServiceAccount         string            `json:"serviceAccount"`
 	SchedulerName          string            `json:"schedulerName"`
@@ -123,14 +129,14 @@ type ContainerData struct {
 	Namespace    string    `json:"namespace"`
 
 	// Container state
-	Ready        bool   `json:"ready"`
+	Ready        *bool  `json:"ready"`
 	RestartCount int32  `json:"restartCount"`
 	State        string `json:"state"`
 
 	// Current state details
-	StateRunning    bool `json:"stateRunning"`
-	StateWaiting    bool `json:"stateWaiting"`
-	StateTerminated bool `json:"stateTerminated"`
+	StateRunning    *bool `json:"stateRunning"`
+	StateWaiting    *bool `json:"stateWaiting"`
+	StateTerminated *bool `json:"stateTerminated"`
 
 	// Waiting state details
 	WaitingReason  string `json:"waitingReason"`
@@ -219,7 +225,7 @@ type NodeData struct {
 	// Node status
 	Capacity    map[string]string `json:"capacity"`
 	Allocatable map[string]string `json:"allocatable"`
-	Conditions  map[string]bool   `json:"conditions"`
+	Ready       *bool             `json:"ready"`
 	Phase       string            `json:"phase"`
 
 	// Node addresses
@@ -228,13 +234,15 @@ type NodeData struct {
 	Hostname   string `json:"hostname"`
 
 	// Node status details
-	Unschedulable bool `json:"unschedulable"`
-	Ready         bool `json:"ready"`
+	Unschedulable *bool `json:"unschedulable"`
 
 	// Missing from KSM
 	Role              string      `json:"role"`
 	Taints            []TaintData `json:"taints"`
 	DeletionTimestamp *time.Time  `json:"deletionTimestamp"`
+
+	// All other conditions (excluding the top-level ones)
+	Conditions map[string]*bool `json:"conditions"`
 }
 
 // TaintData represents node taint information
@@ -257,10 +265,13 @@ type ReplicaSetData struct {
 	// Replicaset status
 	ObservedGeneration int64 `json:"observedGeneration"`
 
-	// Conditions
-	ConditionAvailable      bool `json:"conditionAvailable"`
-	ConditionProgressing    bool `json:"conditionProgressing"`
-	ConditionReplicaFailure bool `json:"conditionReplicaFailure"`
+	// Most common conditions (for easy access)
+	ConditionAvailable      *bool `json:"conditionAvailable"`
+	ConditionProgressing    *bool `json:"conditionProgressing"`
+	ConditionReplicaFailure *bool `json:"conditionReplicaFailure"`
+
+	// All other conditions (excluding the top-level ones)
+	Conditions map[string]*bool `json:"conditions"`
 
 	// Replicaset specific
 	IsCurrent bool `json:"isCurrent"` // Whether this is the current replicaset for its owner
@@ -280,10 +291,13 @@ type StatefulSetData struct {
 	CurrentRevision    string `json:"currentRevision"`
 	UpdateRevision     string `json:"updateRevision"`
 
-	// Conditions
-	ConditionAvailable      bool `json:"conditionAvailable"`
-	ConditionProgressing    bool `json:"conditionProgressing"`
-	ConditionReplicaFailure bool `json:"conditionReplicaFailure"`
+	// Most common conditions (for easy access)
+	ConditionAvailable      *bool `json:"conditionAvailable"`
+	ConditionProgressing    *bool `json:"conditionProgressing"`
+	ConditionReplicaFailure *bool `json:"conditionReplicaFailure"`
+
+	// All other conditions (excluding the top-level ones)
+	Conditions map[string]*bool `json:"conditions"`
 
 	// Statefulset specific
 	ServiceName         string `json:"serviceName"`
@@ -306,10 +320,13 @@ type DaemonSetData struct {
 	// Daemonset status
 	ObservedGeneration int64 `json:"observedGeneration"`
 
-	// Conditions
-	ConditionAvailable      bool `json:"conditionAvailable"`
-	ConditionProgressing    bool `json:"conditionProgressing"`
-	ConditionReplicaFailure bool `json:"conditionReplicaFailure"`
+	// Most common conditions (for easy access)
+	ConditionAvailable      *bool `json:"conditionAvailable"`
+	ConditionProgressing    *bool `json:"conditionProgressing"`
+	ConditionReplicaFailure *bool `json:"conditionReplicaFailure"`
+
+	// All other conditions (excluding the top-level ones)
+	Conditions map[string]*bool `json:"conditions"`
 
 	// Daemonset specific
 	UpdateStrategy string `json:"updateStrategy"`
@@ -321,9 +338,12 @@ type NamespaceData struct {
 	// Namespace status
 	Phase string `json:"phase"`
 
-	// Conditions
-	ConditionActive      bool `json:"conditionActive"`
-	ConditionTerminating bool `json:"conditionTerminating"`
+	// Most common conditions (for easy access)
+	ConditionActive      *bool `json:"conditionActive"`
+	ConditionTerminating *bool `json:"conditionTerminating"`
+
+	// All other conditions (excluding the top-level ones)
+	Conditions map[string]*bool `json:"conditions"`
 
 	// Namespace specific
 	DeletionTimestamp *metav1.Time `json:"deletionTimestamp"`
@@ -344,8 +364,11 @@ type JobData struct {
 	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds"`
 
 	// Job conditions
-	ConditionComplete bool `json:"conditionComplete"`
-	ConditionFailed   bool `json:"conditionFailed"`
+	ConditionComplete *bool `json:"conditionComplete"`
+	ConditionFailed   *bool `json:"conditionFailed"`
+
+	// All other conditions (excluding the top-level ones)
+	Conditions map[string]*bool `json:"conditions"`
 
 	// Job specific
 	JobType string `json:"jobType"` // "Job" or "CronJob"
@@ -370,7 +393,10 @@ type CronJobData struct {
 	NextScheduleTime *time.Time `json:"nextScheduleTime"`
 
 	// Conditions
-	ConditionActive bool `json:"conditionActive"`
+	ConditionActive *bool `json:"conditionActive"`
+
+	// All other conditions (excluding the top-level ones)
+	Conditions map[string]*bool `json:"conditions"`
 }
 
 // ConfigMapData represents configmap-specific metrics (matching kube-state-metrics)
@@ -401,9 +427,12 @@ type PersistentVolumeClaimData struct {
 	Capacity map[string]string `json:"capacity"`
 
 	// Conditions
-	ConditionPending bool `json:"conditionPending"`
-	ConditionBound   bool `json:"conditionBound"`
-	ConditionLost    bool `json:"conditionLost"`
+	ConditionPending *bool `json:"conditionPending"`
+	ConditionBound   *bool `json:"conditionBound"`
+	ConditionLost    *bool `json:"conditionLost"`
+
+	// All other conditions (excluding the top-level ones)
+	Conditions map[string]*bool `json:"conditions"`
 
 	// PVC specific
 	RequestStorage string `json:"requestStorage"`
@@ -427,7 +456,10 @@ type IngressData struct {
 	TLS []IngressTLSData `json:"tls"`
 
 	// Conditions
-	ConditionLoadBalancerReady bool `json:"conditionLoadBalancerReady"`
+	ConditionLoadBalancerReady *bool `json:"conditionLoadBalancerReady"`
+
+	// All other conditions (excluding the top-level ones)
+	Conditions map[string]*bool `json:"conditions"`
 }
 
 // IngressRuleData represents ingress rule information
@@ -466,9 +498,12 @@ type HorizontalPodAutoscalerData struct {
 	CurrentMemoryUtilizationPercentage *int32 `json:"currentMemoryUtilizationPercentage"`
 
 	// Conditions
-	ConditionAbleToScale    bool `json:"conditionAbleToScale"`
-	ConditionScalingActive  bool `json:"conditionScalingActive"`
-	ConditionScalingLimited bool `json:"conditionScalingLimited"`
+	ConditionAbleToScale    *bool `json:"conditionAbleToScale"`
+	ConditionScalingActive  *bool `json:"conditionScalingActive"`
+	ConditionScalingLimited *bool `json:"conditionScalingLimited"`
+
+	// All other conditions (excluding the top-level ones)
+	Conditions map[string]*bool `json:"conditions"`
 
 	// HPA specific
 	ScaleTargetRef  string `json:"scaleTargetRef"`
@@ -494,7 +529,7 @@ type EndpointsData struct {
 	Ports     []EndpointPortData    `json:"ports"`
 
 	// Endpoints specific
-	Ready bool `json:"ready"`
+	Ready *bool `json:"ready"`
 }
 
 // EndpointAddressData represents endpoint address information

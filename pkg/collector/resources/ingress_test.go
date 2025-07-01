@@ -300,8 +300,13 @@ func TestIngressHandler(t *testing.T) {
 							t.Errorf("Expected created_by_name %s, got %v", expectedValue, ingressData.CreatedByName)
 						}
 					case "condition_load_balancer_ready":
-						if ingressData.ConditionLoadBalancerReady != expectedValue.(bool) {
-							t.Errorf("Expected condition_load_balancer_ready %v, got %v", expectedValue, ingressData.ConditionLoadBalancerReady)
+						expected := expectedValue.(bool)
+						if ingressData.ConditionLoadBalancerReady == nil {
+							if expected {
+								t.Errorf("Expected condition_load_balancer_ready %v, got nil", expectedValue)
+							}
+						} else if *ingressData.ConditionLoadBalancerReady != expected {
+							t.Errorf("Expected condition_load_balancer_ready %v, got %v", expectedValue, *ingressData.ConditionLoadBalancerReady)
 						}
 					}
 				}
@@ -477,7 +482,7 @@ func TestIngressHandler_createLogEntry(t *testing.T) {
 		t.Errorf("Expected 1 load balancer ingress, got %d", len(entry.LoadBalancerIngress))
 	}
 
-	if !entry.ConditionLoadBalancerReady {
+	if entry.ConditionLoadBalancerReady == nil || !*entry.ConditionLoadBalancerReady {
 		t.Error("Expected ConditionLoadBalancerReady to be true")
 	}
 

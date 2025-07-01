@@ -67,11 +67,23 @@ func (h *JobHandler) createLogEntry(job *batchv1.Job) types.JobData {
 		jobType = job.OwnerReferences[0].Kind
 	}
 
-	createdByKind, createdByName := utils.GetOwnerReferenceInfo(job)
+	// Get job conditions in a single loop
+	var conditionComplete, conditionFailed *bool
+	conditions := make(map[string]*bool)
 
-	// Get job conditions
-	conditionComplete := utils.GetConditionStatusGeneric(job.Status.Conditions, string(batchv1.JobComplete))
-	conditionFailed := utils.GetConditionStatusGeneric(job.Status.Conditions, string(batchv1.JobFailed))
+	for _, condition := range job.Status.Conditions {
+		val := utils.ConvertCoreConditionStatus(condition.Status)
+
+		switch condition.Type {
+		case batchv1.JobComplete:
+			conditionComplete = val
+		case batchv1.JobFailed:
+			conditionFailed = val
+		default:
+			// Add unknown conditions to the map
+			conditions[string(condition.Type)] = val
+		}
+	}
 
 	// Get suspend status
 	var suspend *bool
@@ -90,6 +102,8 @@ func (h *JobHandler) createLogEntry(job *batchv1.Job) types.JobData {
 	if job.Spec.BackoffLimit != nil {
 		backoffLimit = *job.Spec.BackoffLimit
 	}
+
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(job)
 
 	data := types.JobData{
 		LogEntryMetadata: types.LogEntryMetadata{
@@ -114,6 +128,7 @@ func (h *JobHandler) createLogEntry(job *batchv1.Job) types.JobData {
 		ConditionFailed:       conditionFailed,
 		JobType:               jobType,
 		Suspend:               suspend,
+		Conditions:            conditions,
 	}
 
 	return data

@@ -61,15 +61,38 @@ func (h *ReplicaSetHandler) Collect(ctx context.Context, namespaces []string) ([
 
 // createLogEntry creates a ReplicaSetData from a replicaset
 func (h *ReplicaSetHandler) createLogEntry(rs *appsv1.ReplicaSet) types.ReplicaSetData {
-	createdByKind, createdByName := utils.GetOwnerReferenceInfo(rs)
-
 	// Get desired replicas with nil check
 	desiredReplicas := int32(1)
 	if rs.Spec.Replicas != nil {
 		desiredReplicas = *rs.Spec.Replicas
 	}
 
-	data := types.ReplicaSetData{
+	// Get status fields
+	observedGeneration := rs.Status.ObservedGeneration
+
+	// Check conditions in a single loop
+	var conditionAvailable, conditionProgressing, conditionReplicaFailure *bool
+	conditions := make(map[string]*bool)
+
+	for _, condition := range rs.Status.Conditions {
+		val := utils.ConvertCoreConditionStatus(condition.Status)
+
+		switch condition.Type {
+		case "Available":
+			conditionAvailable = val
+		case "Progressing":
+			conditionProgressing = val
+		case "ReplicaFailure":
+			conditionReplicaFailure = val
+		default:
+			// Add unknown conditions to the map
+			conditions[string(condition.Type)] = val
+		}
+	}
+
+	createdByKind, createdByName := utils.GetOwnerReferenceInfo(rs)
+
+	return types.ReplicaSetData{
 		LogEntryMetadata: types.LogEntryMetadata{
 			Timestamp:        time.Now(),
 			ResourceType:     "replicaset",
@@ -81,15 +104,25 @@ func (h *ReplicaSetHandler) createLogEntry(rs *appsv1.ReplicaSet) types.ReplicaS
 			CreatedByKind:    createdByKind,
 			CreatedByName:    createdByName,
 		},
-		DesiredReplicas:         desiredReplicas,
-		CurrentReplicas:         rs.Status.Replicas,
-		ReadyReplicas:           rs.Status.ReadyReplicas,
-		AvailableReplicas:       rs.Status.AvailableReplicas,
-		FullyLabeledReplicas:    rs.Status.FullyLabeledReplicas,
-		ObservedGeneration:      rs.Status.ObservedGeneration,
-		ConditionAvailable:      utils.GetConditionStatusGeneric(rs.Status.Conditions, "Available"),
-		ConditionProgressing:    utils.GetConditionStatusGeneric(rs.Status.Conditions, "Progressing"),
-		ConditionReplicaFailure: utils.GetConditionStatusGeneric(rs.Status.Conditions, "ReplicaFailure"),
+		// Replica counts
+		DesiredReplicas:      desiredReplicas,
+		CurrentReplicas:      rs.Status.Replicas,
+		ReadyReplicas:        rs.Status.ReadyReplicas,
+		AvailableReplicas:    rs.Status.AvailableReplicas,
+		FullyLabeledReplicas: rs.Status.FullyLabeledReplicas,
+
+		// Replicaset status
+		ObservedGeneration: observedGeneration,
+
+		// Most common conditions (for easy access)
+		ConditionAvailable:      conditionAvailable,
+		ConditionProgressing:    conditionProgressing,
+		ConditionReplicaFailure: conditionReplicaFailure,
+
+		// All other conditions (excluding the top-level ones)
+		Conditions: conditions,
+
+		// Replicaset specific
 		IsCurrent: func() bool {
 			if rs.Labels != nil {
 				return rs.Labels["kube-state-logs/current"] == "true"
@@ -97,6 +130,4 @@ func (h *ReplicaSetHandler) createLogEntry(rs *appsv1.ReplicaSet) types.ReplicaS
 			return false
 		}(),
 	}
-
-	return data
 }

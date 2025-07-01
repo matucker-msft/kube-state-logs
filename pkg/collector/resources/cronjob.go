@@ -83,7 +83,9 @@ func (h *CronJobHandler) createLogEntry(cronjob *batchv1.CronJob) types.CronJobD
 		lastScheduleTime = &cronjob.Status.LastScheduleTime.Time
 	}
 
+	// Check conditions in a single loop
 	conditionActive := len(cronjob.Status.Active) > 0
+	conditionActivePtr := &conditionActive
 
 	data := types.CronJobData{
 		LogEntryMetadata: types.LogEntryMetadata{
@@ -105,7 +107,7 @@ func (h *CronJobHandler) createLogEntry(cronjob *batchv1.CronJob) types.CronJobD
 		ActiveJobsCount:            int32(len(cronjob.Status.Active)),
 		LastScheduleTime:           lastScheduleTime,
 		NextScheduleTime:           nil,
-		ConditionActive:            conditionActive,
+		ConditionActive:            conditionActivePtr,
 	}
 
 	return data

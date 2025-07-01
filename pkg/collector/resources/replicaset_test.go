@@ -204,16 +204,16 @@ func TestReplicaSetHandler_createLogEntry(t *testing.T) {
 	}
 
 	// Verify conditions
-	if entry.ConditionAvailable {
-		t.Error("Expected ConditionAvailable to be false")
+	if entry.ConditionAvailable != nil && *entry.ConditionAvailable {
+		t.Error("Expected ConditionAvailable to be false or nil")
 	}
 
-	if entry.ConditionProgressing {
-		t.Error("Expected ConditionProgressing to be false")
+	if entry.ConditionProgressing != nil && *entry.ConditionProgressing {
+		t.Error("Expected ConditionProgressing to be false or nil")
 	}
 
-	if entry.ConditionReplicaFailure {
-		t.Error("Expected ConditionReplicaFailure to be false")
+	if entry.ConditionReplicaFailure != nil && *entry.ConditionReplicaFailure {
+		t.Error("Expected ConditionReplicaFailure to be false or nil")
 	}
 
 	// Verify metadata

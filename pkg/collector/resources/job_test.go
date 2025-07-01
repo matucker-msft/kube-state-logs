@@ -206,12 +206,12 @@ func TestJobHandler_createLogEntry(t *testing.T) {
 	}
 
 	// Verify conditions
-	if !entry.ConditionComplete {
+	if entry.ConditionComplete == nil || !*entry.ConditionComplete {
 		t.Error("Expected ConditionComplete to be true")
 	}
 
-	if entry.ConditionFailed {
-		t.Error("Expected ConditionFailed to be false")
+	if entry.ConditionFailed != nil && *entry.ConditionFailed {
+		t.Error("Expected ConditionFailed to be false or nil")
 	}
 
 	// Verify metadata

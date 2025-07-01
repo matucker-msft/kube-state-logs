@@ -5,7 +5,6 @@ import (
 	"time"
 
 	appsv1 "k8s.io/api/apps/v1"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
@@ -97,19 +96,23 @@ func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.
 	unavailableReplicas := deployment.Status.UnavailableReplicas
 	updatedReplicas := deployment.Status.UpdatedReplicas
 
-	// Check conditions
-	conditionAvailable := false
-	conditionProgressing := false
-	conditionReplicaFailure := false
+	// Check conditions in a single loop
+	var conditionAvailable, conditionProgressing, conditionReplicaFailure *bool
+	conditions := make(map[string]*bool)
 
 	for _, condition := range deployment.Status.Conditions {
+		val := utils.ConvertCoreConditionStatus(condition.Status)
+
 		switch condition.Type {
-		case appsv1.DeploymentAvailable:
-			conditionAvailable = condition.Status == corev1.ConditionTrue
-		case appsv1.DeploymentProgressing:
-			conditionProgressing = condition.Status == corev1.ConditionTrue
-		case appsv1.DeploymentReplicaFailure:
-			conditionReplicaFailure = condition.Status == corev1.ConditionTrue
+		case "Available":
+			conditionAvailable = val
+		case "Progressing":
+			conditionProgressing = val
+		case "ReplicaFailure":
+			conditionReplicaFailure = val
+		default:
+			// Add unknown conditions to the map
+			conditions[string(condition.Type)] = val
 		}
 	}
 
@@ -162,10 +165,13 @@ func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.
 		StrategyRollingUpdateMaxSurge:       strategyRollingUpdateMaxSurge,
 		StrategyRollingUpdateMaxUnavailable: strategyRollingUpdateMaxUnavailable,
 
-		// Conditions
+		// Most common conditions (for easy access)
 		ConditionAvailable:      conditionAvailable,
 		ConditionProgressing:    conditionProgressing,
 		ConditionReplicaFailure: conditionReplicaFailure,
+
+		// All other conditions (excluding the top-level ones)
+		Conditions: conditions,
 
 		// Spec fields
 		Paused:                  deployment.Spec.Paused,

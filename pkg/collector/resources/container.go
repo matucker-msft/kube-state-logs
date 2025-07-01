@@ -39,6 +39,7 @@ func (h *ContainerHandler) Collect(ctx context.Context, namespaces []string) ([]
 
 	// Get all pods from the cache
 	pods := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range pods {
 		pod, ok := obj.(*corev1.Pod)
@@ -53,12 +54,14 @@ func (h *ContainerHandler) Collect(ctx context.Context, namespaces []string) ([]
 		// Create entries for each container
 		for _, container := range pod.Status.ContainerStatuses {
 			entry := h.createLogEntry(pod, &container, false)
+			entry.Timestamp = listTime
 			entries = append(entries, entry)
 		}
 
 		// Create entries for each init container
 		for _, container := range pod.Status.InitContainerStatuses {
 			entry := h.createLogEntry(pod, &container, true)
+			entry.Timestamp = listTime
 			entries = append(entries, entry)
 		}
 	}
@@ -78,9 +81,7 @@ func (h *ContainerHandler) createLogEntry(pod *corev1.Pod, container *corev1.Con
 
 	// Determine container state
 	state := "unknown"
-	stateRunning := false
-	stateWaiting := false
-	stateTerminated := false
+	var stateRunning, stateWaiting, stateTerminated *bool
 
 	var waitingReason, waitingMessage string
 	var startedAt, finishedAt, startedAtTerm *time.Time
@@ -92,18 +93,21 @@ func (h *ContainerHandler) createLogEntry(pod *corev1.Pod, container *corev1.Con
 
 	if container.State.Running != nil {
 		state = "running"
-		stateRunning = true
+		val := true
+		stateRunning = &val
 		if !container.State.Running.StartedAt.IsZero() {
 			startedAt = &container.State.Running.StartedAt.Time
 		}
 	} else if container.State.Waiting != nil {
 		state = "waiting"
-		stateWaiting = true
+		val := true
+		stateWaiting = &val
 		waitingReason = string(container.State.Waiting.Reason)
 		waitingMessage = container.State.Waiting.Message
 	} else if container.State.Terminated != nil {
 		state = "terminated"
-		stateTerminated = true
+		val := true
+		stateTerminated = &val
 		exitCode = container.State.Terminated.ExitCode
 		reason = string(container.State.Terminated.Reason)
 		message = container.State.Terminated.Message
@@ -162,7 +166,7 @@ func (h *ContainerHandler) createLogEntry(pod *corev1.Pod, container *corev1.Con
 		ImageID:                 imageID,
 		PodName:                 pod.Name,
 		Namespace:               pod.Namespace,
-		Ready:                   container.Ready,
+		Ready:                   &container.Ready,
 		RestartCount:            container.RestartCount,
 		State:                   state,
 		StateRunning:            stateRunning,

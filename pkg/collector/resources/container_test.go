@@ -190,7 +190,7 @@ func TestContainerHandler_createLogEntry(t *testing.T) {
 	}
 
 	// Verify container-specific fields
-	if !entry.Ready {
+	if entry.Ready == nil || !*entry.Ready {
 		t.Error("Expected container to be ready")
 	}
 
@@ -202,15 +202,15 @@ func TestContainerHandler_createLogEntry(t *testing.T) {
 		t.Errorf("Expected state 'running', got '%s'", entry.State)
 	}
 
-	if !entry.StateRunning {
+	if entry.StateRunning == nil || !*entry.StateRunning {
 		t.Error("Expected StateRunning to be true")
 	}
 
-	if entry.StateWaiting {
+	if entry.StateWaiting != nil && *entry.StateWaiting {
 		t.Error("Expected StateWaiting to be false")
 	}
 
-	if entry.StateTerminated {
+	if entry.StateTerminated != nil && *entry.StateTerminated {
 		t.Error("Expected StateTerminated to be false")
 	}
 
@@ -254,7 +254,7 @@ func TestContainerHandler_createLogEntry_Waiting(t *testing.T) {
 		t.Errorf("Expected state 'waiting', got '%s'", entry.State)
 	}
 
-	if !entry.StateWaiting {
+	if entry.StateWaiting == nil || !*entry.StateWaiting {
 		t.Error("Expected StateWaiting to be true")
 	}
 
@@ -266,7 +266,7 @@ func TestContainerHandler_createLogEntry_Waiting(t *testing.T) {
 		t.Errorf("Expected waiting message 'Back-off pulling image', got '%s'", entry.WaitingMessage)
 	}
 
-	if entry.Ready {
+	if entry.Ready != nil && *entry.Ready {
 		t.Error("Expected container to not be ready")
 	}
 }

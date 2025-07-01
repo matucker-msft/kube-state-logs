@@ -183,8 +183,13 @@ func TestNamespaceHandler(t *testing.T) {
 							t.Errorf("Expected phase %s, got %v", expectedValue, namespaceData.Phase)
 						}
 					case "condition_terminating":
-						if namespaceData.ConditionTerminating != expectedValue.(bool) {
-							t.Errorf("Expected condition_terminating %v, got %v", expectedValue, namespaceData.ConditionTerminating)
+						expected := expectedValue.(bool)
+						if namespaceData.ConditionTerminating == nil {
+							if expected {
+								t.Errorf("Expected condition_terminating %v, got nil", expectedValue)
+							}
+						} else if *namespaceData.ConditionTerminating != expected {
+							t.Errorf("Expected condition_terminating %v, got %v", expectedValue, *namespaceData.ConditionTerminating)
 						}
 					}
 				}
@@ -336,7 +341,7 @@ func TestNamespaceHandler_createLogEntry(t *testing.T) {
 		t.Errorf("Expected phase 'Active', got '%s'", entry.Phase)
 	}
 
-	if !entry.ConditionActive {
+	if entry.ConditionActive == nil || !*entry.ConditionActive {
 		t.Error("Expected ConditionActive to be true")
 	}
 
@@ -366,7 +371,7 @@ func TestNamespaceHandler_createLogEntry_Terminating(t *testing.T) {
 		t.Errorf("Expected phase 'Terminating', got '%s'", entry.Phase)
 	}
 
-	if !entry.ConditionTerminating {
+	if entry.ConditionTerminating == nil || !*entry.ConditionTerminating {
 		t.Error("Expected ConditionTerminating to be true")
 	}
 

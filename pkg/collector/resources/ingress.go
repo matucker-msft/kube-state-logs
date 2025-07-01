@@ -119,11 +119,12 @@ func (h *IngressHandler) createLogEntry(ingress *networkingv1.Ingress) types.Ing
 		})
 	}
 
-	// Determine conditions
-	conditionLoadBalancerReady := false
-	// Note: Ingress doesn't have conditions in the same way as other resources
-	// We'll check if load balancer ingress is available as a proxy for readiness
-	conditionLoadBalancerReady = len(ingress.Status.LoadBalancer.Ingress) > 0
+	// Check if load balancer is ready
+	var conditionLoadBalancerReady *bool
+	if len(ingress.Status.LoadBalancer.Ingress) > 0 {
+		val := true
+		conditionLoadBalancerReady = &val
+	}
 
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(ingress)
 
@@ -156,6 +157,7 @@ func (h *IngressHandler) createLogEntry(ingress *networkingv1.Ingress) types.Ing
 			return tls
 		}(),
 		ConditionLoadBalancerReady: conditionLoadBalancerReady,
+		Conditions:                 make(map[string]*bool), // Ingress doesn't have conditions
 	}
 
 	return data

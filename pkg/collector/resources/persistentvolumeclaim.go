@@ -87,17 +87,23 @@ func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolu
 		}
 	}
 
-	conditionPending := false
-	conditionBound := false
-	conditionLost := false
+	// Check conditions in a single loop
+	var conditionPending, conditionBound, conditionLost *bool
+	conditions := make(map[string]*bool)
+
 	for _, condition := range pvc.Status.Conditions {
+		val := utils.ConvertCoreConditionStatus(condition.Status)
+
 		switch condition.Type {
 		case "Pending":
-			conditionPending = condition.Status == corev1.ConditionTrue
+			conditionPending = val
 		case "Bound":
-			conditionBound = condition.Status == corev1.ConditionTrue
+			conditionBound = val
 		case "Lost":
-			conditionLost = condition.Status == corev1.ConditionTrue
+			conditionLost = val
+		default:
+			// Add unknown conditions to the map
+			conditions[string(condition.Type)] = val
 		}
 	}
 
@@ -125,6 +131,7 @@ func (h *PersistentVolumeClaimHandler) createLogEntry(pvc *corev1.PersistentVolu
 		ConditionLost:    conditionLost,
 		RequestStorage:   requestStorage,
 		UsedStorage:      usedStorage,
+		Conditions:       conditions,
 	}
 
 	return data

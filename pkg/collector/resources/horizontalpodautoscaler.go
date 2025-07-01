@@ -91,10 +91,25 @@ func (h *HorizontalPodAutoscalerHandler) createLogEntry(hpa *autoscalingv2.Horiz
 		}
 	}
 
-	// Use utils for condition checks
-	conditionAbleToScale := utils.GetConditionStatusGeneric(hpa.Status.Conditions, string(autoscalingv2.AbleToScale))
-	conditionScalingActive := utils.GetConditionStatusGeneric(hpa.Status.Conditions, string(autoscalingv2.ScalingActive))
-	conditionScalingLimited := utils.GetConditionStatusGeneric(hpa.Status.Conditions, string(autoscalingv2.ScalingLimited))
+	// Get HPA conditions in a single loop
+	var conditionAbleToScale, conditionScalingActive, conditionScalingLimited *bool
+	conditions := make(map[string]*bool)
+
+	for _, condition := range hpa.Status.Conditions {
+		val := utils.ConvertCoreConditionStatus(condition.Status)
+
+		switch condition.Type {
+		case autoscalingv2.AbleToScale:
+			conditionAbleToScale = val
+		case autoscalingv2.ScalingActive:
+			conditionScalingActive = val
+		case autoscalingv2.ScalingLimited:
+			conditionScalingLimited = val
+		default:
+			// Add unknown conditions to the map
+			conditions[string(condition.Type)] = val
+		}
+	}
 
 	// Create data structure
 	// Default min replicas is 1 when spec.minReplicas is nil
@@ -131,6 +146,7 @@ func (h *HorizontalPodAutoscalerHandler) createLogEntry(hpa *autoscalingv2.Horiz
 		ConditionScalingLimited:            conditionScalingLimited,
 		ScaleTargetRef:                     hpa.Spec.ScaleTargetRef.Kind + "/" + hpa.Spec.ScaleTargetRef.Name,
 		ScaleTargetKind:                    hpa.Spec.ScaleTargetRef.Kind,
+		Conditions:                         conditions,
 	}
 
 	return data

@@ -196,16 +196,16 @@ func TestDaemonSetHandler_createLogEntry(t *testing.T) {
 	}
 
 	// Verify conditions
-	if !entry.ConditionAvailable {
+	if entry.ConditionAvailable == nil || !*entry.ConditionAvailable {
 		t.Error("Expected ConditionAvailable to be true")
 	}
 
-	if !entry.ConditionProgressing {
+	if entry.ConditionProgressing == nil || !*entry.ConditionProgressing {
 		t.Error("Expected ConditionProgressing to be true")
 	}
 
-	if entry.ConditionReplicaFailure {
-		t.Error("Expected ConditionReplicaFailure to be false")
+	if entry.ConditionReplicaFailure != nil && *entry.ConditionReplicaFailure {
+		t.Error("Expected ConditionReplicaFailure to be false or nil")
 	}
 
 	// Verify metadata

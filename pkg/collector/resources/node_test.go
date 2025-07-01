@@ -185,7 +185,7 @@ func TestNodeHandler_createLogEntry(t *testing.T) {
 	}
 
 	// Verify node-specific fields
-	if !entry.Ready {
+	if entry.Ready == nil || !*entry.Ready {
 		t.Error("Expected Ready condition to be true")
 	}
 
