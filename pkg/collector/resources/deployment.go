@@ -177,13 +177,3 @@ func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.
 		MetadataGeneration: utils.ExtractGeneration(deployment),
 	}
 }
-
-// getConditionStatus checks if a condition is true
-func (h *DeploymentHandler) getConditionStatus(conditions []appsv1.DeploymentCondition, conditionType string) bool {
-	for _, condition := range conditions {
-		if condition.Type == appsv1.DeploymentConditionType(conditionType) {
-			return condition.Status == "True"
-		}
-	}
-	return false
-}

@@ -68,6 +68,14 @@ func (h *ContainerHandler) Collect(ctx context.Context, namespaces []string) ([]
 
 // createLogEntry creates a ContainerData from a pod and container status
 func (h *ContainerHandler) createLogEntry(pod *corev1.Pod, container *corev1.ContainerStatus, isInitContainer bool) types.ContainerData {
+	// Handle nil container case
+	if container == nil {
+		return types.ContainerData{
+			PodName: pod.Name,
+			State:   "unknown",
+		}
+	}
+
 	// Determine container state
 	state := "unknown"
 	stateRunning := false
@@ -82,75 +90,80 @@ func (h *ContainerHandler) createLogEntry(pod *corev1.Pod, container *corev1.Con
 	var lastTerminatedExitCode int32
 	var lastTerminatedTimestamp *time.Time
 
-	if container != nil {
-		if container.State.Running != nil {
-			state = "running"
-			stateRunning = true
-			if !container.State.Running.StartedAt.IsZero() {
-				startedAt = &container.State.Running.StartedAt.Time
-			}
-		} else if container.State.Waiting != nil {
-			state = "waiting"
-			stateWaiting = true
-			waitingReason = string(container.State.Waiting.Reason)
-			waitingMessage = container.State.Waiting.Message
-		} else if container.State.Terminated != nil {
-			state = "terminated"
-			stateTerminated = true
-			exitCode = container.State.Terminated.ExitCode
-			reason = string(container.State.Terminated.Reason)
-			message = container.State.Terminated.Message
-			if !container.State.Terminated.FinishedAt.IsZero() {
-				finishedAt = &container.State.Terminated.FinishedAt.Time
-			}
-			if !container.State.Terminated.StartedAt.IsZero() {
-				startedAtTerm = &container.State.Terminated.StartedAt.Time
-			}
+	if container.State.Running != nil {
+		state = "running"
+		stateRunning = true
+		if !container.State.Running.StartedAt.IsZero() {
+			startedAt = &container.State.Running.StartedAt.Time
 		}
+	} else if container.State.Waiting != nil {
+		state = "waiting"
+		stateWaiting = true
+		waitingReason = string(container.State.Waiting.Reason)
+		waitingMessage = container.State.Waiting.Message
+	} else if container.State.Terminated != nil {
+		state = "terminated"
+		stateTerminated = true
+		exitCode = container.State.Terminated.ExitCode
+		reason = string(container.State.Terminated.Reason)
+		message = container.State.Terminated.Message
+		if !container.State.Terminated.FinishedAt.IsZero() {
+			finishedAt = &container.State.Terminated.FinishedAt.Time
+		}
+		if !container.State.Terminated.StartedAt.IsZero() {
+			startedAtTerm = &container.State.Terminated.StartedAt.Time
+		}
+	}
 
-		// Get last terminated state
-		if container.LastTerminationState.Terminated != nil {
-			lastTerminatedReason = string(container.LastTerminationState.Terminated.Reason)
-			lastTerminatedExitCode = container.LastTerminationState.Terminated.ExitCode
-			if !container.LastTerminationState.Terminated.FinishedAt.IsZero() {
-				lastTerminatedTimestamp = &container.LastTerminationState.Terminated.FinishedAt.Time
-			}
+	// Get last terminated state
+	if container.LastTerminationState.Terminated != nil {
+		lastTerminatedReason = string(container.LastTerminationState.Terminated.Reason)
+		lastTerminatedExitCode = container.LastTerminationState.Terminated.ExitCode
+		if !container.LastTerminationState.Terminated.FinishedAt.IsZero() {
+			lastTerminatedTimestamp = &container.LastTerminationState.Terminated.FinishedAt.Time
 		}
 	}
 
 	// Extract resource requests and limits from pod spec
 	var resourceRequests, resourceLimits map[string]string
-	for _, containerSpec := range pod.Spec.Containers {
-		if containerSpec.Name == container.Name {
-			resourceRequests = utils.ExtractResourceMap(containerSpec.Resources.Requests)
-			resourceLimits = utils.ExtractResourceMap(containerSpec.Resources.Limits)
-			break
+	if isInitContainer {
+		// Look in init containers for init container resources
+		for _, containerSpec := range pod.Spec.InitContainers {
+			if containerSpec.Name == container.Name {
+				resourceRequests = utils.ExtractResourceMap(containerSpec.Resources.Requests)
+				resourceLimits = utils.ExtractResourceMap(containerSpec.Resources.Limits)
+				break
+			}
+		}
+	} else {
+		// Look in regular containers for regular container resources
+		for _, containerSpec := range pod.Spec.Containers {
+			if containerSpec.Name == container.Name {
+				resourceRequests = utils.ExtractResourceMap(containerSpec.Resources.Requests)
+				resourceLimits = utils.ExtractResourceMap(containerSpec.Resources.Limits)
+				break
+			}
 		}
 	}
 
-	imageID := ""
-	if container != nil {
-		imageID = container.ImageID
-	}
+	imageID := container.ImageID
 
 	// Get state started time (when container first started)
 	var stateStarted *time.Time
-	if container != nil && container.State.Running != nil && !container.State.Running.StartedAt.IsZero() {
+	if container.State.Running != nil && !container.State.Running.StartedAt.IsZero() {
 		stateStarted = &container.State.Running.StartedAt.Time
 	}
 
 	data := types.ContainerData{
-		Name:    container.Name,
-		Image:   container.Image,
-		ImageID: imageID,
-		PodName: pod.Name,
-		Ready:   container != nil && container.Ready,
-		RestartCount: func() int32 {
-			if container != nil {
-				return container.RestartCount
-			}
-			return 0
-		}(),
+		ResourceType:            "container",
+		Timestamp:               time.Now(),
+		Name:                    container.Name,
+		Image:                   container.Image,
+		ImageID:                 imageID,
+		PodName:                 pod.Name,
+		Namespace:               pod.Namespace,
+		Ready:                   container.Ready,
+		RestartCount:            container.RestartCount,
 		State:                   state,
 		StateRunning:            stateRunning,
 		StateWaiting:            stateWaiting,

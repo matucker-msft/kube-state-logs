@@ -94,8 +94,6 @@ type PodData struct {
 	NodeSelectors          map[string]string `json:"nodeSelectors"`
 	PersistentVolumeClaims []PVCData         `json:"persistentVolumeClaims"`
 	CompletionTime         *time.Time        `json:"completionTime"`
-	ResourceLimits         map[string]string `json:"resourceLimits"`
-	ResourceRequests       map[string]string `json:"resourceRequests"`
 }
 
 // TolerationData represents pod toleration information
@@ -116,10 +114,13 @@ type PVCData struct {
 // ContainerData represents container-specific metrics (matching kube-state-metrics)
 type ContainerData struct {
 	// Basic container info
-	Name    string `json:"name"`
-	Image   string `json:"image"`
-	ImageID string `json:"imageID"`
-	PodName string `json:"podName"`
+	ResourceType string    `json:"resourceType"`
+	Timestamp    time.Time `json:"timestamp"`
+	Name         string    `json:"name"`
+	Image        string    `json:"image"`
+	ImageID      string    `json:"imageID"`
+	PodName      string    `json:"podName"`
+	Namespace    string    `json:"namespace"`
 
 	// Container state
 	Ready        bool   `json:"ready"`

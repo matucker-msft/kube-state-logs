@@ -328,10 +328,16 @@ func TestDeploymentHandler_createLogEntry_WithOwnerReference(t *testing.T) {
 	}
 }
 
-func TestDeploymentHandler_getConditionStatus(t *testing.T) {
-	client := fake.NewSimpleClientset()
-	handler := NewDeploymentHandler(client)
+func getConditionStatus(conditions []appsv1.DeploymentCondition, conditionType string) bool {
+	for _, condition := range conditions {
+		if string(condition.Type) == conditionType {
+			return condition.Status == corev1.ConditionTrue
+		}
+	}
+	return false
+}
 
+func TestDeploymentHandler_getConditionStatus(t *testing.T) {
 	conditions := []appsv1.DeploymentCondition{
 		{
 			Type:   appsv1.DeploymentAvailable,
@@ -344,17 +350,17 @@ func TestDeploymentHandler_getConditionStatus(t *testing.T) {
 	}
 
 	// Test available condition
-	if !handler.getConditionStatus(conditions, "Available") {
+	if !getConditionStatus(conditions, "Available") {
 		t.Error("Expected Available condition to be true")
 	}
 
 	// Test progressing condition
-	if handler.getConditionStatus(conditions, "Progressing") {
+	if getConditionStatus(conditions, "Progressing") {
 		t.Error("Expected Progressing condition to be false")
 	}
 
 	// Test non-existent condition
-	if handler.getConditionStatus(conditions, "NonExistent") {
+	if getConditionStatus(conditions, "NonExistent") {
 		t.Error("Expected non-existent condition to be false")
 	}
 }

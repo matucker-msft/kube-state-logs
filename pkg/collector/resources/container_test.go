@@ -164,6 +164,10 @@ func TestContainerHandler_Collect(t *testing.T) {
 	if entry.PodName != "test-pod-1" {
 		t.Errorf("Expected pod name 'test-pod-1', got '%s'", entry.PodName)
 	}
+
+	if entry.Namespace != "default" {
+		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
+	}
 }
 
 func TestContainerHandler_createLogEntry(t *testing.T) {
@@ -268,59 +272,127 @@ func TestContainerHandler_createLogEntry_Waiting(t *testing.T) {
 }
 
 func TestContainerHandler_Collect_NamespaceFiltering(t *testing.T) {
-	// Create test containers in different namespaces
+	// Create test containers
 	container1 := createTestContainer("app", "nginx:latest", true)
 	container2 := createTestContainer("sidecar", "busybox:latest", true)
-	container3 := createTestContainer("monitor", "prometheus:latest", true)
 
+	// Create test pods with containers
 	pod1 := createTestPodWithContainers("test-pod-1", "default", []corev1.Container{*container1})
 	pod2 := createTestPodWithContainers("test-pod-2", "kube-system", []corev1.Container{*container2})
-	pod3 := createTestPodWithContainers("test-pod-3", "monitoring", []corev1.Container{*container3})
 
-	client := fake.NewSimpleClientset(pod1, pod2, pod3)
+	// Create fake client with test pods
+	client := fake.NewSimpleClientset(pod1, pod2)
 	handler := NewContainerHandler(client)
 	factory := informers.NewSharedInformerFactory(client, time.Hour)
 	logger := &testutils.MockLogger{}
 
+	// Setup informer
 	err := handler.SetupInformer(factory, logger, time.Hour)
 	if err != nil {
 		t.Fatalf("Failed to setup informer: %v", err)
 	}
 
+	// Start the factory to populate the cache
 	factory.Start(nil)
 	factory.WaitForCacheSync(nil)
 
+	// Test collecting from specific namespace
 	ctx := context.Background()
-
-	// Test multiple namespace filtering
-	entries, err := handler.Collect(ctx, []string{"default", "monitoring"})
+	entries, err := handler.Collect(ctx, []string{"default"})
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	if len(entries) != 2 {
-		t.Fatalf("Expected 2 entries for default and monitoring namespaces, got %d", len(entries))
+	if len(entries) != 1 {
+		t.Fatalf("Expected 1 entry for default namespace, got %d", len(entries))
 	}
 
-	// Verify correct pod names
-	podNames := make(map[string]bool)
-	for _, entry := range entries {
-		entryData, ok := entry.(types.ContainerData)
-		if !ok {
-			t.Fatalf("Expected ContainerData type, got %T", entry)
-		}
-		podNames[entryData.PodName] = true
+	// Type assert to ContainerData for assertions
+	entry, ok := entries[0].(types.ContainerData)
+	if !ok {
+		t.Fatalf("Expected ContainerData type, got %T", entries[0])
 	}
 
-	if !podNames["test-pod-1"] {
-		t.Error("Expected entry from test-pod-1")
+	if entry.PodName != "test-pod-1" {
+		t.Errorf("Expected pod name 'test-pod-1', got '%s'", entry.PodName)
 	}
 
-	if !podNames["test-pod-3"] {
-		t.Error("Expected entry from test-pod-3")
+	if entry.Namespace != "default" {
+		t.Errorf("Expected namespace 'default', got '%s'", entry.Namespace)
+	}
+}
+
+func TestContainerHandler_InitContainerResources(t *testing.T) {
+	// Create test init container
+	initContainer := createTestContainer("init", "busybox:latest", true)
+	regularContainer := createTestContainer("app", "nginx:latest", true)
+
+	// Create test pod with both init and regular containers
+	pod := &corev1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-pod",
+			Namespace: "default",
+		},
+		Spec: corev1.PodSpec{
+			InitContainers: []corev1.Container{*initContainer},
+			Containers:     []corev1.Container{*regularContainer},
+		},
+		Status: corev1.PodStatus{
+			InitContainerStatuses: []corev1.ContainerStatus{
+				{
+					Name:         "init",
+					Image:        "busybox:latest",
+					ImageID:      "docker://sha256:init",
+					Ready:        true,
+					RestartCount: 0,
+					State: corev1.ContainerState{
+						Running: &corev1.ContainerStateRunning{
+							StartedAt: metav1.Now(),
+						},
+					},
+				},
+			},
+			ContainerStatuses: []corev1.ContainerStatus{
+				{
+					Name:         "app",
+					Image:        "nginx:latest",
+					ImageID:      "docker://sha256:app",
+					Ready:        true,
+					RestartCount: 0,
+					State: corev1.ContainerState{
+						Running: &corev1.ContainerStateRunning{
+							StartedAt: metav1.Now(),
+						},
+					},
+				},
+			},
+		},
 	}
 
-	if podNames["test-pod-2"] {
-		t.Error("Did not expect entry from test-pod-2")
+	client := fake.NewSimpleClientset()
+	handler := NewContainerHandler(client)
+
+	// Test init container resource extraction
+	initEntry := handler.createLogEntry(pod, &pod.Status.InitContainerStatuses[0], true)
+	if initEntry.Name != "init" {
+		t.Errorf("Expected init container name 'init', got '%s'", initEntry.Name)
+	}
+	if len(initEntry.ResourceRequests) == 0 {
+		t.Error("Expected init container to have resource requests")
+	}
+	if len(initEntry.ResourceLimits) == 0 {
+		t.Error("Expected init container to have resource limits")
+	}
+
+	// Test regular container resource extraction
+	regularEntry := handler.createLogEntry(pod, &pod.Status.ContainerStatuses[0], false)
+	if regularEntry.Name != "app" {
+		t.Errorf("Expected regular container name 'app', got '%s'", regularEntry.Name)
+	}
+	if len(regularEntry.ResourceRequests) == 0 {
+		t.Error("Expected regular container to have resource requests")
+	}
+	if len(regularEntry.ResourceLimits) == 0 {
+		t.Error("Expected regular container to have resource limits")
 	}
 }

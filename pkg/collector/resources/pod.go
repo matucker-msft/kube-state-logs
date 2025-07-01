@@ -12,7 +12,6 @@ import (
 	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
 	"github.com/matucker-msft/kube-state-logs/pkg/types"
 	"github.com/matucker-msft/kube-state-logs/pkg/utils"
-	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 // PodHandler handles collection of pod metrics
@@ -207,6 +206,14 @@ func (h *PodHandler) createLogEntry(pod *corev1.Pod) types.PodData {
 					}
 				}
 			}
+			for _, mount := range pod.Spec.InitContainers {
+				for _, volumeMount := range mount.VolumeMounts {
+					if volumeMount.Name == volume.Name && volumeMount.ReadOnly {
+						readOnly = true
+						break
+					}
+				}
+			}
 			pvcs = append(pvcs, types.PVCData{
 				ClaimName: volume.PersistentVolumeClaim.ClaimName,
 				ReadOnly:  readOnly,
@@ -234,48 +241,19 @@ func (h *PodHandler) createLogEntry(pod *corev1.Pod) types.PodData {
 
 	// Get completion time (when pod phase is Succeeded)
 	var completionTime *time.Time
-	if pod.Status.Phase == corev1.PodSucceeded && pod.Status.StartTime != nil && !pod.Status.StartTime.IsZero() {
-		completionTime = &pod.Status.StartTime.Time
-	}
-
-	// Aggregate pod-level resource requests and limits
-	resourceRequests := make(map[string]string)
-	resourceLimits := make(map[string]string)
-
-	for _, container := range pod.Spec.Containers {
-		for key, value := range container.Resources.Requests {
-			resourceKey := string(key)
-			if existing, exists := resourceRequests[resourceKey]; exists {
-				// Parse existing value and add to it
-				existingResource, err := resource.ParseQuantity(existing)
-				if err == nil {
-					// Add the resources properly
-					existingResource.Add(value)
-					resourceRequests[resourceKey] = existingResource.String()
-				} else {
-					// Fallback to string concatenation if parsing fails
-					resourceRequests[resourceKey] = existing + " + " + value.String()
+	if pod.Status.Phase == corev1.PodSucceeded {
+		// For succeeded pods, look for the latest container termination time
+		for _, container := range pod.Status.ContainerStatuses {
+			if container.State.Terminated != nil && !container.State.Terminated.FinishedAt.IsZero() {
+				if completionTime == nil || container.State.Terminated.FinishedAt.Time.After(*completionTime) {
+					completionTime = &container.State.Terminated.FinishedAt.Time
 				}
-			} else {
-				resourceRequests[resourceKey] = value.String()
 			}
 		}
-		for key, value := range container.Resources.Limits {
-			resourceKey := string(key)
-			if existing, exists := resourceLimits[resourceKey]; exists {
-				// Parse existing value and add to it
-				existingResource, err := resource.ParseQuantity(existing)
-				if err == nil {
-					// Add the resources properly
-					existingResource.Add(value)
-					resourceLimits[resourceKey] = existingResource.String()
-				} else {
-					// Fallback to string concatenation if parsing fails
-					resourceLimits[resourceKey] = existing + " + " + value.String()
-				}
-			} else {
-				resourceLimits[resourceKey] = value.String()
-			}
+		// If no container termination time found, use current time as fallback
+		if completionTime == nil {
+			now := time.Now()
+			completionTime = &now
 		}
 	}
 
@@ -321,8 +299,6 @@ func (h *PodHandler) createLogEntry(pod *corev1.Pod) types.PodData {
 		NodeSelectors:          pod.Spec.NodeSelector,
 		PersistentVolumeClaims: pvcs,
 		CompletionTime:         completionTime,
-		ResourceLimits:         resourceLimits,
-		ResourceRequests:       resourceRequests,
 	}
 
 	return data
