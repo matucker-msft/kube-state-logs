@@ -6,6 +6,7 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
 
@@ -62,27 +63,34 @@ func (h *DeploymentHandler) Collect(ctx context.Context, namespaces []string) ([
 
 // createLogEntry creates a DeploymentData from a deployment
 func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.DeploymentData {
+	// Get desired replicas (default to 1 when spec.replicas is nil)
+	desiredReplicas := int32(1)
+	if deployment.Spec.Replicas != nil {
+		desiredReplicas = *deployment.Spec.Replicas
+	}
+
 	// Get strategy info
 	strategyType := string(deployment.Spec.Strategy.Type)
 	strategyRollingUpdateMaxSurge := int32(0)
 	strategyRollingUpdateMaxUnavailable := int32(0)
 
+	// Calculate rolling update values correctly
 	if deployment.Spec.Strategy.RollingUpdate != nil {
 		if deployment.Spec.Strategy.RollingUpdate.MaxSurge != nil {
-			strategyRollingUpdateMaxSurge = deployment.Spec.Strategy.RollingUpdate.MaxSurge.IntVal
+			maxSurge, err := intstr.GetScaledValueFromIntOrPercent(deployment.Spec.Strategy.RollingUpdate.MaxSurge, int(desiredReplicas), true)
+			if err == nil {
+				strategyRollingUpdateMaxSurge = int32(maxSurge)
+			}
 		}
 		if deployment.Spec.Strategy.RollingUpdate.MaxUnavailable != nil {
-			strategyRollingUpdateMaxUnavailable = deployment.Spec.Strategy.RollingUpdate.MaxUnavailable.IntVal
+			maxUnavailable, err := intstr.GetScaledValueFromIntOrPercent(deployment.Spec.Strategy.RollingUpdate.MaxUnavailable, int(desiredReplicas), false)
+			if err == nil {
+				strategyRollingUpdateMaxUnavailable = int32(maxUnavailable)
+			}
 		}
 	}
 
-	// Get desired replicas
-	desiredReplicas := int32(1) // Default to 1 when spec.replicas is nil
-	if deployment.Spec.Replicas != nil {
-		desiredReplicas = *deployment.Spec.Replicas
-	}
-
-	// Get current replicas
+	// Get replica counts
 	currentReplicas := deployment.Status.Replicas
 	readyReplicas := deployment.Status.ReadyReplicas
 	availableReplicas := deployment.Status.AvailableReplicas
@@ -105,7 +113,24 @@ func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.
 		}
 	}
 
+	// Get spec fields
+	minReadySeconds := deployment.Spec.MinReadySeconds
+	revisionHistoryLimit := int32(10) // Default value
+	if deployment.Spec.RevisionHistoryLimit != nil {
+		revisionHistoryLimit = *deployment.Spec.RevisionHistoryLimit
+	}
+	progressDeadlineSeconds := int32(600) // Default value
+	if deployment.Spec.ProgressDeadlineSeconds != nil {
+		progressDeadlineSeconds = *deployment.Spec.ProgressDeadlineSeconds
+	}
+
+	// Get status fields
 	observedGeneration := deployment.Status.ObservedGeneration
+	collisionCount := int32(0)
+	if deployment.Status.CollisionCount != nil {
+		collisionCount = *deployment.Status.CollisionCount
+	}
+
 	createdByKind, createdByName := utils.GetOwnerReferenceInfo(deployment)
 
 	return types.DeploymentData{
@@ -120,27 +145,37 @@ func (h *DeploymentHandler) createLogEntry(deployment *appsv1.Deployment) types.
 			CreatedByKind:    createdByKind,
 			CreatedByName:    createdByName,
 		},
-		DesiredReplicas:                     desiredReplicas,
-		CurrentReplicas:                     currentReplicas,
-		ReadyReplicas:                       readyReplicas,
-		AvailableReplicas:                   availableReplicas,
-		UnavailableReplicas:                 unavailableReplicas,
-		UpdatedReplicas:                     updatedReplicas,
-		ObservedGeneration:                  observedGeneration,
-		ReplicasDesired:                     desiredReplicas,
-		ReplicasAvailable:                   availableReplicas,
-		ReplicasUnavailable:                 unavailableReplicas,
-		ReplicasUpdated:                     updatedReplicas,
+		// Replica counts
+		DesiredReplicas:     desiredReplicas,
+		CurrentReplicas:     currentReplicas,
+		ReadyReplicas:       readyReplicas,
+		AvailableReplicas:   availableReplicas,
+		UnavailableReplicas: unavailableReplicas,
+		UpdatedReplicas:     updatedReplicas,
+
+		// Deployment status
+		ObservedGeneration: observedGeneration,
+		CollisionCount:     collisionCount,
+
+		// Strategy info
 		StrategyType:                        strategyType,
 		StrategyRollingUpdateMaxSurge:       strategyRollingUpdateMaxSurge,
 		StrategyRollingUpdateMaxUnavailable: strategyRollingUpdateMaxUnavailable,
-		ConditionAvailable:                  conditionAvailable,
-		ConditionProgressing:                conditionProgressing,
-		ConditionReplicaFailure:             conditionReplicaFailure,
-		Paused:                              deployment.Spec.Paused,
-		MetadataGeneration:                  utils.ExtractGeneration(deployment),
-	}
 
+		// Conditions
+		ConditionAvailable:      conditionAvailable,
+		ConditionProgressing:    conditionProgressing,
+		ConditionReplicaFailure: conditionReplicaFailure,
+
+		// Spec fields
+		Paused:                  deployment.Spec.Paused,
+		MinReadySeconds:         minReadySeconds,
+		RevisionHistoryLimit:    revisionHistoryLimit,
+		ProgressDeadlineSeconds: progressDeadlineSeconds,
+
+		// Metadata
+		MetadataGeneration: utils.ExtractGeneration(deployment),
+	}
 }
 
 // getConditionStatus checks if a condition is true

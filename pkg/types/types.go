@@ -22,7 +22,7 @@ type LogEntryMetadata struct {
 // DeploymentData represents deployment-specific metrics (matching kube-state-metrics)
 type DeploymentData struct {
 	LogEntryMetadata
-	// Replica counts
+	// Replica counts (matching kube-state-metrics)
 	DesiredReplicas     int32 `json:"desiredReplicas"`
 	CurrentReplicas     int32 `json:"currentReplicas"`
 	ReadyReplicas       int32 `json:"readyReplicas"`
@@ -30,25 +30,27 @@ type DeploymentData struct {
 	UnavailableReplicas int32 `json:"unavailableReplicas"`
 	UpdatedReplicas     int32 `json:"updatedReplicas"`
 
-	// Deployment status
-	ObservedGeneration  int64 `json:"observedGeneration"`
-	ReplicasDesired     int32 `json:"replicasDesired"`
-	ReplicasAvailable   int32 `json:"replicasAvailable"`
-	ReplicasUnavailable int32 `json:"replicasUnavailable"`
-	ReplicasUpdated     int32 `json:"replicasUpdated"`
+	// Deployment status (matching kube-state-metrics)
+	ObservedGeneration int64 `json:"observedGeneration"`
+	CollisionCount     int32 `json:"collisionCount"`
 
-	// Strategy info
+	// Strategy info (matching kube-state-metrics)
 	StrategyType                        string `json:"strategyType"`
 	StrategyRollingUpdateMaxSurge       int32  `json:"strategyRollingUpdateMaxSurge"`
 	StrategyRollingUpdateMaxUnavailable int32  `json:"strategyRollingUpdateMaxUnavailable"`
 
-	// Conditions
+	// Conditions (matching kube-state-metrics)
 	ConditionAvailable      bool `json:"conditionAvailable"`
 	ConditionProgressing    bool `json:"conditionProgressing"`
 	ConditionReplicaFailure bool `json:"conditionReplicaFailure"`
 
-	// Missing from KSM
-	Paused             bool  `json:"paused"`
+	// Spec fields (matching kube-state-metrics)
+	Paused                  bool  `json:"paused"`
+	MinReadySeconds         int32 `json:"minReadySeconds"`
+	RevisionHistoryLimit    int32 `json:"revisionHistoryLimit"`
+	ProgressDeadlineSeconds int32 `json:"progressDeadlineSeconds"`
+
+	// Metadata (matching kube-state-metrics)
 	MetadataGeneration int64 `json:"metadataGeneration"`
 }
 
