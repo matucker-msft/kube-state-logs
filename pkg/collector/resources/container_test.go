@@ -171,7 +171,7 @@ func TestContainerHandler_createLogEntry(t *testing.T) {
 	handler := NewContainerHandler(client)
 	container := createTestContainer("app", "nginx:latest", true)
 	pod := createTestPodWithContainers("test-pod", "default", []corev1.Container{*container})
-	entry := handler.createLogEntry(pod, *container)
+	entry := handler.createLogEntry(pod, &pod.Status.ContainerStatuses[0], false)
 
 	if entry.Name != "app" {
 		t.Errorf("Expected name 'app', got '%s'", entry.Name)
@@ -244,7 +244,7 @@ func TestContainerHandler_createLogEntry_Waiting(t *testing.T) {
 	}
 	pod.Status.ContainerStatuses[0].Ready = false
 
-	entry := handler.createLogEntry(pod, *container)
+	entry := handler.createLogEntry(pod, &pod.Status.ContainerStatuses[0], false)
 
 	if entry.State != "waiting" {
 		t.Errorf("Expected state 'waiting', got '%s'", entry.State)

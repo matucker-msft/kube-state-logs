@@ -38,19 +38,21 @@ func (h *ServiceAccountHandler) Collect(ctx context.Context, namespaces []string
 	var entries []any
 
 	// Get all serviceaccounts from the cache
-	sas := utils.SafeGetStoreList(h.GetInformer())
+	serviceaccounts := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range sas {
-		sa, ok := obj.(*corev1.ServiceAccount)
+	for _, obj := range serviceaccounts {
+		serviceaccount, ok := obj.(*corev1.ServiceAccount)
 		if !ok {
 			continue
 		}
 
-		if !utils.ShouldIncludeNamespace(namespaces, sa.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, serviceaccount.Namespace) {
 			continue
 		}
 
-		entry := h.createLogEntry(sa)
+		entry := h.createLogEntry(serviceaccount)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

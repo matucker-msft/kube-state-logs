@@ -38,15 +38,17 @@ func (h *ClusterRoleHandler) Collect(ctx context.Context, namespaces []string) (
 	var entries []any
 
 	// Get all clusterroles from the cache
-	roles := utils.SafeGetStoreList(h.GetInformer())
+	clusterroles := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range roles {
-		role, ok := obj.(*rbacv1.ClusterRole)
+	for _, obj := range clusterroles {
+		clusterrole, ok := obj.(*rbacv1.ClusterRole)
 		if !ok {
 			continue
 		}
 
-		entry := h.createLogEntry(role)
+		entry := h.createLogEntry(clusterrole)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

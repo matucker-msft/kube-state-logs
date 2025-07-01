@@ -39,6 +39,7 @@ func (h *PersistentVolumeHandler) Collect(ctx context.Context, namespaces []stri
 
 	// Get all persistentvolumes from the cache
 	pvs := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range pvs {
 		pv, ok := obj.(*corev1.PersistentVolume)
@@ -47,6 +48,7 @@ func (h *PersistentVolumeHandler) Collect(ctx context.Context, namespaces []stri
 		}
 
 		entry := h.createLogEntry(pv)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

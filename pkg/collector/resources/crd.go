@@ -49,10 +49,11 @@ func (h *CRDHandler) SetupInformer(factory dynamicinformer.DynamicSharedInformer
 func (h *CRDHandler) Collect(ctx context.Context, namespaces []string) ([]any, error) {
 	var entries []any
 
-	// Get all CRD resources from the cache
-	crdList := utils.SafeGetStoreList(h.informer)
+	// Get all CRDs from the cache
+	crds := utils.SafeGetStoreList(h.informer)
+	listTime := time.Now()
 
-	for _, obj := range crdList {
+	for _, obj := range crds {
 		unstructuredObj, ok := obj.(*unstructured.Unstructured)
 		if !ok {
 			continue
@@ -63,6 +64,7 @@ func (h *CRDHandler) Collect(ctx context.Context, namespaces []string) ([]any, e
 		}
 
 		entry := h.createLogEntry(unstructuredObj)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 
@@ -95,7 +97,6 @@ func (h *CRDHandler) createLogEntry(obj *unstructured.Unstructured) types.CRDDat
 	// Create data structure
 	data := types.CRDData{
 		LogEntryMetadata: types.LogEntryMetadata{
-			Timestamp:        time.Now(),
 			ResourceType:     "crd",
 			Name:             utils.ExtractName(obj),
 			Namespace:        utils.ExtractNamespace(obj),

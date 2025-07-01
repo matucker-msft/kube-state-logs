@@ -38,15 +38,17 @@ func (h *ClusterRoleBindingHandler) Collect(ctx context.Context, namespaces []st
 	var entries []any
 
 	// Get all clusterrolebindings from the cache
-	bindings := utils.SafeGetStoreList(h.GetInformer())
+	clusterrolebindings := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range bindings {
-		binding, ok := obj.(*rbacv1.ClusterRoleBinding)
+	for _, obj := range clusterrolebindings {
+		clusterrolebinding, ok := obj.(*rbacv1.ClusterRoleBinding)
 		if !ok {
 			continue
 		}
 
-		entry := h.createLogEntry(binding)
+		entry := h.createLogEntry(clusterrolebinding)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

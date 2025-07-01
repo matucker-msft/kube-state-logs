@@ -39,6 +39,7 @@ func (h *MutatingWebhookConfigurationHandler) Collect(ctx context.Context, names
 
 	// Get all mutatingwebhookconfigurations from the cache
 	webhooks := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range webhooks {
 		webhook, ok := obj.(*admissionregistrationv1.MutatingWebhookConfiguration)
@@ -47,6 +48,7 @@ func (h *MutatingWebhookConfigurationHandler) Collect(ctx context.Context, names
 		}
 
 		entry := h.createLogEntry(webhook)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

@@ -38,15 +38,17 @@ func (h *IngressClassHandler) Collect(ctx context.Context, namespaces []string) 
 	var entries []any
 
 	// Get all ingressclasses from the cache
-	ingressClasses := utils.SafeGetStoreList(h.GetInformer())
+	ingressclasses := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range ingressClasses {
-		ic, ok := obj.(*networkingv1.IngressClass)
+	for _, obj := range ingressclasses {
+		ingressclass, ok := obj.(*networkingv1.IngressClass)
 		if !ok {
 			continue
 		}
 
-		entry := h.createLogEntry(ic)
+		entry := h.createLogEntry(ingressclass)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

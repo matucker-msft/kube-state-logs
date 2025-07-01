@@ -39,6 +39,7 @@ func (h *JobHandler) Collect(ctx context.Context, namespaces []string) ([]any, e
 
 	// Get all jobs from the cache
 	jobs := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range jobs {
 		job, ok := obj.(*batchv1.Job)
@@ -51,6 +52,7 @@ func (h *JobHandler) Collect(ctx context.Context, namespaces []string) ([]any, e
 		}
 
 		entry := h.createLogEntry(job)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

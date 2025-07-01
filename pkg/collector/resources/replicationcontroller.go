@@ -38,19 +38,21 @@ func (h *ReplicationControllerHandler) Collect(ctx context.Context, namespaces [
 	var entries []any
 
 	// Get all replicationcontrollers from the cache
-	rcs := utils.SafeGetStoreList(h.GetInformer())
+	replicationcontrollers := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range rcs {
-		rc, ok := obj.(*corev1.ReplicationController)
+	for _, obj := range replicationcontrollers {
+		replicationcontroller, ok := obj.(*corev1.ReplicationController)
 		if !ok {
 			continue
 		}
 
-		if !utils.ShouldIncludeNamespace(namespaces, rc.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, replicationcontroller.Namespace) {
 			continue
 		}
 
-		entry := h.createLogEntry(rc)
+		entry := h.createLogEntry(replicationcontroller)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

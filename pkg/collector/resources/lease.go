@@ -39,6 +39,7 @@ func (h *LeaseHandler) Collect(ctx context.Context, namespaces []string) ([]any,
 
 	// Get all leases from the cache
 	leases := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range leases {
 		lease, ok := obj.(*coordinationv1.Lease)
@@ -51,6 +52,7 @@ func (h *LeaseHandler) Collect(ctx context.Context, namespaces []string) ([]any,
 		}
 
 		entry := h.createLogEntry(lease)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

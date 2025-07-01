@@ -38,19 +38,21 @@ func (h *ReplicaSetHandler) Collect(ctx context.Context, namespaces []string) ([
 	var entries []any
 
 	// Get all replicasets from the cache
-	replicaSets := utils.SafeGetStoreList(h.GetInformer())
+	replicasets := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range replicaSets {
-		rs, ok := obj.(*appsv1.ReplicaSet)
+	for _, obj := range replicasets {
+		replicaset, ok := obj.(*appsv1.ReplicaSet)
 		if !ok {
 			continue
 		}
 
-		if !utils.ShouldIncludeNamespace(namespaces, rs.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, replicaset.Namespace) {
 			continue
 		}
 
-		entry := h.createLogEntry(rs)
+		entry := h.createLogEntry(replicaset)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

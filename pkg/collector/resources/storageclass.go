@@ -38,15 +38,17 @@ func (h *StorageClassHandler) Collect(ctx context.Context, namespaces []string) 
 	var entries []any
 
 	// Get all storageclasses from the cache
-	storageClasses := utils.SafeGetStoreList(h.GetInformer())
+	storageclasses := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range storageClasses {
-		sc, ok := obj.(*storagev1.StorageClass)
+	for _, obj := range storageclasses {
+		storageclass, ok := obj.(*storagev1.StorageClass)
 		if !ok {
 			continue
 		}
 
-		entry := h.createLogEntry(sc)
+		entry := h.createLogEntry(storageclass)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

@@ -40,6 +40,7 @@ func (h *NamespaceHandler) Collect(ctx context.Context, namespaces []string) ([]
 
 	// Get all namespaces from the cache
 	namespaceList := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range namespaceList {
 		namespace, ok := obj.(*corev1.Namespace)
@@ -52,6 +53,7 @@ func (h *NamespaceHandler) Collect(ctx context.Context, namespaces []string) ([]
 		}
 
 		entry := h.createLogEntry(namespace)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

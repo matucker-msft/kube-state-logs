@@ -40,6 +40,7 @@ func (h *SecretHandler) Collect(ctx context.Context, namespaces []string) ([]any
 
 	// Get all secrets from the cache
 	secrets := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range secrets {
 		secret, ok := obj.(*corev1.Secret)
@@ -52,6 +53,7 @@ func (h *SecretHandler) Collect(ctx context.Context, namespaces []string) ([]any
 		}
 
 		entry := h.createLogEntry(secret)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

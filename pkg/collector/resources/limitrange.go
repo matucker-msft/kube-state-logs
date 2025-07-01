@@ -38,19 +38,21 @@ func (h *LimitRangeHandler) Collect(ctx context.Context, namespaces []string) ([
 	var entries []any
 
 	// Get all limitranges from the cache
-	limitRanges := utils.SafeGetStoreList(h.GetInformer())
+	limitranges := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range limitRanges {
-		lr, ok := obj.(*corev1.LimitRange)
+	for _, obj := range limitranges {
+		limitrange, ok := obj.(*corev1.LimitRange)
 		if !ok {
 			continue
 		}
 
-		if !utils.ShouldIncludeNamespace(namespaces, lr.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, limitrange.Namespace) {
 			continue
 		}
 
-		entry := h.createLogEntry(lr)
+		entry := h.createLogEntry(limitrange)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

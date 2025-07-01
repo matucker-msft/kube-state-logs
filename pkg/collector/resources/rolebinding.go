@@ -38,19 +38,21 @@ func (h *RoleBindingHandler) Collect(ctx context.Context, namespaces []string) (
 	var entries []any
 
 	// Get all rolebindings from the cache
-	rbs := utils.SafeGetStoreList(h.GetInformer())
+	rolebindings := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range rbs {
-		rb, ok := obj.(*rbacv1.RoleBinding)
+	for _, obj := range rolebindings {
+		rolebinding, ok := obj.(*rbacv1.RoleBinding)
 		if !ok {
 			continue
 		}
 
-		if !utils.ShouldIncludeNamespace(namespaces, rb.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, rolebinding.Namespace) {
 			continue
 		}
 
-		entry := h.createLogEntry(rb)
+		entry := h.createLogEntry(rolebinding)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

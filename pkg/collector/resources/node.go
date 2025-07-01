@@ -40,6 +40,7 @@ func (h *NodeHandler) Collect(ctx context.Context, namespaces []string) ([]any, 
 
 	// Get all nodes from the cache
 	nodes := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range nodes {
 		node, ok := obj.(*corev1.Node)
@@ -48,6 +49,7 @@ func (h *NodeHandler) Collect(ctx context.Context, namespaces []string) ([]any, 
 		}
 
 		entry := h.createLogEntry(node)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

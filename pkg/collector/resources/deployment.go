@@ -40,6 +40,7 @@ func (h *DeploymentHandler) Collect(ctx context.Context, namespaces []string) ([
 
 	// Get all deployments from the cache
 	deployments := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range deployments {
 		deployment, ok := obj.(*appsv1.Deployment)
@@ -52,6 +53,7 @@ func (h *DeploymentHandler) Collect(ctx context.Context, namespaces []string) ([
 		}
 
 		entry := h.createLogEntry(deployment)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

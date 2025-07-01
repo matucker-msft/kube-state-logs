@@ -39,6 +39,7 @@ func (h *HorizontalPodAutoscalerHandler) Collect(ctx context.Context, namespaces
 
 	// Get all horizontalpodautoscalers from the cache
 	hpas := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range hpas {
 		hpa, ok := obj.(*autoscalingv2.HorizontalPodAutoscaler)
@@ -51,6 +52,7 @@ func (h *HorizontalPodAutoscalerHandler) Collect(ctx context.Context, namespaces
 		}
 
 		entry := h.createLogEntry(hpa)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

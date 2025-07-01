@@ -39,6 +39,7 @@ func (h *RoleHandler) Collect(ctx context.Context, namespaces []string) ([]any, 
 
 	// Get all roles from the cache
 	roles := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range roles {
 		role, ok := obj.(*rbacv1.Role)
@@ -51,6 +52,7 @@ func (h *RoleHandler) Collect(ctx context.Context, namespaces []string) ([]any, 
 		}
 
 		entry := h.createLogEntry(role)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

@@ -39,6 +39,7 @@ func (h *ValidatingAdmissionPolicyHandler) Collect(ctx context.Context, namespac
 
 	// Get all validatingadmissionpolicies from the cache
 	policies := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range policies {
 		policy, ok := obj.(*admissionregistrationv1beta1.ValidatingAdmissionPolicy)
@@ -47,6 +48,7 @@ func (h *ValidatingAdmissionPolicyHandler) Collect(ctx context.Context, namespac
 		}
 
 		entry := h.createLogEntry(policy)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

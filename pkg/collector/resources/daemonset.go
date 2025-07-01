@@ -38,19 +38,21 @@ func (h *DaemonSetHandler) Collect(ctx context.Context, namespaces []string) ([]
 	var entries []any
 
 	// Get all daemonsets from the cache
-	daemonSets := utils.SafeGetStoreList(h.GetInformer())
+	daemonsets := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range daemonSets {
-		ds, ok := obj.(*appsv1.DaemonSet)
+	for _, obj := range daemonsets {
+		daemonset, ok := obj.(*appsv1.DaemonSet)
 		if !ok {
 			continue
 		}
 
-		if !utils.ShouldIncludeNamespace(namespaces, ds.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, daemonset.Namespace) {
 			continue
 		}
 
-		entry := h.createLogEntry(ds)
+		entry := h.createLogEntry(daemonset)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

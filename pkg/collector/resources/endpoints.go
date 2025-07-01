@@ -39,6 +39,7 @@ func (h *EndpointsHandler) Collect(ctx context.Context, namespaces []string) ([]
 
 	// Get all endpoints from the cache
 	endpoints := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range endpoints {
 		endpoint, ok := obj.(*corev1.Endpoints)
@@ -51,6 +52,7 @@ func (h *EndpointsHandler) Collect(ctx context.Context, namespaces []string) ([]
 		}
 
 		entry := h.createLogEntry(endpoint)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

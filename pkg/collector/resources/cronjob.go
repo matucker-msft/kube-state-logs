@@ -39,6 +39,7 @@ func (h *CronJobHandler) Collect(ctx context.Context, namespaces []string) ([]an
 
 	// Get all cronjobs from the cache
 	cronjobs := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range cronjobs {
 		cronjob, ok := obj.(*batchv1.CronJob)
@@ -51,6 +52,7 @@ func (h *CronJobHandler) Collect(ctx context.Context, namespaces []string) ([]an
 		}
 
 		entry := h.createLogEntry(cronjob)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

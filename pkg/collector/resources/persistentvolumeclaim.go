@@ -39,6 +39,7 @@ func (h *PersistentVolumeClaimHandler) Collect(ctx context.Context, namespaces [
 
 	// Get all persistentvolumeclaims from the cache
 	pvcs := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range pvcs {
 		pvc, ok := obj.(*corev1.PersistentVolumeClaim)
@@ -51,6 +52,7 @@ func (h *PersistentVolumeClaimHandler) Collect(ctx context.Context, namespaces [
 		}
 
 		entry := h.createLogEntry(pvc)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

@@ -39,6 +39,7 @@ func (h *ValidatingAdmissionPolicyBindingHandler) Collect(ctx context.Context, n
 
 	// Get all validatingadmissionpolicybindings from the cache
 	bindings := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range bindings {
 		binding, ok := obj.(*admissionregistrationv1beta1.ValidatingAdmissionPolicyBinding)
@@ -46,7 +47,12 @@ func (h *ValidatingAdmissionPolicyBindingHandler) Collect(ctx context.Context, n
 			continue
 		}
 
+		if !utils.ShouldIncludeNamespace(namespaces, binding.Namespace) {
+			continue
+		}
+
 		entry := h.createLogEntry(binding)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

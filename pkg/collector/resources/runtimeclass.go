@@ -38,15 +38,17 @@ func (h *RuntimeClassHandler) Collect(ctx context.Context, namespaces []string) 
 	var entries []any
 
 	// Get all runtimeclasses from the cache
-	runtimeClasses := utils.SafeGetStoreList(h.GetInformer())
+	runtimeclasses := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range runtimeClasses {
-		rc, ok := obj.(*nodev1.RuntimeClass)
+	for _, obj := range runtimeclasses {
+		runtimeclass, ok := obj.(*nodev1.RuntimeClass)
 		if !ok {
 			continue
 		}
 
-		entry := h.createLogEntry(rc)
+		entry := h.createLogEntry(runtimeclass)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

@@ -53,36 +53,34 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "deployment",
     "name": "sample-deployment",
     "namespace": "my-sample-namespace",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-deployment"
-        },
-        "annotations": {
-            "deployment.kubernetes.io/revision": "1"
-        },
-        "desiredReplicas": 3,
-        "currentReplicas": 3,
-        "readyReplicas": 3,
-        "availableReplicas": 3,
-        "unavailableReplicas": 0,
-        "updatedReplicas": 3,
-        "observedGeneration": 8,
-        "replicasDesired": 3,
-        "replicasAvailable": 3,
-        "replicasUnavailable": 0,
-        "replicasUpdated": 3,
-        "strategyType": "RollingUpdate",
-        "strategyRollingUpdateMaxSurge": 1,
-        "strategyRollingUpdateMaxUnavailable": 1,
-        "conditionAvailable": true,
-        "conditionProgressing": true,
-        "conditionReplicaFailure": false,
-        "createdByKind": "",
-        "createdByName": "",
-        "paused": false,
-        "metadataGeneration": 1
-    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-deployment"
+    },
+    "annotations": {
+        "deployment.kubernetes.io/revision": "1"
+    },
+    "desiredReplicas": 3,
+    "currentReplicas": 3,
+    "readyReplicas": 3,
+    "availableReplicas": 3,
+    "unavailableReplicas": 0,
+    "updatedReplicas": 3,
+    "observedGeneration": 8,
+    "replicasDesired": 3,
+    "replicasAvailable": 3,
+    "replicasUnavailable": 0,
+    "replicasUpdated": 3,
+    "strategyType": "RollingUpdate",
+    "strategyRollingUpdateMaxSurge": 1,
+    "strategyRollingUpdateMaxUnavailable": 1,
+    "conditionAvailable": true,
+    "conditionProgressing": true,
+    "conditionReplicaFailure": false,
+    "createdByKind": "",
+    "createdByName": "",
+    "paused": false,
+    "metadataGeneration": 1
 }
 ```
 
@@ -94,60 +92,58 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "pod",
     "name": "sample-pod-abc123",
     "namespace": "default",
-    "data": {
-        "nodeName": "worker-node-1",
-        "hostIP": "192.168.1.100",
-        "podIP": "10.244.0.5",
-        "podIPs": ["10.244.0.5"],
-        "phase": "Running",
-        "qosClass": "Burstable",
-        "priorityClass": "system-cluster-critical",
-        "ready": true,
-        "initialized": true,
-        "scheduled": true,
-        "containersReady": true,
-        "podScheduled": true,
-        "restartCount": 0,
-        "createdByKind": "ReplicaSet",
-        "createdByName": "sample-deployment-abc123",
-        "labels": {
-            "app": "sample-app"
-        },
-        "annotations": {
-            "kubernetes.io/config.seen": "2024-01-15T10:30:00Z"
-        },
-        "deletionTimestamp": null,
-        "startTime": "2024-01-15T10:30:00Z",
-        "initializedTime": "2024-01-15T10:30:01Z",
-        "readyTime": "2024-01-15T10:30:02Z",
-        "scheduledTime": "2024-01-15T10:30:01Z",
-        "statusReason": "",
-        "unschedulable": false,
-        "restartPolicy": "Always",
-        "serviceAccount": "default",
-        "schedulerName": "default-scheduler",
-        "overheadCPUCores": "0",
-        "overheadMemoryBytes": "0",
-        "runtimeClassName": "",
-        "tolerations": [
-            {
-                "key": "node.kubernetes.io/not-ready",
-                "value": "",
-                "effect": "NoExecute",
-                "operator": "Exists"
-            }
-        ],
-        "nodeSelectors": {},
-        "persistentVolumeClaims": [],
-        "completionTime": null,
-        "resourceRequests": {
-            "cpu": "100m",
-            "memory": "128Mi"
-        },
-        "resourceLimits": {
-            "cpu": "500m",
-            "memory": "512Mi"
+    "nodeName": "worker-node-1",
+    "hostIP": "192.168.1.100",
+    "podIP": "10.244.0.5",
+    "podIPs": ["10.244.0.5"],
+    "phase": "Running",
+    "qosClass": "Burstable",
+    "priorityClass": "system-cluster-critical",
+    "ready": true,
+    "initialized": true,
+    "scheduled": true,
+    "containersReady": true,
+    "podScheduled": true,
+    "restartCount": 0,
+    "createdByKind": "ReplicaSet",
+    "createdByName": "sample-deployment-abc123",
+    "labels": {
+        "app": "sample-app"
+    },
+    "annotations": {
+        "kubernetes.io/config.seen": "2024-01-15T10:30:00Z"
+    },
+    "deletionTimestamp": null,
+    "startTime": "2024-01-15T10:30:00Z",
+    "initializedTime": "2024-01-15T10:30:01Z",
+    "readyTime": "2024-01-15T10:30:02Z",
+    "scheduledTime": "2024-01-15T10:30:01Z",
+    "statusReason": "",
+    "unschedulable": false,
+    "restartPolicy": "Always",
+    "serviceAccount": "default",
+    "schedulerName": "default-scheduler",
+    "overheadCPUCores": "0",
+    "overheadMemoryBytes": "0",
+    "runtimeClassName": "",
+    "tolerations": [
+        {
+            "key": "node.kubernetes.io/not-ready",
+            "value": "",
+            "effect": "NoExecute",
+            "operator": "Exists"
         }
+    ],
+    "nodeSelectors": {},
+    "persistentVolumeClaims": [],
+    "completionTime": null,
+    "resourceRequests": {
+        "cpu": "100m",
+        "memory": "128Mi"
+    },
+    "resourceLimits": {
+        "cpu": "500m",
+        "memory": "512Mi"
     }
 }
 ```
@@ -160,38 +156,36 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "container",
     "name": "app-container",
     "namespace": "default",
-    "data": {
-        "name": "app-container",
-        "image": "nginx:latest",
-        "imageID": "docker-pullable://nginx@sha256:abc123",
-        "podName": "sample-pod-abc123",
-        "ready": true,
-        "restartCount": 0,
-        "state": "running",
-        "stateRunning": true,
-        "stateWaiting": false,
-        "stateTerminated": false,
-        "waitingReason": "",
-        "waitingMessage": "",
-        "startedAt": "2024-01-15T10:30:02Z",
-        "exitCode": 0,
-        "reason": "",
-        "message": "",
-        "finishedAt": null,
-        "startedAtTerm": null,
-        "resourceRequests": {
-            "cpu": "100m",
-            "memory": "128Mi"
-        },
-        "resourceLimits": {
-            "cpu": "500m",
-            "memory": "512Mi"
-        },
-        "lastTerminatedReason": "",
-        "lastTerminatedExitCode": 0,
-        "lastTerminatedTimestamp": null,
-        "stateStarted": "2024-01-15T10:30:02Z"
-    }
+    "containerName": "app-container",
+    "image": "nginx:latest",
+    "imageID": "docker-pullable://nginx@sha256:abc123",
+    "podName": "sample-pod-abc123",
+    "ready": true,
+    "restartCount": 0,
+    "state": "running",
+    "stateRunning": true,
+    "stateWaiting": false,
+    "stateTerminated": false,
+    "waitingReason": "",
+    "waitingMessage": "",
+    "startedAt": "2024-01-15T10:30:02Z",
+    "exitCode": 0,
+    "reason": "",
+    "message": "",
+    "finishedAt": null,
+    "startedAtTerm": null,
+    "resourceRequests": {
+        "cpu": "100m",
+        "memory": "128Mi"
+    },
+    "resourceLimits": {
+        "cpu": "500m",
+        "memory": "512Mi"
+    },
+    "lastTerminatedReason": "",
+    "lastTerminatedExitCode": 0,
+    "lastTerminatedTimestamp": null,
+    "stateStarted": "2024-01-15T10:30:02Z"
 }
 ```
 
@@ -203,38 +197,36 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "init_container",
     "name": "init-container",
     "namespace": "default",
-    "data": {
-        "name": "init-container",
-        "image": "busybox:latest",
-        "imageID": "docker-pullable://busybox@sha256:def456",
-        "podName": "sample-pod-abc123",
-        "ready": true,
-        "restartCount": 0,
-        "state": "terminated",
-        "stateRunning": false,
-        "stateWaiting": false,
-        "stateTerminated": true,
-        "waitingReason": "",
-        "waitingMessage": "",
-        "startedAt": null,
-        "exitCode": 0,
-        "reason": "Completed",
-        "message": "",
-        "finishedAt": "2024-01-15T10:30:01Z",
-        "startedAtTerm": "2024-01-15T10:30:00Z",
-        "resourceRequests": {
-            "cpu": "50m",
-            "memory": "64Mi"
-        },
-        "resourceLimits": {
-            "cpu": "100m",
-            "memory": "128Mi"
-        },
-        "lastTerminatedReason": "Completed",
-        "lastTerminatedExitCode": 0,
-        "lastTerminatedTimestamp": "2024-01-15T10:30:01Z",
-        "stateStarted": null
-    }
+    "containerName": "init-container",
+    "image": "busybox:latest",
+    "imageID": "docker-pullable://busybox@sha256:def456",
+    "podName": "sample-pod-abc123",
+    "ready": true,
+    "restartCount": 0,
+    "state": "terminated",
+    "stateRunning": false,
+    "stateWaiting": false,
+    "stateTerminated": true,
+    "waitingReason": "",
+    "waitingMessage": "",
+    "startedAt": null,
+    "exitCode": 0,
+    "reason": "Completed",
+    "message": "",
+    "finishedAt": "2024-01-15T10:30:01Z",
+    "startedAtTerm": "2024-01-15T10:30:00Z",
+    "resourceRequests": {
+        "cpu": "50m",
+        "memory": "64Mi"
+    },
+    "resourceLimits": {
+        "cpu": "100m",
+        "memory": "128Mi"
+    },
+    "lastTerminatedReason": "Completed",
+    "lastTerminatedExitCode": 0,
+    "lastTerminatedTimestamp": "2024-01-15T10:30:01Z",
+    "stateStarted": null
 }
 ```
 
@@ -246,38 +238,36 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "service",
     "name": "sample-service",
     "namespace": "default",
-    "data": {
-        "type": "ClusterIP",
-        "clusterIP": "10.96.0.10",
-        "externalIP": "",
-        "loadBalancerIP": "",
-        "ports": [
-            {
-                "name": "http",
-                "protocol": "TCP",
-                "port": 80,
-                "targetPort": 8080,
-                "nodePort": 30080
-            }
-        ],
-        "selector": {
-            "app": "sample-app"
-        },
-        "labels": {
-            "app": "sample-service"
-        },
-        "annotations": {},
-        "endpointsCount": 3,
-        "loadBalancerIngress": [],
-        "sessionAffinity": "None",
-        "externalName": "",
-        "createdByKind": "",
-        "createdByName": "",
-        "createdTimestamp": 1718020800,
-        "internalTrafficPolicy": "",
-        "externalTrafficPolicy": "",
-        "sessionAffinityClientIPTimeoutSeconds": 0
-    }
+    "type": "ClusterIP",
+    "clusterIP": "10.96.0.10",
+    "externalIP": "",
+    "loadBalancerIP": "",
+    "ports": [
+        {
+            "name": "http",
+            "protocol": "TCP",
+            "port": 80,
+            "targetPort": 8080,
+            "nodePort": 30080
+        }
+    ],
+    "selector": {
+        "app": "sample-app"
+    },
+    "labels": {
+        "app": "sample-service"
+    },
+    "annotations": {},
+    "endpointsCount": 3,
+    "loadBalancerIngress": [],
+    "sessionAffinity": "None",
+    "externalName": "",
+    "createdByKind": "",
+    "createdByName": "",
+    "createdTimestamp": 1718020800,
+    "internalTrafficPolicy": "",
+    "externalTrafficPolicy": "",
+    "sessionAffinityClientIPTimeoutSeconds": 0
 }
 ```
 
@@ -289,53 +279,51 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "node",
     "name": "worker-node-1",
     "namespace": "",
-    "data": {
-        "architecture": "amd64",
-        "operatingSystem": "linux",
-        "kernelVersion": "5.15.0-generic",
-        "kubeletVersion": "v1.28.0",
-        "kubeProxyVersion": "v1.28.0",
-        "containerRuntimeVersion": "containerd://1.7.0",
-        "capacity": {
-            "cpu": "4",
-            "memory": "8Gi",
-            "pods": "110"
-        },
-        "allocatable": {
-            "cpu": "3800m",
-            "memory": "7Gi",
-            "pods": "110"
-        },
-        "conditions": {
-            "Ready": true,
-            "MemoryPressure": false,
-            "DiskPressure": false,
-            "PIDPressure": false,
-            "NetworkUnavailable": false
-        },
-        "labels": {
-            "kubernetes.io/hostname": "worker-node-1",
-            "node-role.kubernetes.io/worker": "true"
-        },
-        "annotations": {},
-        "internalIP": "192.168.1.100",
-        "externalIP": "203.0.113.1",
-        "hostname": "worker-node-1",
-        "unschedulable": false,
-        "ready": true,
-        "createdByKind": "",
-        "createdByName": "",
-        "createdTimestamp": 1718020800,
-        "role": "worker",
-        "taints": [
-            {
-                "key": "node.kubernetes.io/not-ready",
-                "value": "",
-                "effect": "NoExecute"
-            }
-        ],
-        "deletionTimestamp": null
-    }
+    "architecture": "amd64",
+    "operatingSystem": "linux",
+    "kernelVersion": "5.15.0-generic",
+    "kubeletVersion": "v1.28.0",
+    "kubeProxyVersion": "v1.28.0",
+    "containerRuntimeVersion": "containerd://1.7.0",
+    "capacity": {
+        "cpu": "4",
+        "memory": "8Gi",
+        "pods": "110"
+    },
+    "allocatable": {
+        "cpu": "3800m",
+        "memory": "7Gi",
+        "pods": "110"
+    },
+    "conditions": {
+        "Ready": true,
+        "MemoryPressure": false,
+        "DiskPressure": false,
+        "PIDPressure": false,
+        "NetworkUnavailable": false
+    },
+    "labels": {
+        "kubernetes.io/hostname": "worker-node-1",
+        "node-role.kubernetes.io/worker": "true"
+    },
+    "annotations": {},
+    "internalIP": "192.168.1.100",
+    "externalIP": "203.0.113.1",
+    "hostname": "worker-node-1",
+    "unschedulable": false,
+    "ready": true,
+    "createdByKind": "",
+    "createdByName": "",
+    "createdTimestamp": 1718020800,
+    "role": "worker",
+    "taints": [
+        {
+            "key": "node.kubernetes.io/not-ready",
+            "value": "",
+            "effect": "NoExecute"
+        }
+    ],
+    "deletionTimestamp": null
 }
 ```
 
@@ -347,26 +335,24 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "replicaset",
     "name": "sample-deployment-abc123",
     "namespace": "default",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-app",
-            "pod-template-hash": "abc123"
-        },
-        "annotations": {},
-        "desiredReplicas": 3,
-        "currentReplicas": 3,
-        "readyReplicas": 3,
-        "availableReplicas": 3,
-        "fullyLabeledReplicas": 3,
-        "observedGeneration": 1,
-        "conditionAvailable": true,
-        "conditionProgressing": false,
-        "conditionReplicaFailure": false,
-        "createdByKind": "Deployment",
-        "createdByName": "sample-deployment",
-        "isCurrent": true
-    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-app",
+        "pod-template-hash": "abc123"
+    },
+    "annotations": {},
+    "desiredReplicas": 3,
+    "currentReplicas": 3,
+    "readyReplicas": 3,
+    "availableReplicas": 3,
+    "fullyLabeledReplicas": 3,
+    "observedGeneration": 1,
+    "conditionAvailable": true,
+    "conditionProgressing": false,
+    "conditionReplicaFailure": false,
+    "createdByKind": "Deployment",
+    "createdByName": "sample-deployment",
+    "isCurrent": true
 }
 ```
 
@@ -378,28 +364,26 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "statefulset",
     "name": "sample-statefulset",
     "namespace": "default",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-statefulset"
-        },
-        "annotations": {},
-        "desiredReplicas": 3,
-        "currentReplicas": 3,
-        "readyReplicas": 3,
-        "updatedReplicas": 3,
-        "observedGeneration": 1,
-        "currentRevision": "sample-statefulset-1",
-        "updateRevision": "sample-statefulset-1",
-        "conditionAvailable": true,
-        "conditionProgressing": false,
-        "conditionReplicaFailure": false,
-        "createdByKind": "",
-        "createdByName": "",
-        "serviceName": "sample-statefulset",
-        "podManagementPolicy": "OrderedReady",
-        "updateStrategy": "RollingUpdate"
-    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-statefulset"
+    },
+    "annotations": {},
+    "desiredReplicas": 3,
+    "currentReplicas": 3,
+    "readyReplicas": 3,
+    "updatedReplicas": 3,
+    "observedGeneration": 1,
+    "currentRevision": "sample-statefulset-1",
+    "updateRevision": "sample-statefulset-1",
+    "conditionAvailable": true,
+    "conditionProgressing": false,
+    "conditionReplicaFailure": false,
+    "createdByKind": "",
+    "createdByName": "",
+    "serviceName": "sample-statefulset",
+    "podManagementPolicy": "OrderedReady",
+    "updateStrategy": "RollingUpdate"
 }
 ```
 
@@ -411,27 +395,25 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "daemonset",
     "name": "sample-daemonset",
     "namespace": "kube-system",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-daemonset"
-        },
-        "annotations": {},
-        "desiredNumberScheduled": 3,
-        "currentNumberScheduled": 3,
-        "numberReady": 3,
-        "numberAvailable": 3,
-        "numberUnavailable": 0,
-        "numberMisscheduled": 0,
-        "updatedNumberScheduled": 3,
-        "observedGeneration": 1,
-        "conditionAvailable": true,
-        "conditionProgressing": false,
-        "conditionReplicaFailure": false,
-        "createdByKind": "",
-        "createdByName": "",
-        "updateStrategy": "RollingUpdate"
-    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-daemonset"
+    },
+    "annotations": {},
+    "desiredNumberScheduled": 3,
+    "currentNumberScheduled": 3,
+    "numberReady": 3,
+    "numberAvailable": 3,
+    "numberUnavailable": 0,
+    "numberMisscheduled": 0,
+    "updatedNumberScheduled": 3,
+    "observedGeneration": 1,
+    "conditionAvailable": true,
+    "conditionProgressing": false,
+    "conditionReplicaFailure": false,
+    "createdByKind": "",
+    "createdByName": "",
+    "updateStrategy": "RollingUpdate"
 }
 ```
 
@@ -443,19 +425,17 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "namespace",
     "name": "default",
     "namespace": "default",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "kubernetes.io/metadata.name": "default"
-        },
-        "annotations": {},
-        "phase": "Active",
-        "conditionActive": true,
-        "conditionTerminating": false,
-        "createdByKind": "",
-        "createdByName": "",
-        "deletionTimestamp": null
-    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "kubernetes.io/metadata.name": "default"
+    },
+    "annotations": {},
+    "phase": "Active",
+    "conditionActive": true,
+    "conditionTerminating": false,
+    "createdByKind": "",
+    "createdByName": "",
+    "deletionTimestamp": null
 }
 ```
 
@@ -467,26 +447,24 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "job",
     "name": "sample-job",
     "namespace": "default",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-job"
-        },
-        "annotations": {},
-        "activePods": 0,
-        "succeededPods": 1,
-        "failedPods": 0,
-        "completions": 1,
-        "parallelism": 1,
-        "backoffLimit": 6,
-        "activeDeadlineSeconds": null,
-        "conditionComplete": true,
-        "conditionFailed": false,
-        "createdByKind": "",
-        "createdByName": "",
-        "jobType": "Job",
-        "suspend": null
-    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-job"
+    },
+    "annotations": {},
+    "activePods": 0,
+    "succeededPods": 1,
+    "failedPods": 0,
+    "completions": 1,
+    "parallelism": 1,
+    "backoffLimit": 6,
+    "activeDeadlineSeconds": null,
+    "conditionComplete": true,
+    "conditionFailed": false,
+    "createdByKind": "",
+    "createdByName": "",
+    "jobType": "Job",
+    "suspend": null
 }
 ```
 
@@ -498,24 +476,22 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "cronjob",
     "name": "sample-cronjob",
     "namespace": "default",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-cronjob"
-        },
-        "annotations": {},
-        "schedule": "0 0 * * *",
-        "concurrencyPolicy": "Allow",
-        "suspend": null,
-        "successfulJobsHistoryLimit": 3,
-        "failedJobsHistoryLimit": 1,
-        "activeJobsCount": 0,
-        "lastScheduleTime": "2024-01-15T00:00:00Z",
-        "nextScheduleTime": null,
-        "conditionActive": false,
-        "createdByKind": "",
-        "createdByName": ""
-    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-cronjob"
+    },
+    "annotations": {},
+    "schedule": "0 0 * * *",
+    "concurrencyPolicy": "Allow",
+    "suspend": null,
+    "successfulJobsHistoryLimit": 3,
+    "failedJobsHistoryLimit": 1,
+    "activeJobsCount": 0,
+    "lastScheduleTime": "2024-01-15T00:00:00Z",
+    "nextScheduleTime": null,
+    "conditionActive": false,
+    "createdByKind": "",
+    "createdByName": ""
 }
 ```
 
@@ -527,16 +503,14 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "configmap",
     "name": "sample-configmap",
     "namespace": "default",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-app"
-        },
-        "annotations": {},
-        "dataKeys": ["config.json", "environment"],
-        "createdByKind": "",
-        "createdByName": ""
-    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-app"
+    },
+    "annotations": {},
+    "dataKeys": ["config.json", "environment"],
+    "createdByKind": "",
+    "createdByName": ""
 }
 ```
 
@@ -548,17 +522,15 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "secret",
     "name": "sample-secret",
     "namespace": "default",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-app"
-        },
-        "annotations": {},
-        "type": "Opaque",
-        "dataKeys": ["username", "password", "api-key"],
-        "createdByKind": "",
-        "createdByName": ""
-    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-app"
+    },
+    "annotations": {},
+    "type": "Opaque",
+    "dataKeys": ["username", "password", "api-key"],
+    "createdByKind": "",
+    "createdByName": ""
 }
 ```
 
@@ -570,20 +542,18 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "persistentvolumeclaim",
     "name": "sample-pvc",
     "namespace": "default",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-app"
-        },
-        "annotations": {},
-        "accessModes": ["ReadWriteOnce"],
-        "capacity": {
-            "storage": "1Gi"
-        },
-        "condition": "Bound",
-        "phase": "Bound",
-        "volumeName": "sample-pv"
-    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-app"
+    },
+    "annotations": {},
+    "accessModes": ["ReadWriteOnce"],
+    "capacity": {
+        "storage": "1Gi"
+    },
+    "condition": "Bound",
+    "phase": "Bound",
+    "volumeName": "sample-pv"
 }
 ```
 
@@ -595,39 +565,37 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "persistentvolume",
     "name": "sample-pv",
     "namespace": "",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-app"
-        },
-        "annotations": {},
-        "capacity": {
-            "storage": "1Gi"
-        },
-        "accessModes": ["ReadWriteOnce"],
-        "phase": "Bound",
-        "claimRef": {
-            "apiVersion": "v1",
-            "kind": "PersistentVolumeClaim",
-            "name": "sample-pvc",
-            "namespace": "default"
-        },
-        "storageClassName": "standard",
-        "volumeMode": "Filesystem",
-        "nodeAffinity": {
-            "required": {
-                "nodeSelectorTerms": [
-                    {
-                        "matchExpressions": [
-                            {
-                                "key": "kubernetes.io/hostname",
-                                "operator": "In",
-                                "values": ["worker-node-1"]
-                            }
-                        ]
-                    }
-                ]
-            }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-app"
+    },
+    "annotations": {},
+    "capacity": {
+        "storage": "1Gi"
+    },
+    "accessModes": ["ReadWriteOnce"],
+    "phase": "Bound",
+    "claimRef": {
+        "apiVersion": "v1",
+        "kind": "PersistentVolumeClaim",
+        "name": "sample-pvc",
+        "namespace": "default"
+    },
+    "storageClassName": "standard",
+    "volumeMode": "Filesystem",
+    "nodeAffinity": {
+        "required": {
+            "nodeSelectorTerms": [
+                {
+                    "matchExpressions": [
+                        {
+                            "key": "kubernetes.io/hostname",
+                            "operator": "In",
+                            "values": ["worker-node-1"]
+                        }
+                    ]
+                }
+            ]
         }
     }
 }
@@ -641,43 +609,42 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "ingress",
     "name": "sample-ingress",
     "namespace": "default",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-app"
-        },
-        "annotations": {},
-        "spec": {
-            "rules": [
-                {
-                    "host": "sample.example.com",
-                    "http": {
-                        "paths": [
-                            {
-                                "path": "/",
-                                "pathType": "Prefix",
-                                "backend": {
-                                    "service": {
-                                        "name": "sample-service",
-                                        "port": {
-                                            "number": 80
-                                        }
-                                    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-app"
+    },
+    "annotations": {
+        "kubernetes.io/ingress.class": "nginx"
+    },
+    "ingressClassName": "nginx",
+    "rules": [
+        {
+            "host": "sample.example.com",
+            "http": {
+                "paths": [
+                    {
+                        "path": "/",
+                        "pathType": "Prefix",
+                        "backend": {
+                            "service": {
+                                "name": "sample-service",
+                                "port": {
+                                    "number": 80
                                 }
                             }
-                        ]
-                    }
-                }
-            ]
-        },
-        "status": {
-            "loadBalancer": {
-                "ingress": [
-                    {
-                        "ip": "192.168.1.100"
+                        }
                     }
                 ]
             }
+        }
+    ],
+    "status": {
+        "loadBalancer": {
+            "ingress": [
+                {
+                    "ip": "192.168.1.100"
+                }
+            ]
         }
     }
 }
@@ -691,27 +658,25 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "horizontalpodautoscaler",
     "name": "sample-hpa",
     "namespace": "default",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-app"
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-app"
+    },
+    "annotations": {},
+    "spec": {
+        "scaleTargetRef": {
+            "apiVersion": "apps/v1",
+            "kind": "Deployment",
+            "name": "sample-deployment"
         },
-        "annotations": {},
-        "spec": {
-            "scaleTargetRef": {
-                "apiVersion": "apps/v1",
-                "kind": "Deployment",
-                "name": "sample-deployment"
-            },
-            "minReplicas": 1,
-            "maxReplicas": 5,
-            "targetCPUUtilizationPercentage": 80
-        },
-        "status": {
-            "currentReplicas": 3,
-            "desiredReplicas": 3,
-            "currentCPUUtilizationPercentage": 70
-        }
+        "minReplicas": 1,
+        "maxReplicas": 5,
+        "targetCPUUtilizationPercentage": 80
+    },
+    "status": {
+        "currentReplicas": 3,
+        "desiredReplicas": 3,
+        "currentCPUUtilizationPercentage": 70
     }
 }
 ```
@@ -724,19 +689,17 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "serviceaccount",
     "name": "sample-sa",
     "namespace": "default",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-app"
-        },
-        "annotations": {},
-        "imagePullSecrets": [
-            {
-                "name": "sample-secret"
-            }
-        ],
-        "automountServiceAccountToken": true
-    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-app"
+    },
+    "annotations": {},
+    "imagePullSecrets": [
+        {
+            "name": "sample-secret"
+        }
+    ],
+    "automountServiceAccountToken": true
 }
 ```
 
@@ -748,28 +711,26 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "endpoints",
     "name": "sample-service",
     "namespace": "default",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-service"
-        },
-        "annotations": {},
-        "subsets": [
-            {
-                "addresses": [
-                    {
-                        "ip": "10.244.0.5"
-                    }
-                ],
-                "ports": [
-                    {
-                        "name": "http",
-                        "port": 8080
-                    }
-                ]
-            }
-        ]
-    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-service"
+    },
+    "annotations": {},
+    "subsets": [
+        {
+            "addresses": [
+                {
+                    "ip": "10.244.0.5"
+                }
+            ],
+            "ports": [
+                {
+                    "name": "http",
+                    "port": 8080
+                }
+            ]
+        }
+    ]
 }
 ```
 
@@ -781,22 +742,20 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "resourcequota",
     "name": "sample-quota",
     "namespace": "default",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-app"
-        },
-        "annotations": {},
-        "hard": {
-            "pods": "10",
-            "memory": "500Mi",
-            "cpu": "500m"
-        },
-        "used": {
-            "pods": "3",
-            "memory": "128Mi",
-            "cpu": "250m"
-        }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-app"
+    },
+    "annotations": {},
+    "hard": {
+        "pods": "10",
+        "memory": "500Mi",
+        "cpu": "500m"
+    },
+    "used": {
+        "pods": "3",
+        "memory": "128Mi",
+        "cpu": "250m"
     }
 }
 ```
@@ -809,26 +768,24 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "poddisruptionbudget",
     "name": "sample-pdb",
     "namespace": "default",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-app"
-        },
-        "annotations": {},
-        "spec": {
-            "minAvailable": 1,
-            "selector": {
-                "matchLabels": {
-                    "app": "sample-app"
-                }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-app"
+    },
+    "annotations": {},
+    "spec": {
+        "minAvailable": 1,
+        "selector": {
+            "matchLabels": {
+                "app": "sample-app"
             }
-        },
-        "status": {
-            "currentHealthy": 2,
-            "desiredHealthy": 1,
-            "disruptionsAllowed": 1,
-            "expectedPods": 3
         }
+    },
+    "status": {
+        "currentHealthy": 2,
+        "desiredHealthy": 1,
+        "disruptionsAllowed": 1,
+        "expectedPods": 3
     }
 }
 ```
@@ -841,43 +798,41 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "mutatingwebhookconfiguration",
     "name": "sample-mutating-webhook",
     "namespace": "",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-webhook"
-        },
-        "annotations": {},
-        "webhooks": [
-            {
-                "name": "sample-webhook.example.com",
-                "clientConfig": {
-                    "url": "https://webhook.example.com/mutate",
-                    "service": {
-                        "namespace": "webhook-system",
-                        "name": "sample-webhook-service",
-                        "path": "/mutate",
-                        "port": 443
-                    },
-                    "caBundle": "LS0tLS1CRUdJTi..."
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-webhook"
+    },
+    "annotations": {},
+    "webhooks": [
+        {
+            "name": "sample-webhook.example.com",
+            "clientConfig": {
+                "url": "https://webhook.example.com/mutate",
+                "service": {
+                    "namespace": "webhook-system",
+                    "name": "sample-webhook-service",
+                    "path": "/mutate",
+                    "port": 443
                 },
-                "rules": [
-                    {
-                        "apiGroups": ["apps"],
-                        "apiVersions": ["v1"],
-                        "resources": ["deployments"],
-                        "scope": "Namespaced"
-                    }
-                ],
-                "failurePolicy": "Ignore",
-                "matchPolicy": "Equivalent",
-                "namespaceSelector": {},
-                "objectSelector": {},
-                "sideEffects": "None",
-                "timeoutSeconds": 30,
-                "admissionReviewVersions": ["v1"]
-            }
-        ]
-    }
+                "caBundle": "LS0tLS1CRUdJTi..."
+            },
+            "rules": [
+                {
+                    "apiGroups": ["apps"],
+                    "apiVersions": ["v1"],
+                    "resources": ["deployments"],
+                    "scope": "Namespaced"
+                }
+            ],
+            "failurePolicy": "Ignore",
+            "matchPolicy": "Equivalent",
+            "namespaceSelector": {},
+            "objectSelector": {},
+            "sideEffects": "None",
+            "timeoutSeconds": 30,
+            "admissionReviewVersions": ["v1"]
+        }
+    ]
 }
 ```
 
@@ -889,43 +844,41 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "validatingwebhookconfiguration",
     "name": "sample-validating-webhook",
     "namespace": "",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-webhook"
-        },
-        "annotations": {},
-        "webhooks": [
-            {
-                "name": "sample-webhook.example.com",
-                "clientConfig": {
-                    "url": "https://webhook.example.com/validate",
-                    "service": {
-                        "namespace": "webhook-system",
-                        "name": "sample-webhook-service",
-                        "path": "/validate",
-                        "port": 443
-                    },
-                    "caBundle": "LS0tLS1CRUdJTi..."
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-webhook"
+    },
+    "annotations": {},
+    "webhooks": [
+        {
+            "name": "sample-webhook.example.com",
+            "clientConfig": {
+                "url": "https://webhook.example.com/validate",
+                "service": {
+                    "namespace": "webhook-system",
+                    "name": "sample-webhook-service",
+                    "path": "/validate",
+                    "port": 443
                 },
-                "rules": [
-                    {
-                        "apiGroups": ["apps"],
-                        "apiVersions": ["v1"],
-                        "resources": ["deployments"],
-                        "scope": "Namespaced"
-                    }
-                ],
-                "failurePolicy": "Fail",
-                "matchPolicy": "Equivalent",
-                "namespaceSelector": {},
-                "objectSelector": {},
-                "sideEffects": "None",
-                "timeoutSeconds": 30,
-                "admissionReviewVersions": ["v1"]
-            }
-        ]
-    }
+                "caBundle": "LS0tLS1CRUdJTi..."
+            },
+            "rules": [
+                {
+                    "apiGroups": ["apps"],
+                    "apiVersions": ["v1"],
+                    "resources": ["deployments"],
+                    "scope": "Namespaced"
+                }
+            ],
+            "failurePolicy": "Fail",
+            "matchPolicy": "Equivalent",
+            "namespaceSelector": {},
+            "objectSelector": {},
+            "sideEffects": "None",
+            "timeoutSeconds": 30,
+            "admissionReviewVersions": ["v1"]
+        }
+    ]
 }
 ```
 
@@ -937,17 +890,15 @@ Kube-state-logs supports the following Kubernetes resource types:
     "resourceType": "ingressclass",
     "name": "nginx",
     "namespace": "",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "nginx-ingress"
-        },
-        "annotations": {
-            "ingressclass.kubernetes.io/is-default-class": "true"
-        },
-        "controller": "k8s.io/ingress-nginx",
-        "isDefault": true
-    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "nginx-ingress"
+    },
+    "annotations": {
+        "ingressclass.kubernetes.io/is-default-class": "true"
+    },
+    "controller": "k8s.io/ingress-nginx",
+    "isDefault": true
 }
 ```
 
@@ -961,7 +912,6 @@ All log entries include these common fields:
 - **resourceType**: Type of Kubernetes resource (e.g., "deployment", "pod", "service")
 - **name**: Name of the resource
 - **namespace**: Namespace where the resource exists (empty for cluster-scoped resources like nodes)
-- **data**: Resource-specific data fields
 
 ### Resource-Specific Fields
 

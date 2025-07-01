@@ -39,6 +39,7 @@ func (h *PodDisruptionBudgetHandler) Collect(ctx context.Context, namespaces []s
 
 	// Get all poddisruptionbudgets from the cache
 	pdbs := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range pdbs {
 		pdb, ok := obj.(*policyv1.PodDisruptionBudget)
@@ -51,6 +52,7 @@ func (h *PodDisruptionBudgetHandler) Collect(ctx context.Context, namespaces []s
 		}
 
 		entry := h.createLogEntry(pdb)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

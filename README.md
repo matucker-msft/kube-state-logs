@@ -256,36 +256,34 @@ kubectl logs -f deployment/kube-state-logs -n monitoring
     "resourceType": "deployment",
     "name": "sample-deployment",
     "namespace": "my-sample-namespace",
-    "data": {
-        "createdTimestamp": 1718020800,
-        "labels": {
-            "app": "sample-deployment"
-        },
-        "annotations": {
-            "deployment.kubernetes.io/revision": "1"
-        },
-        "desiredReplicas": 3,
-        "currentReplicas": 3,
-        "readyReplicas": 3,
-        "availableReplicas": 3,
-        "unavailableReplicas": 0,
-        "updatedReplicas": 3,
-        "observedGeneration": 8,
-        "replicasDesired": 3,
-        "replicasAvailable": 3,
-        "replicasUnavailable": 0,
-        "replicasUpdated": 3,
-        "strategyType": "RollingUpdate",
-        "strategyRollingUpdateMaxSurge": 1,
-        "strategyRollingUpdateMaxUnavailable": 1,
-        "conditionAvailable": true,
-        "conditionProgressing": true,
-        "conditionReplicaFailure": false,
-        "createdByKind": "",
-        "createdByName": "",
-        "paused": false,
-        "metadataGeneration": 1
-    }
+    "createdTimestamp": 1718020800,
+    "labels": {
+        "app": "sample-deployment"
+    },
+    "annotations": {
+        "deployment.kubernetes.io/revision": "1"
+    },
+    "createdByKind": "",
+    "createdByName": "",
+    "desiredReplicas": 3,
+    "currentReplicas": 3,
+    "readyReplicas": 3,
+    "availableReplicas": 3,
+    "unavailableReplicas": 0,
+    "updatedReplicas": 3,
+    "observedGeneration": 8,
+    "replicasDesired": 3,
+    "replicasAvailable": 3,
+    "replicasUnavailable": 0,
+    "replicasUpdated": 3,
+    "strategyType": "RollingUpdate",
+    "strategyRollingUpdateMaxSurge": 1,
+    "strategyRollingUpdateMaxUnavailable": 1,
+    "conditionAvailable": true,
+    "conditionProgressing": true,
+    "conditionReplicaFailure": false,
+    "paused": false,
+    "metadataGeneration": 1
 }
 ```
 

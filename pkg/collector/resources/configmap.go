@@ -39,6 +39,7 @@ func (h *ConfigMapHandler) Collect(ctx context.Context, namespaces []string) ([]
 
 	// Get all configmaps from the cache
 	configmaps := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range configmaps {
 		configmap, ok := obj.(*corev1.ConfigMap)
@@ -51,6 +52,7 @@ func (h *ConfigMapHandler) Collect(ctx context.Context, namespaces []string) ([]
 		}
 
 		entry := h.createLogEntry(configmap)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

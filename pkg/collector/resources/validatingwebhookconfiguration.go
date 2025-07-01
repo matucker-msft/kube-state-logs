@@ -39,6 +39,7 @@ func (h *ValidatingWebhookConfigurationHandler) Collect(ctx context.Context, nam
 
 	// Get all validatingwebhookconfigurations from the cache
 	webhooks := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range webhooks {
 		webhook, ok := obj.(*admissionregistrationv1.ValidatingWebhookConfiguration)
@@ -47,6 +48,7 @@ func (h *ValidatingWebhookConfigurationHandler) Collect(ctx context.Context, nam
 		}
 
 		entry := h.createLogEntry(webhook)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

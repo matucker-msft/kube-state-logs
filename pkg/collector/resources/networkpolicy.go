@@ -38,19 +38,21 @@ func (h *NetworkPolicyHandler) Collect(ctx context.Context, namespaces []string)
 	var entries []any
 
 	// Get all networkpolicies from the cache
-	networkPolicies := utils.SafeGetStoreList(h.GetInformer())
+	networkpolicies := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range networkPolicies {
-		np, ok := obj.(*networkingv1.NetworkPolicy)
+	for _, obj := range networkpolicies {
+		networkpolicy, ok := obj.(*networkingv1.NetworkPolicy)
 		if !ok {
 			continue
 		}
 
-		if !utils.ShouldIncludeNamespace(namespaces, np.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, networkpolicy.Namespace) {
 			continue
 		}
 
-		entry := h.createLogEntry(np)
+		entry := h.createLogEntry(networkpolicy)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

@@ -38,15 +38,17 @@ func (h *VolumeAttachmentHandler) Collect(ctx context.Context, namespaces []stri
 	var entries []any
 
 	// Get all volumeattachments from the cache
-	volumeAttachments := utils.SafeGetStoreList(h.GetInformer())
+	volumeattachments := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range volumeAttachments {
-		va, ok := obj.(*storagev1.VolumeAttachment)
+	for _, obj := range volumeattachments {
+		volumeattachment, ok := obj.(*storagev1.VolumeAttachment)
 		if !ok {
 			continue
 		}
 
-		entry := h.createLogEntry(va)
+		entry := h.createLogEntry(volumeattachment)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

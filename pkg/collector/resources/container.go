@@ -50,9 +50,15 @@ func (h *ContainerHandler) Collect(ctx context.Context, namespaces []string) ([]
 			continue
 		}
 
-		// Process each container in the pod
-		for _, containerSpec := range pod.Spec.Containers {
-			entry := h.createLogEntry(pod, containerSpec)
+		// Create entries for each container
+		for _, container := range pod.Status.ContainerStatuses {
+			entry := h.createLogEntry(pod, &container, false)
+			entries = append(entries, entry)
+		}
+
+		// Create entries for each init container
+		for _, container := range pod.Status.InitContainerStatuses {
+			entry := h.createLogEntry(pod, &container, true)
 			entries = append(entries, entry)
 		}
 	}
@@ -60,95 +66,88 @@ func (h *ContainerHandler) Collect(ctx context.Context, namespaces []string) ([]
 	return entries, nil
 }
 
-// createLogEntry creates a ContainerData from a pod and container spec
-func (h *ContainerHandler) createLogEntry(pod *corev1.Pod, containerSpec corev1.Container) types.ContainerData {
-	// Find container status
-	var containerStatus *corev1.ContainerStatus
-	statuses := pod.Status.ContainerStatuses
-
-	for _, status := range statuses {
-		if status.Name == containerSpec.Name {
-			containerStatus = &status
-			break
-		}
-	}
-
+// createLogEntry creates a ContainerData from a pod and container status
+func (h *ContainerHandler) createLogEntry(pod *corev1.Pod, container *corev1.ContainerStatus, isInitContainer bool) types.ContainerData {
 	// Determine container state
 	state := "unknown"
 	stateRunning := false
 	stateWaiting := false
 	stateTerminated := false
+
 	var waitingReason, waitingMessage string
-	var startedAt *time.Time
+	var startedAt, finishedAt, startedAtTerm *time.Time
 	var exitCode int32
 	var reason, message string
-	var finishedAt, startedAtTerm *time.Time
-
-	// Last terminated state info
 	var lastTerminatedReason string
 	var lastTerminatedExitCode int32
 	var lastTerminatedTimestamp *time.Time
 
-	if containerStatus != nil {
-		if containerStatus.State.Running != nil {
+	if container != nil {
+		if container.State.Running != nil {
 			state = "running"
 			stateRunning = true
-			if !containerStatus.State.Running.StartedAt.IsZero() {
-				startedAt = &containerStatus.State.Running.StartedAt.Time
+			if !container.State.Running.StartedAt.IsZero() {
+				startedAt = &container.State.Running.StartedAt.Time
 			}
-		} else if containerStatus.State.Waiting != nil {
+		} else if container.State.Waiting != nil {
 			state = "waiting"
 			stateWaiting = true
-			waitingReason = string(containerStatus.State.Waiting.Reason)
-			waitingMessage = containerStatus.State.Waiting.Message
-		} else if containerStatus.State.Terminated != nil {
+			waitingReason = string(container.State.Waiting.Reason)
+			waitingMessage = container.State.Waiting.Message
+		} else if container.State.Terminated != nil {
 			state = "terminated"
 			stateTerminated = true
-			exitCode = containerStatus.State.Terminated.ExitCode
-			reason = string(containerStatus.State.Terminated.Reason)
-			message = containerStatus.State.Terminated.Message
-			if !containerStatus.State.Terminated.FinishedAt.IsZero() {
-				finishedAt = &containerStatus.State.Terminated.FinishedAt.Time
+			exitCode = container.State.Terminated.ExitCode
+			reason = string(container.State.Terminated.Reason)
+			message = container.State.Terminated.Message
+			if !container.State.Terminated.FinishedAt.IsZero() {
+				finishedAt = &container.State.Terminated.FinishedAt.Time
 			}
-			if !containerStatus.State.Terminated.StartedAt.IsZero() {
-				startedAtTerm = &containerStatus.State.Terminated.StartedAt.Time
+			if !container.State.Terminated.StartedAt.IsZero() {
+				startedAtTerm = &container.State.Terminated.StartedAt.Time
 			}
 		}
 
 		// Get last terminated state
-		if containerStatus.LastTerminationState.Terminated != nil {
-			lastTerminatedReason = string(containerStatus.LastTerminationState.Terminated.Reason)
-			lastTerminatedExitCode = containerStatus.LastTerminationState.Terminated.ExitCode
-			if !containerStatus.LastTerminationState.Terminated.FinishedAt.IsZero() {
-				lastTerminatedTimestamp = &containerStatus.LastTerminationState.Terminated.FinishedAt.Time
+		if container.LastTerminationState.Terminated != nil {
+			lastTerminatedReason = string(container.LastTerminationState.Terminated.Reason)
+			lastTerminatedExitCode = container.LastTerminationState.Terminated.ExitCode
+			if !container.LastTerminationState.Terminated.FinishedAt.IsZero() {
+				lastTerminatedTimestamp = &container.LastTerminationState.Terminated.FinishedAt.Time
 			}
 		}
 	}
 
-	// Extract resource requests and limits
-	resourceRequests := utils.ExtractResourceMap(containerSpec.Resources.Requests)
-	resourceLimits := utils.ExtractResourceMap(containerSpec.Resources.Limits)
+	// Extract resource requests and limits from pod spec
+	var resourceRequests, resourceLimits map[string]string
+	for _, containerSpec := range pod.Spec.Containers {
+		if containerSpec.Name == container.Name {
+			resourceRequests = utils.ExtractResourceMap(containerSpec.Resources.Requests)
+			resourceLimits = utils.ExtractResourceMap(containerSpec.Resources.Limits)
+			break
+		}
+	}
 
 	imageID := ""
-	if containerStatus != nil {
-		imageID = containerStatus.ImageID
+	if container != nil {
+		imageID = container.ImageID
 	}
 
 	// Get state started time (when container first started)
 	var stateStarted *time.Time
-	if containerStatus != nil && containerStatus.State.Running != nil && !containerStatus.State.Running.StartedAt.IsZero() {
-		stateStarted = &containerStatus.State.Running.StartedAt.Time
+	if container != nil && container.State.Running != nil && !container.State.Running.StartedAt.IsZero() {
+		stateStarted = &container.State.Running.StartedAt.Time
 	}
 
 	data := types.ContainerData{
-		Name:    containerSpec.Name,
-		Image:   containerSpec.Image,
+		Name:    container.Name,
+		Image:   container.Image,
 		ImageID: imageID,
 		PodName: pod.Name,
-		Ready:   containerStatus != nil && containerStatus.Ready,
+		Ready:   container != nil && container.Ready,
 		RestartCount: func() int32 {
-			if containerStatus != nil {
-				return containerStatus.RestartCount
+			if container != nil {
+				return container.RestartCount
 			}
 			return 0
 		}(),

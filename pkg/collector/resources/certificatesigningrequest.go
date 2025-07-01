@@ -39,6 +39,7 @@ func (h *CertificateSigningRequestHandler) Collect(ctx context.Context, namespac
 
 	// Get all certificatesigningrequests from the cache
 	csrs := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range csrs {
 		csr, ok := obj.(*certificatesv1.CertificateSigningRequest)
@@ -47,6 +48,7 @@ func (h *CertificateSigningRequestHandler) Collect(ctx context.Context, namespac
 		}
 
 		entry := h.createLogEntry(csr)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

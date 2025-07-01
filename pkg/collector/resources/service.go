@@ -46,6 +46,7 @@ func (h *ServiceHandler) Collect(ctx context.Context, namespaces []string) ([]an
 
 	// Get all services from the cache
 	services := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range services {
 		service, ok := obj.(*corev1.Service)
@@ -58,6 +59,7 @@ func (h *ServiceHandler) Collect(ctx context.Context, namespaces []string) ([]an
 		}
 
 		entry := h.createLogEntry(service)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

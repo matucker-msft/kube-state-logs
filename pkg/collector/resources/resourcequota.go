@@ -38,19 +38,21 @@ func (h *ResourceQuotaHandler) Collect(ctx context.Context, namespaces []string)
 	var entries []any
 
 	// Get all resourcequotas from the cache
-	quotas := utils.SafeGetStoreList(h.GetInformer())
+	resourcequotas := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range quotas {
-		quota, ok := obj.(*corev1.ResourceQuota)
+	for _, obj := range resourcequotas {
+		resourcequota, ok := obj.(*corev1.ResourceQuota)
 		if !ok {
 			continue
 		}
 
-		if !utils.ShouldIncludeNamespace(namespaces, quota.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, resourcequota.Namespace) {
 			continue
 		}
 
-		entry := h.createLogEntry(quota)
+		entry := h.createLogEntry(resourcequota)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

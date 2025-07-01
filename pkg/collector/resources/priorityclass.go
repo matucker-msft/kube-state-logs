@@ -38,15 +38,17 @@ func (h *PriorityClassHandler) Collect(ctx context.Context, namespaces []string)
 	var entries []any
 
 	// Get all priorityclasses from the cache
-	priorityClasses := utils.SafeGetStoreList(h.GetInformer())
+	priorityclasses := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range priorityClasses {
-		pc, ok := obj.(*schedulingv1.PriorityClass)
+	for _, obj := range priorityclasses {
+		priorityclass, ok := obj.(*schedulingv1.PriorityClass)
 		if !ok {
 			continue
 		}
 
-		entry := h.createLogEntry(pc)
+		entry := h.createLogEntry(priorityclass)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

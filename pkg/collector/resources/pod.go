@@ -41,6 +41,7 @@ func (h *PodHandler) Collect(ctx context.Context, namespaces []string) ([]any, e
 
 	// Get all pods from the cache
 	pods := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range pods {
 		pod, ok := obj.(*corev1.Pod)
@@ -53,6 +54,7 @@ func (h *PodHandler) Collect(ctx context.Context, namespaces []string) ([]any, e
 		}
 
 		entry := h.createLogEntry(pod)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

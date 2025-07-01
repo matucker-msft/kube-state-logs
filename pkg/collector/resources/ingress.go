@@ -40,6 +40,7 @@ func (h *IngressHandler) Collect(ctx context.Context, namespaces []string) ([]an
 
 	// Get all ingresses from the cache
 	ingresses := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
 	for _, obj := range ingresses {
 		ingress, ok := obj.(*networkingv1.Ingress)
@@ -52,6 +53,7 @@ func (h *IngressHandler) Collect(ctx context.Context, namespaces []string) ([]an
 		}
 
 		entry := h.createLogEntry(ingress)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 

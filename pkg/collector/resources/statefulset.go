@@ -38,19 +38,21 @@ func (h *StatefulSetHandler) Collect(ctx context.Context, namespaces []string) (
 	var entries []any
 
 	// Get all statefulsets from the cache
-	statefulSets := utils.SafeGetStoreList(h.GetInformer())
+	statefulsets := utils.SafeGetStoreList(h.GetInformer())
+	listTime := time.Now()
 
-	for _, obj := range statefulSets {
-		sts, ok := obj.(*appsv1.StatefulSet)
+	for _, obj := range statefulsets {
+		statefulset, ok := obj.(*appsv1.StatefulSet)
 		if !ok {
 			continue
 		}
 
-		if !utils.ShouldIncludeNamespace(namespaces, sts.Namespace) {
+		if !utils.ShouldIncludeNamespace(namespaces, statefulset.Namespace) {
 			continue
 		}
 
-		entry := h.createLogEntry(sts)
+		entry := h.createLogEntry(statefulset)
+		entry.Timestamp = listTime
 		entries = append(entries, entry)
 	}
 
