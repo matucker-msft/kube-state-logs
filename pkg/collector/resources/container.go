@@ -82,7 +82,7 @@ func (h *ContainerHandler) processPods(pods []any, namespaces []string) ([]any, 
 			}
 
 			// Log newly terminated containers
-			if h.isNewlyTerminated(containerKey, currentState) {
+			if h.isNewlyTerminated(containerKey, currentState, &container) {
 				entry := h.createLogEntry(pod, &container, false)
 				entry.Timestamp = listTime
 				entries = append(entries, entry)
@@ -103,7 +103,7 @@ func (h *ContainerHandler) processPods(pods []any, namespaces []string) ([]any, 
 			}
 
 			// Log newly terminated init containers
-			if h.isNewlyTerminated(containerKey, currentState) {
+			if h.isNewlyTerminated(containerKey, currentState, &container) {
 				entry := h.createLogEntry(pod, &container, true)
 				entry.Timestamp = listTime
 				entries = append(entries, entry)
@@ -118,10 +118,7 @@ func (h *ContainerHandler) processPods(pods []any, namespaces []string) ([]any, 
 
 // getContainerKey creates a unique key for a container
 func (h *ContainerHandler) getContainerKey(namespace, podName, containerName string, isInit bool) string {
-	prefix := "container"
-	if isInit {
-		prefix = "init_container"
-	}
+	prefix := h.getResourceType(isInit)
 	return fmt.Sprintf("%s/%s/%s/%s", namespace, podName, containerName, prefix)
 }
 
@@ -137,10 +134,31 @@ func (h *ContainerHandler) getContainerState(container *corev1.ContainerStatus) 
 	return ContainerStateUnknown
 }
 
+// getResourceType determines the resource type based on container type
+func (h *ContainerHandler) getResourceType(isInitContainer bool) string {
+	if isInitContainer {
+		return "init_container"
+	}
+	return "container"
+}
+
 // isNewlyTerminated checks if a container should be logged as terminated
-func (h *ContainerHandler) isNewlyTerminated(containerKey, currentState string) bool {
+func (h *ContainerHandler) isNewlyTerminated(containerKey, currentState string, container *corev1.ContainerStatus) bool {
 	if currentState != ContainerStateTerminated {
 		return false
+	}
+
+	// Check if container terminated within the last hour
+	if container != nil && container.State.Terminated != nil {
+		if container.State.Terminated.FinishedAt.IsZero() {
+			return false // No finish time, skip
+		}
+
+		// Only log if terminated within the last hour
+		oneHourAgo := time.Now().Add(-1 * time.Hour)
+		if container.State.Terminated.FinishedAt.Time.Before(oneHourAgo) {
+			return false // Too old, skip
+		}
 	}
 
 	// Get previous state from cache
@@ -174,15 +192,10 @@ func (h *ContainerHandler) updateStateCache(currentStates map[string]string) {
 
 // createLogEntry creates a ContainerData from a pod and container status
 func (h *ContainerHandler) createLogEntry(pod *corev1.Pod, container *corev1.ContainerStatus, isInitContainer bool) types.ContainerData {
-	resourceType := "container"
-	if isInitContainer {
-		resourceType = "init_container"
-	}
-
 	// Handle nil container case
 	if container == nil {
 		return types.ContainerData{
-			ResourceType: resourceType,
+			ResourceType: h.getResourceType(isInitContainer),
 			Timestamp:    time.Now(),
 			PodName:      pod.Name,
 			Namespace:    pod.Namespace,
@@ -270,7 +283,7 @@ func (h *ContainerHandler) createLogEntry(pod *corev1.Pod, container *corev1.Con
 	}
 
 	data := types.ContainerData{
-		ResourceType:            resourceType,
+		ResourceType:            h.getResourceType(isInitContainer),
 		Timestamp:               time.Now(),
 		Name:                    container.Name,
 		Image:                   container.Image,

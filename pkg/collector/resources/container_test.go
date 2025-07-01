@@ -706,3 +706,71 @@ func TestContainerHandler_createLogEntry_NilContainer(t *testing.T) {
 		t.Errorf("Expected ResourceType 'init_container', got '%s'", data.ResourceType)
 	}
 }
+
+func TestContainerHandler_TerminatedContainerTimeFiltering(t *testing.T) {
+	// Create a pod with a terminated container (old finish time)
+	terminatedContainer := createTestContainer("app", "nginx:latest", false)
+	pod1 := createTestPodWithContainers("test-pod-old", "default", []corev1.Container{*terminatedContainer})
+
+	// Set container to terminated state with old finish time (2 hours ago)
+	oldFinishTime := time.Now().Add(-2 * time.Hour)
+	pod1.Status.ContainerStatuses[0].State = corev1.ContainerState{
+		Terminated: &corev1.ContainerStateTerminated{
+			ExitCode: 1,
+			Reason:   "Error",
+			FinishedAt: metav1.Time{
+				Time: oldFinishTime,
+			},
+		},
+	}
+
+	// Create another pod with a terminated container (recent finish time)
+	pod2 := createTestPodWithContainers("test-pod-recent", "default", []corev1.Container{*terminatedContainer})
+
+	// Set container to terminated state with recent finish time (30 minutes ago)
+	recentFinishTime := time.Now().Add(-30 * time.Minute)
+	pod2.Status.ContainerStatuses[0].State = corev1.ContainerState{
+		Terminated: &corev1.ContainerStateTerminated{
+			ExitCode: 1,
+			Reason:   "Error",
+			FinishedAt: metav1.Time{
+				Time: recentFinishTime,
+			},
+		},
+	}
+
+	client := fake.NewSimpleClientset(pod1, pod2)
+	handler := NewContainerHandler(client)
+
+	// Collection - should only log the recent terminated container
+	entries, err := handler.processPods([]any{pod1, pod2}, []string{})
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(entries) != 1 {
+		t.Fatalf("Expected 1 entry for recent terminated container, got %d", len(entries))
+	}
+
+	// Verify it's a terminated container
+	entry, ok := entries[0].(types.ContainerData)
+	if !ok {
+		t.Fatalf("Expected ContainerData type, got %T", entries[0])
+	}
+
+	if entry.State != "terminated" {
+		t.Errorf("Expected state 'terminated', got '%s'", entry.State)
+	}
+
+	if entry.ExitCode != 1 {
+		t.Errorf("Expected exit code 1, got %d", entry.ExitCode)
+	}
+
+	if entry.Reason != "Error" {
+		t.Errorf("Expected reason 'Error', got '%s'", entry.Reason)
+	}
+
+	if entry.PodName != "test-pod-recent" {
+		t.Errorf("Expected pod name 'test-pod-recent', got '%s'", entry.PodName)
+	}
+}
