@@ -272,9 +272,6 @@ type ReplicaSetData struct {
 
 	// All other conditions (excluding the top-level ones)
 	Conditions map[string]*bool `json:"conditions"`
-
-	// Replicaset specific
-	IsCurrent bool `json:"isCurrent"` // Whether this is the current replicaset for its owner
 }
 
 // StatefulSetData represents statefulset-specific metrics (matching kube-state-metrics)

@@ -51,6 +51,13 @@ func (h *ReplicaSetHandler) Collect(ctx context.Context, namespaces []string) ([
 			continue
 		}
 
+		// Skip replicasets with 0 desired replicas to avoid showing historical revisions
+		if replicaset.Spec.Replicas != nil {
+			if *replicaset.Spec.Replicas <= 0 {
+				continue
+			}
+		}
+
 		entry := h.createLogEntry(replicaset)
 		entry.Timestamp = listTime
 		entries = append(entries, entry)
@@ -121,13 +128,5 @@ func (h *ReplicaSetHandler) createLogEntry(rs *appsv1.ReplicaSet) types.ReplicaS
 
 		// All other conditions (excluding the top-level ones)
 		Conditions: conditions,
-
-		// Replicaset specific
-		IsCurrent: func() bool {
-			if rs.Labels != nil {
-				return rs.Labels["kube-state-logs/current"] == "true"
-			}
-			return false
-		}(),
 	}
 }
