@@ -18,7 +18,7 @@ This approach is particularly useful for:
 
 ## Inspired by kube-state-metrics
 
-🚀 **This project is heavily inspired by [kube-state-metrics](https://github.com/kubernetes/kube-state-metrics)**, the official Kubernetes project that exposes cluster state as Prometheus metrics. 
+🚀 **This project is heavily inspired by [kube-state-metrics](https://go.goms.io/aks/kube-state-metrics)**, the official Kubernetes project that exposes cluster state as Prometheus metrics. 
 
 **Key differences:**
 - **kube-state-metrics**: Exposes Prometheus metrics via HTTP endpoint
@@ -313,7 +313,7 @@ Use your existing log-based monitoring tools to:
 ### Building from Source
 
 ```bash
-git clone https://github.com/matucker-msft/kube-state-logs.git
+git clone https://go.goms.io/aks/kube-state-metrics.git
 cd kube-state-logs
 make build
 ```
@@ -344,5 +344,5 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 ## Related Projects
 
-- **[kube-state-metrics](https://github.com/kubernetes/kube-state-metrics)** - The original Prometheus metrics exporter that inspired this project. This is the official Kubernetes project that exposes cluster state as Prometheus metrics.
+- **[kube-state-metrics](https://go.goms.io/aks/kube-state-metrics)** - The original Prometheus metrics exporter that inspired this project. This is the official Kubernetes project that exposes cluster state as Prometheus metrics.
 - [kubernetes](https://github.com/kubernetes/kubernetes) - The Kubernetes project

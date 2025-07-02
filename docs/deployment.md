@@ -177,6 +177,6 @@ Images are automatically built and pushed to GitHub Container Registry:
 
 For issues and questions:
 
-- GitHub Issues: [Create an issue](https://github.com/matucker-msft/kube-state-logs/issues)
+- GitHub Issues: [Create an issue](https://go.goms.io/aks/kube-state-metrics/issues)
 - Documentation: Check the README.md
 - Helm Chart: Check the values.yaml for all available options 

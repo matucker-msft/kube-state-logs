@@ -1,4 +1,4 @@
-module github.com/matucker-msft/kube-state-logs
+module go.goms.io/aks/kube-state-logs
 
 go 1.24.0
 

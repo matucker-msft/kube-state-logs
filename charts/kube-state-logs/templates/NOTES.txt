@@ -15,4 +15,4 @@
    - Log Level: {{ .Values.config.logLevel }}
 
 4. For more information:
-   - GitHub: https://github.com/matucker-msft/kube-state-logs 
+   - GitHub: https://go.goms.io/aks/kube-state-metrics 

@@ -9,8 +9,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/matucker-msft/kube-state-logs/pkg/collector"
-	"github.com/matucker-msft/kube-state-logs/pkg/config"
+	"go.goms.io/aks/kube-state-logs/pkg/collector"
+	"go.goms.io/aks/kube-state-logs/pkg/config"
 )
 
 func main() {
