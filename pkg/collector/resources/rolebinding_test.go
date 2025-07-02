@@ -12,8 +12,8 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/tools/cache"
 
-	testutils "github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
-	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	testutils "go.goms.io/aks/kube-state-logs/pkg/collector/testutils"
+	"go.goms.io/aks/kube-state-logs/pkg/types"
 )
 
 func createTestRoleBinding(name, namespace string) *rbacv1.RoleBinding {

@@ -11,9 +11,9 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 
-	testutils "github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
-	"github.com/matucker-msft/kube-state-logs/pkg/types"
-	"github.com/matucker-msft/kube-state-logs/pkg/utils"
+	testutils "go.goms.io/aks/kube-state-logs/pkg/collector/testutils"
+	"go.goms.io/aks/kube-state-logs/pkg/types"
+	"go.goms.io/aks/kube-state-logs/pkg/utils"
 )
 
 // createTestReplicaSet creates a test replicaset with various configurations

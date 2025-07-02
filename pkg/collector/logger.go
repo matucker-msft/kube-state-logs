@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"os"
 
-	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
+	"go.goms.io/aks/kube-state-logs/pkg/interfaces"
 )
 
 // LoggerImpl handles structured JSON logging

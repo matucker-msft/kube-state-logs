@@ -11,8 +11,8 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 
-	"github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
-	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	"go.goms.io/aks/kube-state-logs/pkg/collector/testutils"
+	"go.goms.io/aks/kube-state-logs/pkg/types"
 )
 
 func createTestMutatingWebhookConfiguration(name string) *admissionregistrationv1.MutatingWebhookConfiguration {

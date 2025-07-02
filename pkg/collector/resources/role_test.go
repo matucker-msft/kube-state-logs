@@ -11,8 +11,8 @@ import (
 	"k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes/fake"
 
-	testutils "github.com/matucker-msft/kube-state-logs/pkg/collector/testutils"
-	"github.com/matucker-msft/kube-state-logs/pkg/types"
+	testutils "go.goms.io/aks/kube-state-logs/pkg/collector/testutils"
+	"go.goms.io/aks/kube-state-logs/pkg/types"
 )
 
 func createTestRole(name, namespace string) *rbacv1.Role {

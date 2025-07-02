@@ -12,9 +12,9 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
 
-	"github.com/matucker-msft/kube-state-logs/pkg/collector/resources"
-	"github.com/matucker-msft/kube-state-logs/pkg/config"
-	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
+	"go.goms.io/aks/kube-state-logs/pkg/collector/resources"
+	"go.goms.io/aks/kube-state-logs/pkg/config"
+	"go.goms.io/aks/kube-state-logs/pkg/interfaces"
 )
 
 // Collector handles the collection and logging of Kubernetes resource state

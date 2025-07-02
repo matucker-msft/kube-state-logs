@@ -4,7 +4,7 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
+	"go.goms.io/aks/kube-state-logs/pkg/interfaces"
 )
 
 // BaseHandler provides common fields and methods for resource handlers

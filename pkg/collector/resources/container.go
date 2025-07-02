@@ -10,9 +10,9 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 
-	"github.com/matucker-msft/kube-state-logs/pkg/interfaces"
-	"github.com/matucker-msft/kube-state-logs/pkg/types"
-	"github.com/matucker-msft/kube-state-logs/pkg/utils"
+	"go.goms.io/aks/kube-state-logs/pkg/interfaces"
+	"go.goms.io/aks/kube-state-logs/pkg/types"
+	"go.goms.io/aks/kube-state-logs/pkg/utils"
 )
 
 // Container state constants
