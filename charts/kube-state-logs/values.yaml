@@ -42,6 +42,8 @@ config:
     - ingressclass
   namespaces: ""
   logLevel: "info"
+  # Enable Azure log-keys annotation on pods (disabled by default)
+  enableLogKeysAnnotation: false
 
 # Resource limits
 resources:
